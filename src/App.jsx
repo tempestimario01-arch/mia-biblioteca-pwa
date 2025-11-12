@@ -100,7 +100,6 @@ export default function App(){
       .order("created_at", { ascending:false })
       .limit(500); 
 
-    // Filtri
     if (q) { query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`); }
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
@@ -126,7 +125,7 @@ export default function App(){
     const { data, error } = await query;
     if (error) {
       console.error("Supabase select error (fetchItems):", error);
-      // alert("Errore nel leggere i dati...") // <-- BUG VECCHIO
+      // alert("Errore nel leggere i dati...") // Rimosso per Vercel
     } else {
       const adapted = (data || []).map(row => ({
         ...row,
@@ -186,7 +185,7 @@ export default function App(){
 
     if (error) {
       console.error("Error fetching period stats:", error);
-      // alert("Errore nel calcolo...") // <-- BUG VECCHIO
+      // alert("Errore nel calcolo...") // Rimosso per Vercel
     } else if (data && data.length > 0) {
       setPeriodStats(data[0]); 
     } else {
@@ -224,7 +223,7 @@ export default function App(){
       fetchStats(); 
     } else {
       console.error(error);
-      alert("Errore salvataggio elemento."); // Questo è sicuro (gira solo nel browser)
+      alert("Errore salvataggio elemento.");
     }
   }, [title, creator, kind, genre, year, isSearchActive, fetchItems, fetchStats]);
 
@@ -385,7 +384,7 @@ export default function App(){
     setStatsModalOpen(false);
   }, [statYear, statMonth]); 
 
- /* --- MODIFICA: Funzione Elimina con ALERT per il debug --- */
+  /* --- MODIFICA: Funzione Elimina con ALERT per il debug --- */
   const deleteItem = useCallback(async (itemId) => {
     // La conferma è gestita nell'onClick
     
@@ -404,7 +403,8 @@ export default function App(){
       fetchStats();
       if (statsModalOpen) fetchPeriodStats();
     }
-  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);S
+  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
+
   
   /* --- 4. EFFETTI (useEffect) --- */
   
@@ -692,7 +692,25 @@ export default function App(){
 
             {statsView === 'totale' && (
               <div>
-                {/* ... (codice invariato) ... */}
+                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}>
+                  <div className="kpi"><strong>{stats.total}</strong> totali</div>
+                  <div className="kpi"><strong>{stats.active}</strong> attivi</div>
+                  <div className="kpi"><strong>{stats.archived}</strong> archiviati</div>
+                </div>
+                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}>
+                  {stats.byType.map(x=> (
+                    <div key={x.t} className="kpi">
+                      <span className="badge">{x.t}</span><strong>{x.n}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}>
+                  {stats.bySource.map(x=>(
+                    <div key={x.s} className="kpi">
+                      <span className="badge">{x.s}</span><strong>{x.n}</strong>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -706,7 +724,25 @@ export default function App(){
       {/* ===== Modale Archiviazione (invariato) ===== */}
       {archModal && (
         <div className="modal-backdrop" onClick={() => setArchModal(null)}>
-          {/* ... (codsice invariato) ... */}
+          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
+            <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
+            <div className="row" style={{gap:8, flexWrap:"wrap", alignItems:"center"}}>
+              <label className="sub">Sorgente</label>
+              <select value={archModal.source||""} onChange={e=>setArchModal(m=>({...m, source:e.target.value}))}>
+                <option value="">(nessuna)</option>
+                {SOURCE_OPTIONS.map(s=> <option key={s} value={s}>{s}</option>)}
+              </select>
+              <label className="sub">Data fine</label>
+              <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
+            </div>
+            <div className="sub" style={{marginTop:8, opacity:.8}}>
+              Sorgenti già presenti: {(archModal.sourcesArr||[]).join(" + ") || "—"}
+            </div>
+            <div className="row" style={{justifyContent:"flex-end", gap:8, marginTop:12}}>
+              <button className="ghost" onClick={()=>setArchModal(null)}>Annulla</button>
+              <button onClick={()=>saveArchiveFromModal(archModal)}>Archivia</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -758,7 +794,6 @@ export default function App(){
             </form>
 
             <div className="row" style={{justifyContent:"space-between", marginTop:12}}>
-              {/* Pulsante Elimina (a sinistra) */}
               <button 
                 type="button" 
                 className="ghost" 
@@ -772,7 +807,6 @@ export default function App(){
                 Elimina
               </button>
               
-              {/* Pulsanti Annulla e Salva (a destra) */}
               <div className="row" style={{gap: 8}}>
                 <button className="ghost" type="button" onClick={()=>setEditState(null)}>Annulla</button>
                 <button type="submit" form="edit-form">Salva Modifiche</button>
