@@ -385,18 +385,22 @@ export default function App(){
     setStatsModalOpen(false);
   }, [statYear, statMonth]); 
 
+ /* --- MODIFICA: Funzione Elimina con console.log per il debug --- */
   const deleteItem = useCallback(async (itemId) => {
-    // La conferma è ora gestita nell'onClick del pulsante
+    // La conferma è gestita nell'onClick
+    console.log("Tentativo di eliminare l'item:", itemId); // Messaggio di debug
+
     const { error } = await supabase
       .from('items')
       .delete()
       .eq('id', itemId);
 
     if (error) {
-      console.error(error);
-      alert("Errore: impossibile eliminare l'elemento.");
+      console.error("ERRORE da Supabase:", error.message); // <-- Mostra l'errore REALE
+      // alert("Errore: impossibile eliminare l'elemento.");
     } else {
-      alert("Elemento eliminato con successo.");
+      console.log("Elemento eliminato con successo."); // Messaggio di debug
+      // alert("Elemento eliminato con successo.");
       setEditState(null); // Chiudi il modale di modifica
       fetchItems();
       fetchStats();
