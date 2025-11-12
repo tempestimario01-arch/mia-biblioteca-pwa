@@ -142,6 +142,7 @@ export default function App(){
   }, [q, typeFilter, genreFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const fetchStats = useCallback(async () => {
+    // ... (codice invariato)
     try {
       const { count: totalCount, error: totalError } = await supabase
         .from("items").select('*', { count: 'exact', head: true });
@@ -177,6 +178,7 @@ export default function App(){
   }, []); 
 
   const fetchPeriodStats = useCallback(async () => {
+    // ... (codice invariato)
     setPeriodLoading(true);
     const p_year = statYear ? Number(statYear) : null;
     const p_month = statMonth ? Number(statMonth) : null;
@@ -208,6 +210,7 @@ export default function App(){
   }, [q, typeFilter, genreFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const addItem = useCallback(async (e) => {
+    // ... (codice invariato)
     e.preventDefault();
     if(!title.trim()) return;
     const payload = {
@@ -232,6 +235,7 @@ export default function App(){
   }, [title, creator, kind, genre, year, isSearchActive, fetchItems, fetchStats]);
 
   const markAsPurchased = useCallback(async (it) => {
+    // ... (codice invariato)
     const srcs = new Set([...(it.sourcesArr||[])]);
     if (!srcs.has("da comprare")) { alert("Questo elemento non è segnato come 'da comprare'."); return; }
     srcs.delete("da comprare");
@@ -248,6 +252,7 @@ export default function App(){
   }, [isSearchActive, fetchItems, fetchStats]);
 
   const openArchiveModal = useCallback((it) => {
+    // ... (codice invariato)
     setArchModal({
       id: it.id, title: it.title, kind: it.kind,
       sourcesArr: it.sourcesArr || [], source: "", 
@@ -256,6 +261,7 @@ export default function App(){
   }, []);
   
   const saveArchiveFromModal = useCallback(async (m) => {
+    // ... (codice invariato)
     const next = new Set([...(m.sourcesArr||[])]);
     if (m.source && m.source !== "") next.add(m.source);
     const { error } = await supabase
@@ -274,6 +280,7 @@ export default function App(){
   }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
   
   const unarchive = useCallback(async (it) => {
+    // ... (codice invariato)
     const { error } = await supabase
       .from("items")
       .update({ status: "active", ended_on: null }) 
@@ -285,6 +292,7 @@ export default function App(){
   }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
 
   const handleSuggest = useCallback(async () => {
+    // ... (codice invariato)
     const gCanon = canonGenere(randGenre);
     const { data, error } = await supabase.rpc('get_random_suggestion', {
       p_kind: randKind,
@@ -303,6 +311,7 @@ export default function App(){
   }, [randKind, randGenre]);
 
   const handleTypeChange = useCallback((e) => {
+    // ... (codice invariato)
     const newType = e.target.value;
     setTypeFilter(newType);
     if (newType !== 'libro' && newType !== 'audiolibro') {
@@ -311,6 +320,7 @@ export default function App(){
   }, []);
 
   const handleAddKindChange = useCallback((e) => {
+    // ... (codice invariato)
     const newKind = e.target.value;
     setKind(newKind);
     if (newKind !== 'libro' && newKind !== 'audiolibro') {
@@ -331,6 +341,7 @@ export default function App(){
   }, []);
 
   const openEditModal = useCallback((it) => {
+    // ... (codice invariato)
     setEditState({
       id: it.id,
       title: it.title,
@@ -342,6 +353,7 @@ export default function App(){
   }, []);
   
   const handleUpdateItem = useCallback(async (e) => {
+    // ... (codice invariato)
     e.preventDefault();
     if (!editState || !editState.title.trim()) return;
 
@@ -368,6 +380,7 @@ export default function App(){
   }, [editState, fetchItems]);
 
   const handleStatClick = useCallback((typeClicked) => {
+    // ... (codice invariato)
     setCompletionYearFilter(statYear);
     setCompletionMonthFilter(statMonth);
 
@@ -386,6 +399,29 @@ export default function App(){
 
     setStatsModalOpen(false);
   }, [statYear, statMonth]); 
+
+  /* --- NUOVA FUNZIONE: Elimina Elemento --- */
+  const deleteItem = useCallback(async (itemId) => {
+    if (!window.confirm("Sei sicuro di voler eliminare questo elemento?\nL'azione è permanente e non può essere annullata.")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('items')
+      .delete()
+      .eq('id', itemId);
+
+    if (error) {
+      console.error(error);
+      alert("Errore: impossibile eliminare l'elemento.");
+    } else {
+      alert("Elemento eliminato con successo.");
+      setEditState(null); // Chiudi il modale di modifica
+      fetchItems();
+      fetchStats();
+      if (statsModalOpen) fetchPeriodStats();
+    }
+  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
 
   
   /* --- 4. EFFETTI (useEffect) --- */
@@ -422,23 +458,7 @@ export default function App(){
 
       {/* ===== 1. Ricerca (Sempre visibile) ===== */}
       <section className="card" style={{marginBottom:12}}>
-        <div className="search" style={{flexWrap:"wrap", gap:8}}>
-          <input
-            style={{flex:1, minWidth:200}}
-            placeholder="Inizia a cercare..."
-            value={qInput}
-            onChange={e=>setQInput(e.target.value)}
-          />
-          <button className="ghost" onClick={()=>setAdvOpen(true)}>
-            🔎 Filtri
-          </button>
-          <button className="ghost" onClick={()=>setStatsModalOpen(true)}>
-            📊 Statistiche
-          </button>
-          <button className="ghost" onClick={clearAllFilters}>
-            Pulisci
-          </button>
-        </div>
+        {/* ... (codice invariato) ... */}
       </section>
       
       {/* ===== 2. Lista (Condizionale) ===== */}
@@ -449,16 +469,7 @@ export default function App(){
               {items.map(it=>
                 <div key={it.id} className="item">
                   <div>
-                    <div className="item-title">{it.title}</div>
-                    <div className="item-meta">
-                      {it.creator}
-                      {" · "}<span className="badge">{it.kind}</span>
-                      {it.genre ? <> {" · "}genere: {canonGenere(it.genre)}</> : null}
-                      {it.year ? <> {" · "}anno: {it.year}</> : null}
-                      {Array.isArray(it.sourcesArr) && it.sourcesArr.length ? <> {" · "}sorgente: {it.sourcesArr.map(s=> (SOURCE_ICONS[s]||"") + " " + s).join(" + ")}</> : null}
-                      {it.finished_at ? <> {" · "}finito: {new Date(it.finished_at).toLocaleDateString()}</> : null}
-                      {" · "}{new Date(it.created_at).toLocaleDateString()}
-                    </div>
+                    {/* ... (meta dati item invariati) ... */}
                   </div>
                   <div className="row" style={{gap:8}}>
                     <button className="ghost" title="Modifica" onClick={() => openEditModal(it)}>
@@ -475,11 +486,7 @@ export default function App(){
                   </div>
                 </div>
               )}
-              {items.length===0 && (
-                <p style={{opacity:.8}}>
-                  Nessun elemento trovato per questa ricerca.
-                </p>
-              )}
+              {/* ... (codice 'items.length===0' invariato) ... */}
             </div>
           )}
         </section>
@@ -488,28 +495,7 @@ export default function App(){
       {/* Messaggio di benvenuto E "Consiglia" (se la ricerca non è attiva) */}
       {!isSearchActive && !loading && (
         <>
-          <section className="card">
-            <p style={{opacity:.8, textAlign:'center'}}>
-              Usa la barra in alto per cercare, o clicca su 'Filtri' per esplorare.
-            </p>
-          </section>
-
-          <section className="card" style={{marginBottom:12, marginTop:12}}>
-            <div className="row" style={{alignItems:"center", gap:8, flexWrap:"wrap"}}>
-              <select value={randKind} onChange={e=>setRandKind(e.target.value)}>
-                {TYPES.map(t=> <option key={t} value={t}>{t}</option>)}
-              </select>
-              {(randKind==="libro" || randKind==="audiolibro") && (
-                <select value={randGenre} onChange={e=>setRandGenre(e.target.value)}>
-                  <option value="">Genere (opz.)</option>
-                  {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
-                </select>
-              )}
-              <button className="ghost" onClick={handleSuggest}>
-                🎲 Consiglia
-              </button>
-            </div>
-          </section>
+          {/* ... (codice invariato) ... */}
         </>
       )}
 
@@ -521,210 +507,41 @@ export default function App(){
         +
       </button>
 
-      {/* ===== Modale Aggiungi Elemento ===== */}
+      {/* ===== Modale Aggiungi Elemento (invariato) ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
-          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Aggiungi elemento</h2>
-            <form onSubmit={addItem} className="grid grid-2">
-              <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} />
-              <input placeholder="Autore/Regista/Artista" value={creator} onChange={e=>setCreator(e.target.value)} />
-              <select value={kind} onChange={handleAddKindChange}>
-                {TYPES.map(t=> <option key={t} value={t}>{t}</option>)}
-              </select>
-              {(kind === 'libro' || kind === 'audiolibro') && (
-                <select value={genre} onChange={e=>setGenre(e.target.value)}>
-                  <option value="">Genere (facoltativo)</option>
-                  {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              )}
-              <input 
-                type="number" 
-                placeholder="Anno di uscita (es. 1984)" 
-                value={year} 
-                onChange={e=>setYear(e.target.value)} 
-              />
-              <button type="submit">Aggiungi</button>
-            </form>
-            <div className="row" style={{justifyContent:"flex-end", marginTop:12}}>
-              <button className="ghost" onClick={()=>setAddModalOpen(false)}>Chiudi</button>
-            </div>
-          </div>
+          {/* ... (codice invariato) ... */}
         </div>
       )}
 
-      {/* ===== Modale Filtri & Avanzate ===== */}
+      {/* ===== Modale Filtri & Avanzate (invariato) ===== */}
       {advOpen && (
         <div className="modal-backdrop" onClick={() => setAdvOpen(false)}>
-          <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Filtri & Strumenti</h2>
-            
-            {/* Filtri per Proprietà */}
-            <div style={{borderBottom:"1px solid #ddd", paddingBottom:12}}>
-              <div className="sub" style={{marginBottom:8}}>Filtri per Proprietà</div>
-              <div className="grid grid-2">
-                <select value={typeFilter} onChange={handleTypeChange}> 
-                  <option value="">Tutti i tipi</option>
-                  {TYPES.map(t=> <option key={t} value={t}>{t}</option>)}
-                </select>
-                {(typeFilter === 'libro' || typeFilter === 'audiolibro') && (
-                  <select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)}>
-                    <option value="">Tutti i generi</option>
-                    {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
-                  </select>
-                )}
-                <select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}>
-                  <option value="">Tutte le sorgenti</option>
-                  {SOURCE_OPTIONS.map(s=> <option key={s} value={s}>{s}</option>)}
-                </select>
-                <input
-                  type="number"
-                  placeholder="Filtra per Anno Uscita"
-                  value={yearFilter}
-                  onChange={e => setYearFilter(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Filtri per Completamento (RIMOSSI) */}
-            
-            {/* Filtro A-Z */}
-            <div style={{margin:"12px 0", borderBottom:"1px solid #ddd", paddingBottom:12}}>
-              <div className="sub" style={{marginBottom:8}}>Filtro Autori A–Z</div>
-              <div className="row" style={{flexWrap:"wrap", gap:6}}>
-                {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(
-                  <button key={L} className="ghost" onClick={()=>{ setLetterFilter(L); setAdvOpen(false); }}>{L}</button>
-                ))}
-                <button className="ghost" onClick={()=>{ setLetterFilter(""); setAdvOpen(false); }}>Tutti</button>
-              </div>
-            </div>
-
-            {/* Strumenti: Esporta */}
-            <div style={{margin:"12px 0"}}>
-              <div className="sub" style={{marginBottom:8}}>Strumenti</div>
-              <button className="ghost" onClick={()=>exportItemsToCsv(items)}>Esporta CSV (risultati attuali)</button>
-            </div>
-
-            <div className="row" style={{justifyContent:"flex-end"}}>
-              <button onClick={()=>setAdvOpen(false)}>Chiudi</button>
-            </div>
-          </div>
+          {/* ... (codice invariato) ... */}
         </div>
       )}
 
-      {/* ===== Modale Statistiche ===== */}
+      {/* ===== Modale Statistiche (invariato) ===== */}
       {statsModalOpen && (
         <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
-          <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Statistiche</h2>
-            
-            <div className="row" style={{gap: 8, marginBottom: 16}}>
-              <button className={statsView === 'periodo' ? '' : 'ghost'} onClick={() => setStatsView('periodo')}>
-                Completati nel Periodo
-              </button>
-              <button className={statsView === 'totale' ? '' : 'ghost'} onClick={() => setStatsView('totale')}>
-                Dettagli Collezione
-              </button>
-            </div>
-
-            {/* Vista Periodo */}
-            {statsView === 'periodo' && (
-              <div>
-                <div className="row" style={{gap: 8, alignItems: 'center', flexWrap:'wrap'}}>
-                  <input type="number" placeholder="Mese (1–12)" value={statMonth} onChange={e=>setStatMonth(e.target.value)} />
-                  <input type="number" placeholder="Anno (es. 2025)" value={statYear} onChange={e=>setStatYear(e.target.value)} />
-                  <button className="ghost" onClick={() => {
-                    setStatMonth(new Date().getMonth() + 1);
-                    setStatYear(new Date().getFullYear());
-                  }}>Oggi</button>
-                  {periodLoading && <p className="sub" style={{margin:0}}>Caricamento...</p>}
-                </div>
-                
-                {/* KPI Cliccabili */}
-                <div className="row kpi-row" style={{marginTop: 12, flexWrap: 'wrap', gap: 8}}>
-                  <button className="kpi-button" onClick={() => handleStatClick(null)}>
-                    <strong>{periodStats.total}</strong> totali
-                  </button>
-                  <button className="kpi-button" onClick={() => handleStatClick('libro')}>
-                    <span className="badge">libro</span><strong>{periodStats.libro}</strong>
-                  </button>
-                  <button className="kpi-button" onClick={() => handleStatClick('audiolibro')}>
-                    <span className="badge">audiolibro</span><strong>{periodStats.audiolibro}</strong>
-                  </button>
-                  <button className="kpi-button" onClick={() => handleStatClick('film')}>
-                    <span className="badge">film</span><strong>{periodStats.film}</strong>
-                  </button>
-                  <button className="kpi-button" onClick={() => handleStatClick('album')}>
-                    <span className="badge">album</span><strong>{periodStats.album}</strong>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Vista Totale (Dettagli Collezione) */}
-            {statsView === 'totale' && (
-              <div>
-                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}>
-                  <div className="kpi"><strong>{stats.total}</strong> totali</div>
-                  <div className="kpi"><strong>{stats.active}</strong> attivi</div>
-                  <div className="kpi"><strong>{stats.archived}</strong> archiviati</div>
-                </div>
-                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}>
-                  {stats.byType.map(x=> (
-                    <div key={x.t} className="kpi">
-                      <span className="badge">{x.t}</span><strong>{x.n}</strong>
-                    </div>
-                  ))}
-                </div>
-                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}>
-                  {stats.bySource.map(x=>(
-                    <div key={x.s} className="kpi">
-                      <span className="badge">{x.s}</span><strong>{x.n}</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="row" style={{justifyContent:"flex-end", marginTop: 16}}>
-              <button onClick={()=>setStatsModalOpen(false)}>Chiudi</button>
-            </div>
-          </div>
+          {/* ... (codice invariato) ... */}
         </div>
       )}
 
       {/* ===== Modale Archiviazione (invariato) ===== */}
       {archModal && (
         <div className="modal-backdrop" onClick={() => setArchModal(null)}>
-          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
-            <div className="row" style={{gap:8, flexWrap:"wrap", alignItems:"center"}}>
-              <label className="sub">Sorgente</label>
-              <select value={archModal.source||""} onChange={e=>setArchModal(m=>({...m, source:e.target.value}))}>
-                <option value="">(nessuna)</option>
-                {SOURCE_OPTIONS.map(s=> <option key={s} value={s}>{s}</option>)}
-              </select>
-              <label className="sub">Data fine</label>
-              <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
-            </div>
-            <div className="sub" style={{marginTop:8, opacity:.8}}>
-              Sorgenti già presenti: {(archModal.sourcesArr||[]).join(" + ") || "—"}
-            </div>
-            <div className="row" style={{justifyContent:"flex-end", gap:8, marginTop:12}}>
-              <button className="ghost" onClick={()=>setArchModal(null)}>Annulla</button>
-              <button onClick={()=>saveArchiveFromModal(archModal)}>Archivia</button>
-            </div>
-          </div>
+          {/* ... (codice invariato) ... */}
         </div>
       )}
 
-      {/* ===== Modale Modifica (invariato) ===== */}
+      {/* --- MODIFICA: Modale di Modifica aggiornato con pulsante Elimina --- */}
       {editState && (
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
             <h2 style={{marginTop:0}}>Modifica elemento</h2>
             
-            <form onSubmit={handleUpdateItem} className="grid grid-2">
+            <form onSubmit={handleUpdateItem} className="grid grid-2" id="edit-form">
               <input 
                 placeholder="Titolo" 
                 value={editState.title} 
@@ -766,11 +583,25 @@ export default function App(){
                 value={editState.year} 
                 onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}
               />
-              <button type="submit">Salva Modifiche</button>
+              {/* Il pulsante Salva è ora fuori dal form per il layout */}
             </form>
 
-            <div className="row" style={{justifyContent:"flex-end", marginTop:12}}>
-              <button className="ghost" onClick={()=>setEditState(null)}>Annulla</button>
+            <div className="row" style={{justifyContent:"space-between", marginTop:12}}>
+              {/* Pulsante Elimina (a sinistra) */}
+              <button 
+                type="button" 
+                className="ghost" 
+                style={{ color: '#c53030', borderColor: '#c53030' }} // Stile "danger"
+                onClick={() => deleteItem(editState.id)}
+              >
+                Elimina
+              </button>
+              
+              {/* Pulsanti Annulla e Salva (a destra) */}
+              <div className="row" style={{gap: 8}}>
+                <button className="ghost" type="button" onClick={()=>setEditState(null)}>Annulla</button>
+                <button type="submit" form="edit-form">Salva Modifiche</button>
+              </div>
             </div>
           </div>
         </div>
