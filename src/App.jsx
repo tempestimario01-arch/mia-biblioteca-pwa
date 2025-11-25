@@ -92,40 +92,12 @@ export default function App(){
   const [randKind,setRandKind] = useState("libro");
   const [randGenre,setRandGenre] = useState("");
   
- // --- MEMORY LANE (Riscoperta) - FIX DEFINITIVO ---
-  useEffect(() => {
-    // Questa funzione cerca un ricordo indipendentemente dalla lista principale
-    const fetchMemory = async () => {
-      // Cerchiamo l'elemento completato più vecchio in assoluto (vera riscoperta)
-      // Oppure potremmo cercare qualcosa finito "in questo mese" negli anni passati
-      
-      const { data, error } = await supabase
-        .from('items')
-        .select('title, finished_at, author')
-        .not('finished_at', 'is', null)      // Solo quelli finiti
-        .neq('status', 'archived')           // (Opzionale) Se vuoi escludere gli archiviati "morti", ma per la memoria va bene tutto
-        .order('finished_at', { ascending: true }) // Prende il più vecchio
-        .limit(1);
+  // Memory Lane (Riscoperta)
+  const [memoryItem, setMemoryItem] = useState(null);
 
-      if (!error && data && data.length > 0) {
-        // Calcoliamo quanto tempo è passato per rendere il messaggio dinamico
-        const finishedDate = new Date(data[0].finished_at);
-        const today = new Date();
-        const diffTime = Math.abs(today - finishedDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        
-        // Mostriamo il ricordo solo se è passato almeno un po' di tempo (es. 30 giorni)
-        if (diffDays > 30) {
-          setMemoryItem({
-            ...data[0],
-            daysAgo: diffDays
-          });
-        }
-      }
-    };
-
-    fetchMemory();
-  }, []); // Le parentesi vuote [] assicurano che parta subito all'avvio dell'app
+  // Input Stats Periodo (Inizializzati come numeri)
+  const [statMonth,setStatMonth] = useState(new Date().getMonth() + 1);
+  const [statYear,setStatYear] = useState(new Date().getFullYear());
 
 
   /* --- 2. FUNZIONI ASINCRONE (Callback) --- */
@@ -147,11 +119,10 @@ export default function App(){
     if (letterFilter) { query = query.ilike('author', `${letterFilter}%`); }
     if (yearFilter) { query = query.eq('year', Number(yearFilter)); }
 
-    // MODIFICA BUGFIX: Gestione robusta dei filtri data
+    // Gestione robusta dei filtri data
     if (completionYearFilter && completionMonthFilter) {
       const year = Number(completionYearFilter);
       const month = Number(completionMonthFilter); 
-      // Calcolo date inizio/fine mese
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const nextMonth = month === 12 ? 1 : month + 1;
       const nextYear = month === 12 ? year + 1 : year;
@@ -238,7 +209,6 @@ export default function App(){
 
   /* --- 3. FUNZIONI HANDLER (evento) --- */
   
-  // MODIFICA BUGFIX: Controllo robusto (funziona anche con numeri)
   const isSearchActive = useMemo(() => {
     return q.length > 0 || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
            sourceFilter.length > 0 || letterFilter.length > 0 || yearFilter.length > 0 ||
@@ -450,15 +420,14 @@ export default function App(){
     }
   }, [editState, fetchItems]);
 
-  // MODIFICA BUGFIX: Forziamo la conversione in String per evitare errori di tipo
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) {
       setTypeFilter(typeClicked);
     } else {
       setTypeFilter(''); 
     }
-    setCompletionYearFilter(String(statYear));   // <-- Forza stringa
-    setCompletionMonthFilter(String(statMonth)); // <-- Forza stringa
+    setCompletionYearFilter(String(statYear));   
+    setCompletionMonthFilter(String(statMonth)); 
     
     setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter('');
     setStatsModalOpen(false);
@@ -508,23 +477,37 @@ export default function App(){
     }
   }, [statsModalOpen, fetchPeriodStats]); 
 
-  // --- MEMORY LANE (Riscoperta) ---
+  // --- MEMORY LANE (Riscoperta) - FETCH DIRETTO ---
   useEffect(() => {
-    if (items.length > 0) {
-      const today = new Date();
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(today.getFullYear() - 1);
-      const dateString = oneYearAgo.toISOString().split('T')[0];
-      
-      const memory = items.find(item => item.finished_at && item.finished_at.startsWith(dateString));
-      
-      if (memory) {
-        setMemoryItem(memory);
-      } else {
-        setMemoryItem(null);
+    // Cerchiamo un ricordo direttamente nel database
+    const fetchMemory = async () => {
+      // Prende l'elemento completato più vecchio in assoluto
+      const { data, error } = await supabase
+        .from('items')
+        .select('title, finished_at, author')
+        .not('finished_at', 'is', null) 
+        .neq('status', 'archived')      
+        .order('finished_at', { ascending: true }) 
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        const finishedDate = new Date(data[0].finished_at);
+        const today = new Date();
+        const diffTime = Math.abs(today - finishedDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        
+        // Mostriamo il ricordo solo se passato un po' di tempo (es. 10 giorni)
+        if (diffDays > 10) {
+          setMemoryItem({
+            ...data[0],
+            daysAgo: diffDays
+          });
+        }
       }
-    }
-  }, [items]);
+    };
+
+    fetchMemory();
+  }, []);
 
 
   /* --- 5. RENDER (JSX) --- */
@@ -553,11 +536,22 @@ export default function App(){
         </div>
       </section>
 
-      {/* ===== MEMORY LANE (Visualizzazione) ===== */}
+      {/* ===== MEMORY LANE (Discreta) ===== */}
       {memoryItem && !isSearchActive && (
-         <div className="card" style={{marginBottom: 12, backgroundColor: '#f7fafc', padding: '8px 16px'}}>
-           <p style={{fontSize: '0.9em', color: '#718096', margin: 0, textAlign: 'center'}}>
-             🕰️ Un anno fa oggi finivi: <strong>{memoryItem.title}</strong>
+         <div className="card" style={{
+            marginBottom: 12, 
+            backgroundColor: 'transparent', 
+            border: '1px dashed #cbd5e0',   
+            padding: '8px 12px'
+         }}>
+           <p style={{
+              fontSize: '0.8rem',          
+              color: '#718096',            
+              margin: 0, 
+              textAlign: 'center',
+              fontStyle: 'italic'
+           }}>
+             🕰️ Riscoperta: {Math.floor(memoryItem.daysAgo / 30)} mesi fa finivi <strong>{memoryItem.title}</strong>
            </p>
          </div>
       )}
