@@ -92,12 +92,40 @@ export default function App(){
   const [randKind,setRandKind] = useState("libro");
   const [randGenre,setRandGenre] = useState("");
   
-  // Memory Lane (Riscoperta)
-  const [memoryItem, setMemoryItem] = useState(null);
+ // --- MEMORY LANE (Riscoperta) - FIX DEFINITIVO ---
+  useEffect(() => {
+    // Questa funzione cerca un ricordo indipendentemente dalla lista principale
+    const fetchMemory = async () => {
+      // Cerchiamo l'elemento completato più vecchio in assoluto (vera riscoperta)
+      // Oppure potremmo cercare qualcosa finito "in questo mese" negli anni passati
+      
+      const { data, error } = await supabase
+        .from('items')
+        .select('title, finished_at, author')
+        .not('finished_at', 'is', null)      // Solo quelli finiti
+        .neq('status', 'archived')           // (Opzionale) Se vuoi escludere gli archiviati "morti", ma per la memoria va bene tutto
+        .order('finished_at', { ascending: true }) // Prende il più vecchio
+        .limit(1);
 
-  // Input Stats Periodo (Inizializzati come numeri)
-  const [statMonth,setStatMonth] = useState(new Date().getMonth() + 1);
-  const [statYear,setStatYear] = useState(new Date().getFullYear());
+      if (!error && data && data.length > 0) {
+        // Calcoliamo quanto tempo è passato per rendere il messaggio dinamico
+        const finishedDate = new Date(data[0].finished_at);
+        const today = new Date();
+        const diffTime = Math.abs(today - finishedDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        
+        // Mostriamo il ricordo solo se è passato almeno un po' di tempo (es. 30 giorni)
+        if (diffDays > 30) {
+          setMemoryItem({
+            ...data[0],
+            daysAgo: diffDays
+          });
+        }
+      }
+    };
+
+    fetchMemory();
+  }, []); // Le parentesi vuote [] assicurano che parta subito all'avvio dell'app
 
 
   /* --- 2. FUNZIONI ASINCRONE (Callback) --- */
