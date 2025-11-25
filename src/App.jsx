@@ -12,7 +12,6 @@ const GENRES = [
 const MOODS = ["Relax", "Focus", "Energia", "Breve", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
-// MODIFICA: Sorgenti ridotte come richiesto
 const SOURCE_OPTIONS = ["fisico","biblio","da comprare","internet"];
 const SOURCE_ICONS = { fisico:"📦", biblio:"🏛", "da comprare":"🛒", internet:"🌐" };
 
@@ -54,7 +53,6 @@ export default function App(){
   const [stats, setStats] = useState({
     total: 0, active: 0, archived: 0, byType: [], bySource: []
   });
-  // MODIFICA: Aggiunti video e gioco allo stato iniziale
   const [periodStats, setPeriodStats] = useState({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 });
   const [periodLoading, setPeriodLoading] = useState(false);
 
@@ -67,6 +65,10 @@ export default function App(){
   const [sourceFilter,setSourceFilter] = useState("");
   const [letterFilter, setLetterFilter] = useState("");
   const [yearFilter, setYearFilter] = useState(""); 
+
+  // Filtri di Completamento (Mese/Anno)
+  const [completionMonthFilter, setCompletionMonthFilter] = useState("");
+  const [completionYearFilter, setCompletionYearFilter] = useState("");
 
   // Modali
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -93,7 +95,7 @@ export default function App(){
   // Memory Lane (Riscoperta)
   const [memoryItem, setMemoryItem] = useState(null);
 
-  // Input Stats Periodo
+  // Input Stats Periodo (Inizializzati come numeri)
   const [statMonth,setStatMonth] = useState(new Date().getMonth() + 1);
   const [statYear,setStatYear] = useState(new Date().getFullYear());
 
@@ -108,6 +110,7 @@ export default function App(){
       .order("created_at", { ascending:false })
       .limit(500); 
 
+    // Applicazione Filtri
     if (q) { query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`); }
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
@@ -115,6 +118,24 @@ export default function App(){
     if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
     if (letterFilter) { query = query.ilike('author', `${letterFilter}%`); }
     if (yearFilter) { query = query.eq('year', Number(yearFilter)); }
+
+    // MODIFICA BUGFIX: Gestione robusta dei filtri data
+    if (completionYearFilter && completionMonthFilter) {
+      const year = Number(completionYearFilter);
+      const month = Number(completionMonthFilter); 
+      // Calcolo date inizio/fine mese
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const nextMonth = month === 12 ? 1 : month + 1;
+      const nextYear = month === 12 ? year + 1 : year;
+      const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+      
+      query = query.gte('ended_on', startDate).lt('ended_on', endDate);
+    } else if (completionYearFilter) {
+      const year = Number(completionYearFilter);
+      const startDate = `${year}-01-01`;
+      const endDate = `${year + 1}-01-01`;
+      query = query.gte('ended_on', startDate).lt('ended_on', endDate);
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -129,7 +150,7 @@ export default function App(){
       setItems(adapted);
     }
     setLoading(false);
-  }, [q, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter]);
+  }, [q, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -189,10 +210,12 @@ export default function App(){
 
   /* --- 3. FUNZIONI HANDLER (evento) --- */
   
+  // MODIFICA BUGFIX: Controllo robusto (funziona anche con numeri)
   const isSearchActive = useMemo(() => {
     return q.length > 0 || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
-           sourceFilter.length > 0 || letterFilter.length > 0 || yearFilter.length > 0;
-  }, [q, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter]);
+           sourceFilter.length > 0 || letterFilter.length > 0 || yearFilter.length > 0 ||
+           String(completionMonthFilter).length > 0 || String(completionYearFilter).length > 0;
+  }, [q, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const addItem = useCallback(async (e) => {
     e.preventDefault();
@@ -202,7 +225,6 @@ export default function App(){
       author: creator, 
       type: kind, 
       status: "active",
-      // MODIFICA: Niente genere per i giochi
       genre: (kind === 'gioco') ? null : canonGenere(genre), 
       year: year ? Number(year) : null,
       source: joinSources([]),
@@ -212,7 +234,6 @@ export default function App(){
     };
     const { error } = await supabase.from("items").insert(payload);
     if(!error){
-      // Reset form
       setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
       setMood(""); setVideoUrl(""); setIsNext(false);
       
@@ -305,7 +326,6 @@ export default function App(){
     const gCanon = canonGenere(randGenre);
     const { data, error } = await supabase.rpc('get_random_suggestion', {
       p_kind: randKind,
-      // MODIFICA: Se gioco, inviamo null come genere
       p_genre: (randKind === 'gioco') ? null : (gCanon || null)
     });
     
@@ -326,14 +346,11 @@ export default function App(){
   const handleTypeChange = useCallback((e) => {
     const newType = e.target.value;
     setTypeFilter(newType);
-    // MODIFICA: Reset genere anche se gioco o video
     if (newType === 'gioco' || newType === 'video') {
       setGenreFilter(""); 
     } else if (newType !== 'libro' && newType !== 'audiolibro') {
       setGenreFilter("");
     }
-
-    // MODIFICA: Reset sorgente se gioco o video (opzionale, ma pulisce)
     if (newType === 'gioco' || newType === 'video') {
       setSourceFilter("");
     }
@@ -342,7 +359,6 @@ export default function App(){
   const handleAddKindChange = useCallback((e) => {
     const newKind = e.target.value;
     setKind(newKind);
-    // MODIFICA: Reset genere se gioco
     if (newKind === 'gioco') {
       setGenre(""); 
     } else if (newKind !== 'libro' && newKind !== 'audiolibro' && newKind !== 'video') {
@@ -359,6 +375,8 @@ export default function App(){
     setSourceFilter("");
     setLetterFilter("");
     setYearFilter(""); 
+    setCompletionMonthFilter(""); 
+    setCompletionYearFilter(""); 
   }, []);
 
   const openEditModal = useCallback((it) => {
@@ -383,7 +401,6 @@ export default function App(){
       title: editState.title,
       author: editState.creator, 
       type: editState.type,
-      // MODIFICA: Logica salvataggio genere
       genre: (editState.type === 'gioco') ? null : canonGenere(editState.genre),
       year: editState.year ? Number(editState.year) : null,
       mood: editState.mood || null, 
@@ -405,14 +422,16 @@ export default function App(){
     }
   }, [editState, fetchItems]);
 
+  // MODIFICA BUGFIX: Forziamo la conversione in String per evitare errori di tipo
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) {
       setTypeFilter(typeClicked);
     } else {
       setTypeFilter(''); 
     }
-    setCompletionYearFilter(statYear);
-    setCompletionMonthFilter(statMonth);
+    setCompletionYearFilter(String(statYear));   // <-- Forza stringa
+    setCompletionMonthFilter(String(statMonth)); // <-- Forza stringa
+    
     setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter('');
     setStatsModalOpen(false);
   }, [statYear, statMonth]); 
@@ -461,17 +480,9 @@ export default function App(){
     }
   }, [statsModalOpen, fetchPeriodStats]); 
 
-  // --- MEMORY LANE (Riscoperta) - MODIFICATO ---
+  // --- MEMORY LANE (Riscoperta) ---
   useEffect(() => {
-    // Cerchiamo un elemento finito esattamente 1 anno fa
     if (items.length > 0) {
-      // Nota: questo funziona solo se "items" sono caricati. 
-      // Se la lista è vuota all'avvio (design Search First), questo check non scatterebbe.
-      // Modifica per funzionamento futuro: bisognerebbe fare una query specifica all'avvio
-      // Ma per ora usiamo la lista caricata se l'utente cerca qualcosa, o modifichiamo 
-      // la logica per farla al caricamento della pagina se volessimo.
-      // Manteniamo la logica semplice per ora: appare se cerchi o vedi la lista.
-      
       const today = new Date();
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(today.getFullYear() - 1);
@@ -539,10 +550,8 @@ export default function App(){
                       {it.creator}
                       {" · "}<span className="badge">{it.kind}</span>
                       {it.mood && <span className="badge mood-badge" style={{backgroundColor:'#ebf8ff', color:'#2c5282', marginLeft:4}}>{it.mood}</span>}
-                      {/* Genere nascosto se gioco */}
                       {it.genre && it.kind !== 'gioco' ? <> {" · "}genere: {canonGenere(it.genre)}</> : null}
                       {it.year ? <> {" · "}anno: {it.year}</> : null}
-                      {/* Sorgente nascosta se gioco o video */}
                       {Array.isArray(it.sourcesArr) && it.sourcesArr.length && it.kind !== 'gioco' && it.kind !== 'video' ? <> {" · "}sorgente: {it.sourcesArr.map(s=> (SOURCE_ICONS[s]||"") + " " + s).join(" + ")}</> : null}
                       {it.finished_at ? <> {" · "}finito: {new Date(it.finished_at).toLocaleDateString()}</> : null}
                       {" · "}{new Date(it.created_at).toLocaleDateString()}
@@ -596,11 +605,9 @@ export default function App(){
 
           <section className="card" style={{marginBottom:12, marginTop:12}}>
             <div className="row" style={{alignItems:"center", gap:8, flexWrap:"wrap"}}>
-              {/* MODIFICA: Filtriamo audiolibro qui */}
               <select value={randKind} onChange={e=>setRandKind(e.target.value)}>
                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{t}</option>)}
               </select>
-              {/* MODIFICA: Nascosto genere se gioco */}
               {(randKind!=="gioco") && (
                 <select value={randGenre} onChange={e=>setRandGenre(e.target.value)}>
                   <option value="">Genere (opz.)</option>
@@ -632,12 +639,10 @@ export default function App(){
               <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} />
               <input placeholder="Autore/Sviluppatore/Canale" value={creator} onChange={e=>setCreator(e.target.value)} />
               
-              {/* MODIFICA: Filtrato audiolibro */}
               <select value={kind} onChange={handleAddKindChange}>
                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{t}</option>)}
               </select>
 
-              {/* MODIFICA: Genere nascosto se gioco */}
               {(kind !== 'gioco') && (
                 <select value={genre} onChange={e=>setGenre(e.target.value)}>
                   <option value="">Genere (facoltativo)</option>
@@ -698,7 +703,6 @@ export default function App(){
                   {TYPES.map(t=> <option key={t} value={t}>{t}</option>)}
                 </select>
                 
-                {/* MODIFICA: Niente genere se gioco */}
                 {(typeFilter !== 'gioco') && (
                   <select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)}>
                     <option value="">Tutti i generi</option>
@@ -711,7 +715,6 @@ export default function App(){
                     {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
                 </select>
 
-                {/* MODIFICA: Niente sorgenti se video o gioco */}
                 {(typeFilter !== 'video' && typeFilter !== 'gioco') && (
                   <select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}>
                     <option value="">Tutte le sorgenti</option>
@@ -727,8 +730,6 @@ export default function App(){
                 />
               </div>
             </div>
-
-            {/* MODIFICA: Rimosso Filtri per Completamento */}
             
             <div style={{margin:"12px 0", borderBottom:"1px solid #ddd", paddingBottom:12}}>
               <div className="sub" style={{marginBottom:8}}>Filtro Autori A–Z</div>
@@ -795,7 +796,6 @@ export default function App(){
                   <button className="kpi-button" onClick={() => handleStatClick('album')}>
                     <span className="badge">album</span><strong>{periodStats.album}</strong>
                   </button>
-                  {/* MODIFICA: Aggiunti Video e Giochi */}
                   <button className="kpi-button" onClick={() => handleStatClick('video')}>
                     <span className="badge">video</span><strong>{periodStats.video || 0}</strong>
                   </button>
@@ -837,7 +837,7 @@ export default function App(){
         </div>
       )}
 
-      {/* ===== Modale Archiviazione (invariato) ===== */}
+      {/* ===== Modale Archiviazione ===== */}
       {archModal && (
         <div className="modal-backdrop" onClick={() => setArchModal(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
