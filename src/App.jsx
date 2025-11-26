@@ -368,17 +368,23 @@ export default function App(){
   useEffect(() => { if (statsModalOpen) fetchPeriodStats(); }, [statsModalOpen, fetchPeriodStats]); 
 
   // --- MEMORY LANE (Riscoperta) ---
+  // --- MEMORY LANE (Riscoperta) - FIX NOME COLONNA ---
   useEffect(() => {
     const fetchMemory = async () => {
-      // Cerca anche tra gli archiviati (rimosso il filtro neq status archived)
-      const { data } = await supabase.from('items')
-        .select('title, finished_at, author')
-        .not('finished_at', 'is', null) 
-        .order('finished_at', { ascending: true }) // Prende il più vecchio
+      // CORREZIONE: Usiamo 'ended_on' (nome reale nel DB) invece di 'finished_at'
+      const { data, error } = await supabase.from('items')
+        .select('title, ended_on, author') // <--- Corretto qui
+        .not('ended_on', 'is', null)       // <--- Corretto qui
+        .order('ended_on', { ascending: true }) // <--- Corretto qui
         .limit(1);
 
+      if (error) {
+        console.error("Errore Memory Lane:", error);
+      }
+
       if (data && data.length > 0) {
-        const finishedDate = new Date(data[0].finished_at);
+        // Usiamo ended_on per il calcolo
+        const finishedDate = new Date(data[0].ended_on);
         const today = new Date();
         const diffTime = Math.abs(today - finishedDate);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
