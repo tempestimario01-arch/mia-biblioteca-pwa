@@ -63,7 +63,7 @@ export default function App(){
   
   /* --- 1. STATI --- */
   const [items,setItems] = useState([]);
-  const [pinnedItems, setPinnedItems] = useState([]); // NUOVO: Lista separata per i fissati
+  const [pinnedItems, setPinnedItems] = useState([]); 
   const [loading,setLoading] = useState(false); 
 
   // Stats
@@ -120,7 +120,7 @@ export default function App(){
 
   /* --- 2. FUNZIONI ASINCRONE --- */
 
-// NUOVO: Scarica solo gli elementi fissati (Focus)
+  // Scarica solo gli elementi fissati (Focus)
   const fetchPinnedItems = useCallback(async () => {
     const { data, error } = await supabase
       .from('items')
@@ -131,10 +131,9 @@ export default function App(){
     if (!error && data) {
       const adapted = data.map(row => ({
         ...row,
-        // FIX: Qui doveva essere row.type (nome colonna DB), non row.kind
         kind: normType(row.type), 
-        creator: row.author, // Anche l'autore si chiama 'author' nel DB
-        sourcesArr: parseSources(row.source) // E sorgente è 'source'
+        creator: row.author, 
+        sourcesArr: parseSources(row.source) 
       }));
       setPinnedItems(adapted);
     }
@@ -163,6 +162,7 @@ export default function App(){
       const nextMonth = month === 12 ? 1 : month + 1;
       const nextYear = month === 12 ? year + 1 : year;
       const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+      
       query = query.gte('ended_on', startDate).lt('ended_on', endDate);
     } else if (completionYearFilter) {
       const year = Number(completionYearFilter);
@@ -247,17 +247,14 @@ export default function App(){
       setMood(""); setVideoUrl(""); setIsNext(false);
       setAddModalOpen(false); 
       if (isSearchActive) fetchItems(); 
-      fetchStats(); fetchPinnedItems(); // Aggiorna fissati
+      fetchStats(); fetchPinnedItems();
     } else { alert("Errore salvataggio."); }
   }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
     const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
-    if (!error) {
-      fetchItems(); 
-      fetchPinnedItems(); // Aggiorna la home
-    }
+    if (!error) { fetchItems(); fetchPinnedItems(); }
   }, [fetchItems, fetchPinnedItems]);
 
   const markAsPurchased = useCallback(async (it) => {
@@ -282,7 +279,7 @@ export default function App(){
       status: "archived", ended_on: m.dateISO, source: joinSources(Array.from(next)), is_next: false 
     }).eq("id", m.id);
     setArchModal(null);
-    if(isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems(); // Rimuove dai fissati
+    if(isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
     if(statsModalOpen) fetchPeriodStats(); 
   }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems]);
   
@@ -295,38 +292,27 @@ export default function App(){
   /* --- LOGICA CONSIGLI --- */
   const handleSuggest = useCallback(async () => {
     setSuggestion(null); 
-    
-    // 1. Controllo Focus (Usa pinnedItems che è sempre aggiornato)
-    // Blocca solo se c'è un item fissato DELLO STESSO TIPO che stai chiedendo
     const conflict = pinnedItems.find(p => p.kind === randKind);
-    
     if (conflict) {
       alert(`✋ Alt! Per "${randKind}" hai già fissato:\n"${conflict.title}".\n\nFinisci prima quello.`);
       return; 
     }
-
-    // 2. Query
     const gCanon = canonGenere(randGenre);
     const { data, error } = await supabase.rpc('get_random_suggestion', {
       p_kind: randKind,
       p_genre: showGenreInput(randKind) ? (gCanon || null) : null
     });
-    
     if (error || !data || data.length === 0) {
       alert("Nessun elemento trovato con questi criteri.");
       return;
     }
-    
-    // 3. ADATTAMENTO DATI
     const raw = data[0];
     const adaptedSuggestion = {
       ...raw,
-      kind: raw.type, 
+      kind: normType(raw.type), 
       author: raw.author || raw.creator 
     };
-    
     setSuggestion(adaptedSuggestion);
-
   }, [pinnedItems, randKind, randGenre]); 
 
   const handleTypeChange = useCallback((e) => {
@@ -349,11 +335,13 @@ export default function App(){
     setSuggestion(null); 
   }, []);
 
+  // MODIFICA QUI: Carica anche la sorgente attuale nel modale
   const openEditModal = useCallback((it) => {
     setEditState({
       id: it.id, title: it.title, creator: it.creator, type: it.kind,     
       genre: it.genre || '', year: it.year || '', mood: it.mood || '', 
-      video_url: it.video_url || '', is_next: it.is_next || false 
+      video_url: it.video_url || '', is_next: it.is_next || false,
+      source: it.sources || '' // Precarica la sorgente (stringa dal DB)
     });
   }, []);
   
@@ -364,7 +352,8 @@ export default function App(){
       title: editState.title, author: editState.creator, type: editState.type,
       genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
       year: editState.year ? Number(editState.year) : null,
-      mood: editState.mood || null, video_url: editState.video_url || null, is_next: editState.is_next 
+      mood: editState.mood || null, video_url: editState.video_url || null, is_next: editState.is_next,
+      source: editState.source // Salva la sorgente modificata
     };
     await supabase.from("items").update(payload).eq('id', editState.id);
     setEditState(null); fetchItems(); fetchPinnedItems();
@@ -373,10 +362,8 @@ export default function App(){
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
     else setTypeFilter(''); 
-    
     setCompletionYearFilter(String(statYear)); 
     setCompletionMonthFilter(String(statMonth)); 
-    
     setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter('');
     setStatsModalOpen(false);
   }, [statYear, statMonth]); 
@@ -390,7 +377,7 @@ export default function App(){
   
   /* --- 4. EFFETTI --- */
   useEffect(() => { const t = setTimeout(() => setQ(qInput.trim()), 250); return () => clearTimeout(t); }, [qInput]);
-  useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); // Fetch Pinned on mount
+  useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); 
   useEffect(() => { if (isSearchActive) { fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]); 
   useEffect(() => { if (statsModalOpen) fetchPeriodStats(); }, [statsModalOpen, fetchPeriodStats]); 
 
@@ -427,10 +414,10 @@ export default function App(){
         </div>
       </section>
 
-      {/* ===== SEZIONE HOME (Visualizzata solo se non si cerca) ===== */}
+      {/* ===== HOME ===== */}
       {!isSearchActive && !loading && (
         <>
-          {/* 1. ELEMENTI FISSATI (Focus) */}
+          {/* FOCUS */}
           {pinnedItems.length > 0 && (
             <section className="card" style={{marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4'}}>
               <h3 style={{marginTop:0, fontSize:'1em', color:'#22543d'}}>📌 In Corso (Focus)</h3>
@@ -454,7 +441,7 @@ export default function App(){
             </section>
           )}
 
-          {/* 2. MEMORY LANE */}
+          {/* MEMORY LANE */}
           {memoryItem && (
              <div className="card" style={{
                 marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '8px 12px'
@@ -465,7 +452,7 @@ export default function App(){
              </div>
           )}
 
-          {/* 3. RISULTATO SUGGERIMENTO */}
+          {/* SUGGERIMENTO */}
           {suggestion && (
             <section className="card" style={{marginBottom:12, borderLeft: '4px solid #ed8936', backgroundColor: '#fffaf0'}}>
               <h3 style={{marginTop:0, fontSize:'1em', color:'#c05621'}}>🎲 Perché non provi questo?</h3>
@@ -485,7 +472,7 @@ export default function App(){
             </section>
           )}
 
-          {/* 4. CONTROLLI CONSIGLIO */}
+          {/* CONTROLLI */}
           <section className="card" style={{marginBottom:12, marginTop:12}}>
             <div className="row" style={{alignItems:"center", gap:8, flexWrap:"wrap"}}>
               <select value={randKind} onChange={e=>setRandKind(e.target.value)}>
@@ -503,7 +490,7 @@ export default function App(){
         </>
       )}
       
-      {/* ===== Lista Risultati (Ricerca) ===== */}
+      {/* ===== Lista Risultati ===== */}
       {isSearchActive && (
         <section className="card">
           {loading ? <p>Caricamento…</p> : (
@@ -584,6 +571,7 @@ export default function App(){
         </div>
       )}
 
+      {/* Modale Filtri (Invariato) */}
       {advOpen && (
         <div className="modal-backdrop" onClick={() => setAdvOpen(false)}>
           <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -629,7 +617,6 @@ export default function App(){
         </div>
       )}
 
-      {/* Statistiche, Archivia, Modifica (Invariati nella logica) */}
       {statsModalOpen && (
         <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
           <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -699,6 +686,7 @@ export default function App(){
         </div>
       )}
 
+      {/* ===== Modale Modifica (AGGIORNATO con Sorgente) ===== */}
       {editState && (
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -722,6 +710,13 @@ export default function App(){
                   <option value="">Umore (opz.)</option>
                   {MOODS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
+              
+              {/* NUOVO CAMPO SORGENTE */}
+              <select value={editState.source || ""} onChange={e => setEditState(curr => ({...curr, source: e.target.value}))}>
+                  <option value="">Sorgente (opz.)</option>
+                  {SOURCE_OPTIONS.map(s=> <option key={s} value={s}>{SOURCE_ICONS[s]} {s}</option>)}
+              </select>
+
               <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/>
               <input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} style={{gridColumn: "1 / -1"}}/>
               <div style={{gridColumn: "1 / -1", display:'flex', alignItems:'center', gap:8}}>
