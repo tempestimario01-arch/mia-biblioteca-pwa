@@ -136,7 +136,7 @@ export default function App(){
     if (letterFilter) { query = query.ilike('author', `${letterFilter}%`); }
     if (yearFilter) { query = query.eq('year', Number(yearFilter)); }
 
-    // LOGICA DATE (Ripristinata per far funzionare il click sulle Statistiche)
+    // LOGICA DATE
     if (completionYearFilter && completionMonthFilter) {
       const year = Number(completionYearFilter);
       const month = Number(completionMonthFilter); 
@@ -296,8 +296,15 @@ export default function App(){
       return;
     }
     
-    // 3. Imposta stato per visualizzare la Card
-    setSuggestion(data[0]);
+    // 3. ADATTAMENTO DATI (Il "Traduttore")
+    const raw = data[0];
+    const adaptedSuggestion = {
+      ...raw,
+      kind: raw.type, // Corregge l'icona
+      author: raw.author || raw.creator // Corregge l'autore
+    };
+    
+    setSuggestion(adaptedSuggestion);
 
   }, [items, randKind, randGenre]); 
 
@@ -367,30 +374,26 @@ export default function App(){
   useEffect(() => { if (isSearchActive) { fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]); 
   useEffect(() => { if (statsModalOpen) fetchPeriodStats(); }, [statsModalOpen, fetchPeriodStats]); 
 
-  // --- MEMORY LANE (Riscoperta) ---
-  // --- MEMORY LANE (Riscoperta) - FIX NOME COLONNA ---
+  // --- MEMORY LANE (Riscoperta) - FIX TOTALE ---
   useEffect(() => {
     const fetchMemory = async () => {
-      // CORREZIONE: Usiamo 'ended_on' (nome reale nel DB) invece di 'finished_at'
-      const { data, error } = await supabase.from('items')
-        .select('title, ended_on, author') // <--- Corretto qui
-        .not('ended_on', 'is', null)       // <--- Corretto qui
-        .order('ended_on', { ascending: true }) // <--- Corretto qui
-        .limit(1);
-
-      if (error) {
-        console.error("Errore Memory Lane:", error);
-      }
+      // Cerca in tutto il db (archiviati inclusi)
+      const { data } = await supabase.from('items')
+        .select('title, ended_on, author')
+        .not('ended_on', 'is', null);
 
       if (data && data.length > 0) {
-        // Usiamo ended_on per il calcolo
-        const finishedDate = new Date(data[0].ended_on);
+        // Random
+        const randomIndex = Math.floor(Math.random() * data.length);
+        const randomItem = data[randomIndex];
+
+        const finishedDate = new Date(randomItem.ended_on);
         const today = new Date();
         const diffTime = Math.abs(today - finishedDate);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
         
         if (diffDays > 0) {
-          setMemoryItem({ ...data[0], daysAgo: diffDays });
+          setMemoryItem({ ...randomItem, daysAgo: diffDays });
         }
       }
     };
