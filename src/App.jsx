@@ -27,7 +27,6 @@ const SOURCE_ICONS = { fisico:"📦", biblio:"🏛", "da comprare":"🛒", inter
 
 /* === HELPER FUNCTIONS === */
 
-// REGOLA: Il genere si vede SOLO per Libri e Video
 function showGenreInput(t) {
   return t === 'libro' || t === 'video';
 }
@@ -64,6 +63,7 @@ export default function App(){
   
   /* --- 1. STATI --- */
   const [items,setItems] = useState([]);
+  const [pinnedItems, setPinnedItems] = useState([]); // NUOVO: Lista separata per i fissati
   const [loading,setLoading] = useState(false); 
 
   // Stats
@@ -83,7 +83,7 @@ export default function App(){
   const [letterFilter, setLetterFilter] = useState("");
   const [yearFilter, setYearFilter] = useState(""); 
 
-  // Filtri Nascosti (usati solo cliccando le statistiche)
+  // Filtri Nascosti
   const [completionMonthFilter, setCompletionMonthFilter] = useState("");
   const [completionYearFilter, setCompletionYearFilter] = useState("");
 
@@ -110,7 +110,7 @@ export default function App(){
   const [randGenre,setRandGenre] = useState("");
   const [suggestion, setSuggestion] = useState(null); 
 
-  // Memory Lane (Riscoperta)
+  // Memory Lane
   const [memoryItem, setMemoryItem] = useState(null);
 
   // Input Stats Periodo
@@ -119,6 +119,25 @@ export default function App(){
 
 
   /* --- 2. FUNZIONI ASINCRONE --- */
+
+  // NUOVO: Scarica solo gli elementi fissati (Focus)
+  const fetchPinnedItems = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('items')
+      .select('*')
+      .eq('is_next', true)
+      .neq('status', 'archived'); // Solo quelli attivi
+    
+    if (!error && data) {
+      const adapted = data.map(row => ({
+        ...row,
+        kind: normType(row.kind), 
+        creator: row.creator,
+        sourcesArr: parseSources(row.sources)
+      }));
+      setPinnedItems(adapted);
+    }
+  }, []);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -136,7 +155,6 @@ export default function App(){
     if (letterFilter) { query = query.ilike('author', `${letterFilter}%`); }
     if (yearFilter) { query = query.eq('year', Number(yearFilter)); }
 
-    // LOGICA DATE
     if (completionYearFilter && completionMonthFilter) {
       const year = Number(completionYearFilter);
       const month = Number(completionMonthFilter); 
@@ -144,7 +162,6 @@ export default function App(){
       const nextMonth = month === 12 ? 1 : month + 1;
       const nextYear = month === 12 ? year + 1 : year;
       const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
-      
       query = query.gte('ended_on', startDate).lt('ended_on', endDate);
     } else if (completionYearFilter) {
       const year = Number(completionYearFilter);
@@ -218,7 +235,6 @@ export default function App(){
     if(!title.trim()) return;
     const payload = {
       title, author: creator, type: kind, status: "active",
-      // Salva genere SOLO se è Libro/Video
       genre: showGenreInput(kind) ? canonGenere(genre) : null, 
       year: year ? Number(year) : null,
       source: joinSources([]),
@@ -230,15 +246,18 @@ export default function App(){
       setMood(""); setVideoUrl(""); setIsNext(false);
       setAddModalOpen(false); 
       if (isSearchActive) fetchItems(); 
-      fetchStats(); 
+      fetchStats(); fetchPinnedItems(); // Aggiorna fissati
     } else { alert("Errore salvataggio."); }
-  }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isSearchActive, fetchItems, fetchStats]);
+  }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
     const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
-    if (!error) fetchItems(); 
-  }, [fetchItems]);
+    if (!error) {
+      fetchItems(); 
+      fetchPinnedItems(); // Aggiorna la home
+    }
+  }, [fetchItems, fetchPinnedItems]);
 
   const markAsPurchased = useCallback(async (it) => {
     const srcs = new Set([...(it.sourcesArr||[])]);
@@ -262,9 +281,9 @@ export default function App(){
       status: "archived", ended_on: m.dateISO, source: joinSources(Array.from(next)), is_next: false 
     }).eq("id", m.id);
     setArchModal(null);
-    if(isSearchActive) fetchItems(); fetchStats();
+    if(isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems(); // Rimuove dai fissati
     if(statsModalOpen) fetchPeriodStats(); 
-  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
+  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems]);
   
   const unarchive = useCallback(async (it) => {
     await supabase.from("items").update({ status: "active", ended_on: null }).eq("id", it.id);
@@ -276,10 +295,12 @@ export default function App(){
   const handleSuggest = useCallback(async () => {
     setSuggestion(null); 
     
-    // 1. Controllo Focus
-    const activeFocus = items.find(item => item.is_next === true && !item.finished_at && item.status !== 'archived');
-    if (activeFocus) {
-      alert(`✋ Alt! Hai già deciso di dedicarti a: "${activeFocus.title}". \n\nFinisci prima quello.`);
+    // 1. Controllo Focus (Usa pinnedItems che è sempre aggiornato)
+    // Blocca solo se c'è un item fissato DELLO STESSO TIPO che stai chiedendo
+    const conflict = pinnedItems.find(p => p.kind === randKind);
+    
+    if (conflict) {
+      alert(`✋ Alt! Per "${randKind}" hai già fissato:\n"${conflict.title}".\n\nFinisci prima quello.`);
       return; 
     }
 
@@ -287,7 +308,6 @@ export default function App(){
     const gCanon = canonGenere(randGenre);
     const { data, error } = await supabase.rpc('get_random_suggestion', {
       p_kind: randKind,
-      // Passa genere SOLO se è Libro/Video
       p_genre: showGenreInput(randKind) ? (gCanon || null) : null
     });
     
@@ -296,17 +316,17 @@ export default function App(){
       return;
     }
     
-    // 3. ADATTAMENTO DATI (Il "Traduttore")
+    // 3. ADATTAMENTO DATI
     const raw = data[0];
     const adaptedSuggestion = {
       ...raw,
-      kind: raw.type, // Corregge l'icona
-      author: raw.author || raw.creator // Corregge l'autore
+      kind: raw.type, 
+      author: raw.author || raw.creator 
     };
     
     setSuggestion(adaptedSuggestion);
 
-  }, [items, randKind, randGenre]); 
+  }, [pinnedItems, randKind, randGenre]); 
 
   const handleTypeChange = useCallback((e) => {
     const newType = e.target.value;
@@ -324,7 +344,7 @@ export default function App(){
   const clearAllFilters = useCallback(() => {
     setQ(""); setQInput(""); setTypeFilter(""); setGenreFilter(""); 
     setMoodFilter(""); setSourceFilter(""); setLetterFilter(""); setYearFilter(""); 
-    setCompletionMonthFilter(""); setCompletionYearFilter(""); // Reset date
+    setCompletionMonthFilter(""); setCompletionYearFilter(""); 
     setSuggestion(null); 
   }, []);
 
@@ -346,14 +366,13 @@ export default function App(){
       mood: editState.mood || null, video_url: editState.video_url || null, is_next: editState.is_next 
     };
     await supabase.from("items").update(payload).eq('id', editState.id);
-    setEditState(null); fetchItems(); 
-  }, [editState, fetchItems]);
+    setEditState(null); fetchItems(); fetchPinnedItems();
+  }, [editState, fetchItems, fetchPinnedItems]);
 
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
     else setTypeFilter(''); 
     
-    // Imposta filtri data
     setCompletionYearFilter(String(statYear)); 
     setCompletionMonthFilter(String(statMonth)); 
     
@@ -363,38 +382,29 @@ export default function App(){
 
   const deleteItem = useCallback(async (itemId) => {
     await supabase.from('items').delete().eq('id', itemId);
-    setEditState(null); fetchItems(); fetchStats();
+    setEditState(null); fetchItems(); fetchStats(); fetchPinnedItems();
     if (statsModalOpen) fetchPeriodStats();
-  }, [statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
+  }, [statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems]);
 
   
   /* --- 4. EFFETTI --- */
   useEffect(() => { const t = setTimeout(() => setQ(qInput.trim()), 250); return () => clearTimeout(t); }, [qInput]);
-  useEffect(()=>{ fetchStats(); },[fetchStats]); 
+  useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); // Fetch Pinned on mount
   useEffect(() => { if (isSearchActive) { fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]); 
   useEffect(() => { if (statsModalOpen) fetchPeriodStats(); }, [statsModalOpen, fetchPeriodStats]); 
 
-  // --- MEMORY LANE (Riscoperta) - FIX TOTALE ---
+  // --- MEMORY LANE ---
   useEffect(() => {
     const fetchMemory = async () => {
-      // Cerca in tutto il db (archiviati inclusi)
       const { data } = await supabase.from('items')
         .select('title, ended_on, author')
         .not('ended_on', 'is', null);
 
       if (data && data.length > 0) {
-        // Random
         const randomIndex = Math.floor(Math.random() * data.length);
         const randomItem = data[randomIndex];
-
-        const finishedDate = new Date(randomItem.ended_on);
-        const today = new Date();
-        const diffTime = Math.abs(today - finishedDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        
-        if (diffDays > 0) {
-          setMemoryItem({ ...randomItem, daysAgo: diffDays });
-        }
+        const diffDays = Math.ceil(Math.abs(new Date() - new Date(randomItem.ended_on)) / (1000 * 60 * 60 * 24)); 
+        if (diffDays > 0) setMemoryItem({ ...randomItem, daysAgo: diffDays });
       }
     };
     fetchMemory();
@@ -416,18 +426,83 @@ export default function App(){
         </div>
       </section>
 
-      {/* ===== MEMORY LANE (Visibile solo se NON cerchi) ===== */}
-      {memoryItem && !isSearchActive && (
-         <div className="card" style={{
-            marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '8px 12px'
-         }}>
-           <p style={{ fontSize: '0.8rem', color: '#718096', margin: 0, textAlign: 'center', fontStyle: 'italic' }}>
-             🕰️ Riscoperta: {memoryItem.daysAgo < 30 ? `${memoryItem.daysAgo} giorni fa` : `${Math.floor(memoryItem.daysAgo / 30)} mesi fa`} finivi <strong>{memoryItem.title}</strong>
-           </p>
-         </div>
+      {/* ===== SEZIONE HOME (Visualizzata solo se non si cerca) ===== */}
+      {!isSearchActive && !loading && (
+        <>
+          {/* 1. ELEMENTI FISSATI (Focus) */}
+          {pinnedItems.length > 0 && (
+            <section className="card" style={{marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4'}}>
+              <h3 style={{marginTop:0, fontSize:'1em', color:'#22543d'}}>📌 In Corso (Focus)</h3>
+              <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                {pinnedItems.map(p => (
+                  <div key={p.id} style={{paddingBottom:8, borderBottom: pinnedItems.indexOf(p) === pinnedItems.length-1 ? 'none' : '1px solid #c6f6d5'}}>
+                    <div style={{fontWeight:'bold'}}>
+                      {TYPE_ICONS[p.kind]} {p.title}
+                    </div>
+                    <div style={{fontSize:'0.9em', opacity:0.8}}>
+                      {p.creator}
+                    </div>
+                    {p.video_url && (
+                      <a href={p.video_url} target="_blank" rel="noopener noreferrer" style={{fontSize:'0.85em', color:'#276749'}}>
+                        🔗 Apri Link
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 2. MEMORY LANE */}
+          {memoryItem && (
+             <div className="card" style={{
+                marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '8px 12px'
+             }}>
+               <p style={{ fontSize: '0.8rem', color: '#718096', margin: 0, textAlign: 'center', fontStyle: 'italic' }}>
+                 🕰️ Riscoperta: {memoryItem.daysAgo < 30 ? `${memoryItem.daysAgo} giorni fa` : `${Math.floor(memoryItem.daysAgo / 30)} mesi fa`} finivi <strong>{memoryItem.title}</strong>
+               </p>
+             </div>
+          )}
+
+          {/* 3. RISULTATO SUGGERIMENTO */}
+          {suggestion && (
+            <section className="card" style={{marginBottom:12, borderLeft: '4px solid #ed8936', backgroundColor: '#fffaf0'}}>
+              <h3 style={{marginTop:0, fontSize:'1em', color:'#c05621'}}>🎲 Perché non provi questo?</h3>
+              <div style={{fontSize:'1.1em', marginBottom:4}}>
+                <strong>{suggestion.title}</strong>
+              </div>
+              <div style={{opacity:0.8, marginBottom:8}}>
+                {TYPE_ICONS[suggestion.kind]} {suggestion.author || "Autore sconosciuto"}
+              </div>
+              {suggestion.video_url && (
+                 <div style={{marginTop:8}}>
+                   <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" className="button" style={{display:'inline-flex', alignItems:'center', textDecoration:'none', gap:6}}>
+                     🔗 Apri Link
+                   </a>
+                 </div>
+              )}
+            </section>
+          )}
+
+          {/* 4. CONTROLLI CONSIGLIO */}
+          <section className="card" style={{marginBottom:12, marginTop:12}}>
+            <div className="row" style={{alignItems:"center", gap:8, flexWrap:"wrap"}}>
+              <select value={randKind} onChange={e=>setRandKind(e.target.value)}>
+                {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
+              </select>
+              {showGenreInput(randKind) && (
+                <select value={randGenre} onChange={e=>setRandGenre(e.target.value)}>
+                  <option value="">Genere (opz.)</option>
+                  {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+                </select>
+              )}
+              <button className="ghost" onClick={handleSuggest}>🎲 Consiglia</button>
+            </div>
+          </section>
+        </>
       )}
       
-      {/* ===== Lista Risultati ===== */}
+      {/* ===== Lista Risultati (Ricerca) ===== */}
       {isSearchActive && (
         <section className="card">
           {loading ? <p>Caricamento…</p> : (
@@ -443,12 +518,8 @@ export default function App(){
                       {TYPE_ICONS[it.kind]} {it.creator}
                       {" · "}<span className="badge">{it.kind}</span>
                       {it.mood && <span className="badge mood-badge" style={{backgroundColor:'#ebf8ff', color:'#2c5282', marginLeft:4}}>{it.mood}</span>}
-                      
-                      {/* Genere SOLO se Libro/Video */}
                       {it.genre && showGenreInput(it.kind) ? <> {" · "}genere: {canonGenere(it.genre)}</> : null}
-                      
                       {it.year ? <> {" · "}anno: {it.year}</> : null}
-                      
                       {Array.isArray(it.sourcesArr) && it.sourcesArr.length ? <> {" · "}sorgente: {it.sourcesArr.map(s=> (SOURCE_ICONS[s]||"") + " " + s).join(" + ")}</> : null}
                       {it.finished_at ? <> {" · "}finito: {new Date(it.finished_at).toLocaleDateString()}</> : null}
                     </div>
@@ -476,54 +547,9 @@ export default function App(){
         </section>
       )}
 
-      {/* ===== Home / Consigli (Visibile solo se NON cerchi) ===== */}
-      {!isSearchActive && !loading && (
-        <>
-          {/* Sezione Risultato Suggerimento (Card, no Alert) */}
-          {suggestion && (
-            <section className="card" style={{marginBottom:12, borderLeft: '4px solid #ed8936', backgroundColor: '#fffaf0'}}>
-              <h3 style={{marginTop:0, fontSize:'1em', color:'#c05621'}}>🎲 Perché non provi questo?</h3>
-              <div style={{fontSize:'1.1em', marginBottom:4}}>
-                <strong>{suggestion.title}</strong>
-              </div>
-              <div style={{opacity:0.8, marginBottom:8}}>
-                {TYPE_ICONS[suggestion.kind]} {suggestion.author || "Autore sconosciuto"}
-              </div>
-              
-              {suggestion.video_url && (
-                 <div style={{marginTop:8}}>
-                   <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" className="button" style={{display:'inline-flex', alignItems:'center', textDecoration:'none', gap:6}}>
-                     🔗 Apri Link
-                   </a>
-                 </div>
-              )}
-            </section>
-          )}
-
-          <section className="card" style={{marginBottom:12, marginTop:12}}>
-            <div className="row" style={{alignItems:"center", gap:8, flexWrap:"wrap"}}>
-              {/* Rimosso Audiolibro dal menu consigli */}
-              <select value={randKind} onChange={e=>setRandKind(e.target.value)}>
-                {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
-              </select>
-              
-              {/* Genere SOLO se tipo lo supporta (Libro/Video) */}
-              {showGenreInput(randKind) && (
-                <select value={randGenre} onChange={e=>setRandGenre(e.target.value)}>
-                  <option value="">Genere (opz.)</option>
-                  {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
-                </select>
-              )}
-              <button className="ghost" onClick={handleSuggest}>🎲 Consiglia</button>
-            </div>
-          </section>
-        </>
-      )}
-
-      {/* ===== FAB ===== */}
+      {/* ===== FAB / MODALI ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
 
-      {/* ===== Modale Aggiungi ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -531,13 +557,9 @@ export default function App(){
             <form onSubmit={addItem} className="grid grid-2">
               <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} />
               <input placeholder="Autore/Sviluppatore/Canale" value={creator} onChange={e=>setCreator(e.target.value)} />
-              
-              {/* Rimosso Audiolibro dall'aggiunta */}
               <select value={kind} onChange={handleAddKindChange}>
                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
               </select>
-              
-              {/* Genere SOLO per Libro/Video */}
               {showGenreInput(kind) && (
                 <select value={genre} onChange={e=>setGenre(e.target.value)}>
                   <option value="">Genere (facoltativo)</option>
@@ -556,14 +578,11 @@ export default function App(){
               </div>
               <button type="submit" style={{gridColumn: "1 / -1", marginTop:8}}>Aggiungi</button>
             </form>
-            <div className="row" style={{justifyContent:"flex-end", marginTop:12}}>
-              <button className="ghost" onClick={()=>setAddModalOpen(false)}>Chiudi</button>
-            </div>
+            <div className="row" style={{justifyContent:"flex-end", marginTop:12}}><button className="ghost" onClick={()=>setAddModalOpen(false)}>Chiudi</button></div>
           </div>
         </div>
       )}
 
-      {/* ===== Modale Filtri ===== */}
       {advOpen && (
         <div className="modal-backdrop" onClick={() => setAdvOpen(false)}>
           <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -585,7 +604,6 @@ export default function App(){
                     <option value="">Qualsiasi Umore</option>
                     {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
                 </select>
-                {/* Sorgente nascosta se gioco o video */}
                 {(typeFilter !== 'video' && typeFilter !== 'gioco') && (
                   <select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}>
                     <option value="">Tutte le sorgenti</option>
@@ -595,7 +613,6 @@ export default function App(){
                 <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} />
               </div>
             </div>
-            
             <div style={{margin:"12px 0", borderBottom:"1px solid #ddd", paddingBottom:12}}>
               <div className="sub" style={{marginBottom:8}}>Filtro Autori A–Z</div>
               <div className="row" style={{flexWrap:"wrap", gap:6}}>
@@ -605,17 +622,13 @@ export default function App(){
                 <button className="ghost" onClick={()=>{ setLetterFilter(""); setAdvOpen(false); }}>Tutti</button>
               </div>
             </div>
-
-            <div style={{margin:"12px 0"}}>
-              <div className="sub" style={{marginBottom:8}}>Strumenti</div>
-              <button className="ghost" onClick={()=>exportItemsToCsv(items)}>Esporta CSV (risultati attuali)</button>
-            </div>
+            <div style={{margin:"12px 0"}}><button className="ghost" onClick={()=>exportItemsToCsv(items)}>Esporta CSV</button></div>
             <div className="row" style={{justifyContent:"flex-end"}}><button onClick={()=>setAdvOpen(false)}>Chiudi</button></div>
           </div>
         </div>
       )}
 
-      {/* ===== Modale Statistiche ===== */}
+      {/* Statistiche, Archivia, Modifica (Invariati nella logica) */}
       {statsModalOpen && (
         <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
           <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -663,7 +676,6 @@ export default function App(){
         </div>
       )}
 
-      {/* ===== Modale Archiviazione ===== */}
       {archModal && (
         <div className="modal-backdrop" onClick={() => setArchModal(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -686,7 +698,6 @@ export default function App(){
         </div>
       )}
 
-      {/* ===== Modale Modifica ===== */}
       {editState && (
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
