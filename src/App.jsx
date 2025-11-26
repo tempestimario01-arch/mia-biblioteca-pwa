@@ -120,20 +120,21 @@ export default function App(){
 
   /* --- 2. FUNZIONI ASINCRONE --- */
 
-  // NUOVO: Scarica solo gli elementi fissati (Focus)
+// NUOVO: Scarica solo gli elementi fissati (Focus)
   const fetchPinnedItems = useCallback(async () => {
     const { data, error } = await supabase
       .from('items')
       .select('*')
       .eq('is_next', true)
-      .neq('status', 'archived'); // Solo quelli attivi
+      .neq('status', 'archived'); 
     
     if (!error && data) {
       const adapted = data.map(row => ({
         ...row,
-        kind: normType(row.kind), 
-        creator: row.creator,
-        sourcesArr: parseSources(row.sources)
+        // FIX: Qui doveva essere row.type (nome colonna DB), non row.kind
+        kind: normType(row.type), 
+        creator: row.author, // Anche l'autore si chiama 'author' nel DB
+        sourcesArr: parseSources(row.source) // E sorgente è 'source'
       }));
       setPinnedItems(adapted);
     }
