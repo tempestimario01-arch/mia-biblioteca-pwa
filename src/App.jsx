@@ -28,6 +28,7 @@ const SOURCE_ICONS = { fisico:"📦", biblio:"🏛", "da comprare":"🛒", inter
 /* === HELPER FUNCTIONS === */
 
 function showGenreInput(t) {
+  // Nota: i generi ora sono facoltativi, ma nascondiamo il menu se il tipo non lo richiede abitualmente
   return t === 'libro' || t === 'video';
 }
 
@@ -108,6 +109,7 @@ export default function App(){
   // Random / Suggerimenti
   const [randKind,setRandKind] = useState("libro");
   const [randGenre,setRandGenre] = useState("");
+  const [randMood, setRandMood] = useState(""); // <--- NUOVO STATO PER MOOD SUGGERIMENTO
   const [suggestion, setSuggestion] = useState(null); 
 
   // Memory Lane
@@ -120,7 +122,6 @@ export default function App(){
 
   /* --- 2. FUNZIONI ASINCRONE --- */
 
-  // Scarica solo gli elementi fissati (Focus)
   const fetchPinnedItems = useCallback(async () => {
     const { data, error } = await supabase
       .from('items')
@@ -248,7 +249,7 @@ export default function App(){
       setAddModalOpen(false); 
       if (isSearchActive) fetchItems(); 
       fetchStats(); fetchPinnedItems();
-    } else { alert("Errore salvataggio."); }
+    } else { alert("Errore salvataggio: " + (error?.message || "sconosciuto")); }
   }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
 
   const toggleFocus = useCallback(async (it) => {
@@ -289,7 +290,7 @@ export default function App(){
     if(statsModalOpen) fetchPeriodStats();
   }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
 
-  /* --- LOGICA CONSIGLI --- */
+  /* --- LOGICA CONSIGLI (AGGIORNATA CON MOOD) --- */
   const handleSuggest = useCallback(async () => {
     setSuggestion(null); 
     const conflict = pinnedItems.find(p => p.kind === randKind);
@@ -298,12 +299,16 @@ export default function App(){
       return; 
     }
     const gCanon = canonGenere(randGenre);
+    
+    // Chiamata aggiornata RPC
     const { data, error } = await supabase.rpc('get_random_suggestion', {
       p_kind: randKind,
-      p_genre: showGenreInput(randKind) ? (gCanon || null) : null
+      p_genre: showGenreInput(randKind) ? (gCanon || null) : null,
+      p_mood: randMood || null // <--- Invio il mood scelto
     });
+
     if (error || !data || data.length === 0) {
-      alert("Nessun elemento trovato con questi criteri.");
+      alert("Nessun elemento trovato con questi criteri (Tipo + Umore + Genere).");
       return;
     }
     const raw = data[0];
@@ -313,7 +318,7 @@ export default function App(){
       author: raw.author || raw.creator 
     };
     setSuggestion(adaptedSuggestion);
-  }, [pinnedItems, randKind, randGenre]); 
+  }, [pinnedItems, randKind, randGenre, randMood]); 
 
   const handleTypeChange = useCallback((e) => {
     const newType = e.target.value;
@@ -335,13 +340,12 @@ export default function App(){
     setSuggestion(null); 
   }, []);
 
-  // MODIFICA QUI: Carica anche la sorgente attuale nel modale
   const openEditModal = useCallback((it) => {
     setEditState({
       id: it.id, title: it.title, creator: it.creator, type: it.kind,     
       genre: it.genre || '', year: it.year || '', mood: it.mood || '', 
       video_url: it.video_url || '', is_next: it.is_next || false,
-      source: it.sources || '' // Precarica la sorgente (stringa dal DB)
+      source: it.sources || ''
     });
   }, []);
   
@@ -353,7 +357,7 @@ export default function App(){
       genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
       year: editState.year ? Number(editState.year) : null,
       mood: editState.mood || null, video_url: editState.video_url || null, is_next: editState.is_next,
-      source: editState.source // Salva la sorgente modificata
+      source: editState.source 
     };
     await supabase.from("items").update(payload).eq('id', editState.id);
     setEditState(null); fetchItems(); fetchPinnedItems();
@@ -381,7 +385,6 @@ export default function App(){
   useEffect(() => { if (isSearchActive) { fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]); 
   useEffect(() => { if (statsModalOpen) fetchPeriodStats(); }, [statsModalOpen, fetchPeriodStats]); 
 
-  // --- MEMORY LANE ---
   useEffect(() => {
     const fetchMemory = async () => {
       const { data } = await supabase.from('items')
@@ -462,25 +465,36 @@ export default function App(){
               <div style={{opacity:0.8, marginBottom:8}}>
                 {TYPE_ICONS[suggestion.kind]} {suggestion.author || "Autore sconosciuto"}
               </div>
+              <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                  {suggestion.mood && <span className="badge mood-badge" style={{backgroundColor:'#bee3f8', color:'#2a4365'}}>{suggestion.mood}</span>}
+                  {suggestion.genre && <span className="badge">{suggestion.genre}</span>}
+              </div>
               {suggestion.video_url && (
-                 <div style={{marginTop:8}}>
-                   <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" className="button" style={{display:'inline-flex', alignItems:'center', textDecoration:'none', gap:6}}>
-                     🔗 Apri Link
-                   </a>
-                 </div>
+                  <div style={{marginTop:8}}>
+                    <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" className="button" style={{display:'inline-flex', alignItems:'center', textDecoration:'none', gap:6}}>
+                      🔗 Apri Link
+                    </a>
+                  </div>
               )}
             </section>
           )}
 
-          {/* CONTROLLI */}
+          {/* CONTROLLI SUGGERIMENTI */}
           <section className="card" style={{marginBottom:12, marginTop:12}}>
             <div className="row" style={{alignItems:"center", gap:8, flexWrap:"wrap"}}>
               <select value={randKind} onChange={e=>setRandKind(e.target.value)}>
                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
               </select>
+              
+              {/* NUOVO FILTRO MOOD PER SUGGERIMENTI */}
+              <select value={randMood} onChange={e=>setRandMood(e.target.value)}>
+                <option value="">Qualsiasi Umore</option>
+                {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
+              </select>
+
               {showGenreInput(randKind) && (
                 <select value={randGenre} onChange={e=>setRandGenre(e.target.value)}>
-                  <option value="">Genere (opz.)</option>
+                  <option value="">Qualsiasi Genere</option>
                   {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
                 </select>
               )}
@@ -519,9 +533,9 @@ export default function App(){
                       </a>
                     )}
                     {(!it.finished_at && it.status !== 'archived') && (
-                       <button className="ghost" onClick={()=>toggleFocus(it)}>
-                         {it.is_next ? "🚫 Togli Focus" : "📌 Focus"}
-                       </button>
+                        <button className="ghost" onClick={()=>toggleFocus(it)}>
+                          {it.is_next ? "🚫 Togli Focus" : "📌 Focus"}
+                        </button>
                     )}
                     <button className="ghost" onClick={() => openEditModal(it)}>✏️</button>
                     {(it.sourcesArr||[]).includes("da comprare") && <button className="ghost" onClick={()=>markAsPurchased(it)}>Acquistato</button>}
@@ -555,8 +569,8 @@ export default function App(){
                 </select>
               )}
               <select value={mood} onChange={e=>setMood(e.target.value)}>
-                 <option value="">Umore / Energia (opz.)</option>
-                 {MOODS.map(m => <option key={m} value={m}>{m}</option>)}
+                  <option value="">Umore / Energia (opz.)</option>
+                  {MOODS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
               <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} />
               <input placeholder="Link (YouTube, Steam...)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{gridColumn: "1 / -1"}} />
@@ -571,7 +585,7 @@ export default function App(){
         </div>
       )}
 
-      {/* Modale Filtri (Invariato) */}
+      {/* Modale Filtri */}
       {advOpen && (
         <div className="modal-backdrop" onClick={() => setAdvOpen(false)}>
           <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -686,7 +700,7 @@ export default function App(){
         </div>
       )}
 
-      {/* ===== Modale Modifica (AGGIORNATO con Sorgente) ===== */}
+      {/* ===== Modale Modifica ===== */}
       {editState && (
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -711,7 +725,6 @@ export default function App(){
                   {MOODS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
               
-              {/* NUOVO CAMPO SORGENTE */}
               <select value={editState.source || ""} onChange={e => setEditState(curr => ({...curr, source: e.target.value}))}>
                   <option value="">Sorgente (opz.)</option>
                   {SOURCE_OPTIONS.map(s=> <option key={s} value={s}>{SOURCE_ICONS[s]} {s}</option>)}
