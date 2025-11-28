@@ -724,10 +724,45 @@ export default function App(){
                   {MOODS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
               
-              <select value={editState.source || ""} onChange={e => setEditState(curr => ({...curr, source: e.target.value}))}>
-                  <option value="">Sorgente (opz.)</option>
-                  {SOURCE_OPTIONS.map(s=> <option key={s} value={s}>{SOURCE_ICONS[s]} {s}</option>)}
-              </select>
+              {/* --- INIZIO BLOCCO SORGENTI MULTIPLE --- */}
+<div style={{gridColumn: "1 / -1", marginTop: 8}}>
+  <span style={{fontSize: '0.9em', opacity: 0.7}}>Sorgenti (puoi selezionarne più di una):</span>
+  <div style={{display:'flex', gap: 12, flexWrap:'wrap', marginTop: 4}}>
+    {SOURCE_OPTIONS.map(s => {
+      // Verifica se questa sorgente è già presente nella stringa salvata
+      const active = parseSources(editState.source).includes(s);
+      
+      return (
+        <label key={s} style={{
+            display:'flex', alignItems:'center', gap:6, cursor:'pointer',
+            padding: '4px 8px', borderRadius: 4, 
+            backgroundColor: active ? '#ebf8ff' : 'transparent',
+            border: active ? '1px solid #90cdf4' : '1px solid #e2e8f0'
+          }}>
+          <input 
+            type="checkbox" 
+            checked={active}
+            onChange={() => {
+              // Logica per aggiungere o togliere la sorgente
+              const currentArr = parseSources(editState.source);
+              let newArr;
+              if (active) {
+                newArr = currentArr.filter(x => x !== s); // Rimuovi
+              } else {
+                newArr = [...currentArr, s]; // Aggiungi
+              }
+              // Aggiorna lo stato unendo tutto con la virgola
+              setEditState(curr => ({...curr, source: joinSources(newArr)}));
+            }}
+            style={{margin:0}}
+          />
+          <span>{SOURCE_ICONS[s]} {s}</span>
+        </label>
+      )
+    })}
+  </div>
+</div>
+{/* --- FINE BLOCCO SORGENTI MULTIPLE --- */}
 
               <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/>
               <input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} style={{gridColumn: "1 / -1"}}/>
