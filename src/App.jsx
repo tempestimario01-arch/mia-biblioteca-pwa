@@ -76,7 +76,7 @@ export default function App(){
   // Filtri Principali
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState(""); 
-  const [statusFilter, setStatusFilter] = useState("active"); // <--- NUOVO: Filtro Stato (default: active)
+  const [statusFilter, setStatusFilter] = useState("active"); 
   const [typeFilter,setTypeFilter] = useState("");
   const [genreFilter,setGenreFilter] = useState("");
   const [moodFilter, setMoodFilter] = useState("");
@@ -150,7 +150,7 @@ export default function App(){
 
     if (q) { query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`); }
     
-    // Filtro per Stato (Nuovo)
+    // Filtro per Stato
     if (statusFilter) { query = query.eq('status', statusFilter); }
 
     if (typeFilter) { query = query.eq('type', typeFilter); }
@@ -231,7 +231,10 @@ export default function App(){
   /* --- 3. HANDLERS --- */
   
   const isSearchActive = useMemo(() => {
-    return q.length > 0 || statusFilter.length > 0 || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
+    // FIX ZEN HOME: Se statusFilter è 'active' (default), NON considerarlo come ricerca attiva.
+    const isStatusChanged = statusFilter !== 'active';
+
+    return q.length > 0 || isStatusChanged || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
            sourceFilter.length > 0 || letterFilter.length > 0 || yearFilter.length > 0 || 
            String(completionMonthFilter).length > 0 || String(completionYearFilter).length > 0;
   }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
@@ -370,6 +373,10 @@ export default function App(){
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
     else setTypeFilter(''); 
+    
+    // FIX CONFLITTO STATS: Se clicco una stat, mostro tutto (o solo archiviati), sennò non vedo i completati.
+    setStatusFilter(''); 
+
     setCompletionYearFilter(String(statYear)); 
     setCompletionMonthFilter(String(statMonth)); 
     setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter('');
