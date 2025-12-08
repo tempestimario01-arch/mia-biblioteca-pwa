@@ -7,7 +7,7 @@ const TYPE_ICONS = {
   libro: "📚",
   audiolibro: "🎧",
   film: "🎬",
-  album: "🎶",
+  album: "💿",
   video: "▶️",
   gioco: "🎮"
 };
@@ -16,9 +16,10 @@ const TYPES = ["libro", "audiolibro", "film", "album", "video", "gioco"];
 
 const GENRES = [
   "ambiente","cinema","storia","romanzi","asia","sociologia","psicologia",
-  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport"
+  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport",
+  "rpg", "fps", "avventura", "strategia", "documentario", "tutorial"
 ];
-const MOODS = ["Relax", "Focus", "Breve", "Apprendimento", "Impegnativo"];
+const MOODS = ["Relax", "Focus", "Energia", "Breve", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 const SOURCE_OPTIONS = ["fisico","biblio","da comprare","internet"];
@@ -27,7 +28,6 @@ const SOURCE_ICONS = { fisico:"📦", biblio:"🏛", "da comprare":"🛒", inter
 /* === HELPER FUNCTIONS === */
 
 function showGenreInput(t) {
-  // Nota: i generi ora sono facoltativi, ma nascondiamo il menu se il tipo non lo richiede abitualmente
   return t === 'libro' || t === 'video';
 }
 
@@ -76,6 +76,7 @@ export default function App(){
   // Filtri Principali
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState(""); 
+  const [statusFilter, setStatusFilter] = useState("active"); // <--- NUOVO: Filtro Stato (default: active)
   const [typeFilter,setTypeFilter] = useState("");
   const [genreFilter,setGenreFilter] = useState("");
   const [moodFilter, setMoodFilter] = useState("");
@@ -108,7 +109,7 @@ export default function App(){
   // Random / Suggerimenti
   const [randKind,setRandKind] = useState("libro");
   const [randGenre,setRandGenre] = useState("");
-  const [randMood, setRandMood] = useState(""); // <--- NUOVO STATO PER MOOD SUGGERIMENTO
+  const [randMood, setRandMood] = useState(""); 
   const [suggestion, setSuggestion] = useState(null); 
 
   // Memory Lane
@@ -148,6 +149,10 @@ export default function App(){
       .limit(500); 
 
     if (q) { query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`); }
+    
+    // Filtro per Stato (Nuovo)
+    if (statusFilter) { query = query.eq('status', statusFilter); }
+
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
     if (moodFilter) { query = query.eq('mood', moodFilter); }
@@ -183,7 +188,7 @@ export default function App(){
       setItems(adapted);
     }
     setLoading(false);
-  }, [q, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
+  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -226,10 +231,10 @@ export default function App(){
   /* --- 3. HANDLERS --- */
   
   const isSearchActive = useMemo(() => {
-    return q.length > 0 || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
+    return q.length > 0 || statusFilter.length > 0 || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
            sourceFilter.length > 0 || letterFilter.length > 0 || yearFilter.length > 0 || 
            String(completionMonthFilter).length > 0 || String(completionYearFilter).length > 0;
-  }, [q, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
+  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const addItem = useCallback(async (e) => {
     e.preventDefault();
@@ -289,7 +294,7 @@ export default function App(){
     if(statsModalOpen) fetchPeriodStats();
   }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
 
-  /* --- LOGICA CONSIGLI (AGGIORNATA CON MOOD) --- */
+  /* --- LOGICA CONSIGLI --- */
   const handleSuggest = useCallback(async () => {
     setSuggestion(null); 
     const conflict = pinnedItems.find(p => p.kind === randKind);
@@ -299,11 +304,10 @@ export default function App(){
     }
     const gCanon = canonGenere(randGenre);
     
-    // Chiamata aggiornata RPC
     const { data, error } = await supabase.rpc('get_random_suggestion', {
       p_kind: randKind,
       p_genre: showGenreInput(randKind) ? (gCanon || null) : null,
-      p_mood: randMood || null // <--- Invio il mood scelto
+      p_mood: randMood || null 
     });
 
     if (error || !data || data.length === 0) {
@@ -337,6 +341,7 @@ export default function App(){
     setMoodFilter(""); setSourceFilter(""); setLetterFilter(""); setYearFilter(""); 
     setCompletionMonthFilter(""); setCompletionYearFilter(""); 
     setSuggestion(null); 
+    setStatusFilter("active"); // Reset status to active
   }, []);
 
   const openEditModal = useCallback((it) => {
@@ -485,7 +490,6 @@ export default function App(){
                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
               </select>
               
-              {/* NUOVO FILTRO MOOD PER SUGGERIMENTI */}
               <select value={randMood} onChange={e=>setRandMood(e.target.value)}>
                 <option value="">Qualsiasi Umore</option>
                 {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
@@ -521,7 +525,14 @@ export default function App(){
                       {it.mood && <span className="badge mood-badge" style={{backgroundColor:'#ebf8ff', color:'#2c5282', marginLeft:4}}>{it.mood}</span>}
                       {it.genre && showGenreInput(it.kind) ? <> {" · "}genere: {canonGenere(it.genre)}</> : null}
                       {it.year ? <> {" · "}anno: {it.year}</> : null}
-                      {Array.isArray(it.sourcesArr) && it.sourcesArr.length ? <> {" · "}sorgente: {it.sourcesArr.map(s=> (SOURCE_ICONS[s]||"") + " " + s).join(" + ")}</> : null}
+                      {/* MODIFICA: SOLO ICONE SORGENTI */}
+                      {Array.isArray(it.sourcesArr) && it.sourcesArr.length ? 
+                        it.sourcesArr.map(s => (
+                          <span key={s} title={s} style={{ marginLeft: 6, fontSize: '1.1em', cursor: 'help' }}>
+                            {SOURCE_ICONS[s]}
+                          </span>
+                        ))
+                      : null}
                       {it.finished_at ? <> {" · "}finito: {new Date(it.finished_at).toLocaleDateString()}</> : null}
                     </div>
                   </div>
@@ -592,6 +603,14 @@ export default function App(){
             <div style={{borderBottom:"1px solid #ddd", paddingBottom:12}}>
               <div className="sub" style={{marginBottom:8}}>Filtri per Proprietà</div>
               <div className="grid grid-2">
+                
+                {/* --- NUOVO FILTRO STATO --- */}
+                <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{fontWeight:'bold', color: statusFilter==='active'?'#2f855a':'#2d3748'}}>
+                  <option value="active">🟢 Solo Attivi (Da fare)</option>
+                  <option value="archived">📦 Solo Archiviati (Storico)</option>
+                  <option value="">👁️ Mostra Tutto</option>
+                </select>
+
                 <select value={typeFilter} onChange={handleTypeChange}> 
                   <option value="">Tutti i tipi</option>
                   {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
@@ -724,48 +743,46 @@ export default function App(){
                   {MOODS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
               
-              {/* --- INIZIO BLOCCO SORGENTI MULTIPLE --- */}
-<div style={{gridColumn: "1 / -1", marginTop: 8}}>
-  <span style={{fontSize: '0.9em', opacity: 0.7}}>Sorgenti (puoi selezionarne più di una):</span>
-  <div style={{display:'flex', gap: 12, flexWrap:'wrap', marginTop: 4}}>
-    {SOURCE_OPTIONS.map(s => {
-      // Verifica se questa sorgente è già presente nella stringa salvata
-      const active = parseSources(editState.source).includes(s);
-      
-      return (
-        <label key={s} style={{
-            display:'flex', alignItems:'center', gap:6, cursor:'pointer',
-            padding: '4px 8px', borderRadius: 4, 
-            backgroundColor: active ? '#ebf8ff' : 'transparent',
-            border: active ? '1px solid #90cdf4' : '1px solid #e2e8f0'
-          }}>
-          <input 
-            type="checkbox" 
-            checked={active}
-            onChange={() => {
-              // Logica per aggiungere o togliere la sorgente
-              const currentArr = parseSources(editState.source);
-              let newArr;
-              if (active) {
-                newArr = currentArr.filter(x => x !== s); // Rimuovi
-              } else {
-                newArr = [...currentArr, s]; // Aggiungi
-              }
-              // Aggiorna lo stato unendo tutto con la virgola
-              setEditState(curr => ({...curr, source: joinSources(newArr)}));
-            }}
-            style={{margin:0}}
-          />
-          <span>{SOURCE_ICONS[s]} {s}</span>
-        </label>
-      )
-    })}
-  </div>
-</div>
-{/* --- FINE BLOCCO SORGENTI MULTIPLE --- */}
-
               <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/>
-              <input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} style={{gridColumn: "1 / -1"}}/>
+              <input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} />
+              
+              {/* --- BLOCCO SORGENTI SPOSTATO IN FONDO --- */}
+              <div style={{gridColumn: "1 / -1", marginTop: 8, marginBottom: 8}}>
+                <span style={{fontSize: '0.9em', opacity: 0.7, display:'block', marginBottom:4}}>Sorgenti (puoi selezionarne più di una):</span>
+                <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+                  {SOURCE_OPTIONS.map(s => {
+                    const active = parseSources(editState.source).includes(s);
+                    return (
+                      <label key={s} style={{
+                          display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer',
+                          padding: '6px 10px', borderRadius: 6, fontSize: '0.9rem',
+                          backgroundColor: active ? '#ebf8ff' : '#f7fafc',
+                          border: active ? '1px solid #4299e1' : '1px solid #cbd5e0',
+                          color: active ? '#2b6cb0' : '#4a5568',
+                          userSelect: 'none'
+                        }}>
+                        <input 
+                          type="checkbox" 
+                          checked={active}
+                          onChange={() => {
+                            const currentArr = parseSources(editState.source);
+                            let newArr;
+                            if (active) {
+                              newArr = currentArr.filter(x => x !== s);
+                            } else {
+                              newArr = [...currentArr, s];
+                            }
+                            setEditState(curr => ({...curr, source: joinSources(newArr)}));
+                          }}
+                          style={{display:'none'}}
+                        />
+                        <span>{SOURCE_ICONS[s]} {s}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
               <div style={{gridColumn: "1 / -1", display:'flex', alignItems:'center', gap:8}}>
                 <input type="checkbox" id="edit_chk_next" checked={editState.is_next} onChange={e => setEditState(curr => ({...curr, is_next: e.target.checked}))} style={{width:'auto'}}/>
                 <label htmlFor="edit_chk_next">📌 In Coda (Prossimo)</label>
