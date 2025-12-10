@@ -105,6 +105,9 @@ export default function App(){
   const [videoUrl, setVideoUrl] = useState("");
   const [year,setYear] = useState("");
   const [isNext, setIsNext] = useState(false);
+  // Nuovi stati per archiviazione immediata
+  const [isInstantArchive, setIsInstantArchive] = useState(false);
+  const [instantDate, setInstantDate] = useState("");
 
   // Random / Suggerimenti
   const [randKind,setRandKind] = useState("libro");
@@ -242,22 +245,32 @@ export default function App(){
   const addItem = useCallback(async (e) => {
     e.preventDefault();
     if(!title.trim()) return;
+
+    // Se è archiviazione immediata, usiamo la data scelta o OGGI
+    const finalStatus = isInstantArchive ? "archived" : "active";
+    const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
+    const finalIsNext = isInstantArchive ? false : isNext; // Se è finito, non può essere in focus
+
     const payload = {
-      title, author: creator, type: kind, status: "active",
+      title, author: creator, type: kind, status: finalStatus,
       genre: showGenreInput(kind) ? canonGenere(genre) : null, 
       year: year ? Number(year) : null,
       source: joinSources([]),
-      mood: mood || null, video_url: videoUrl || null, is_next: isNext
+      mood: mood || null, video_url: videoUrl || null, 
+      is_next: finalIsNext,
+      ended_on: finalEndedOn
     };
+
     const { error } = await supabase.from("items").insert(payload);
     if(!error){
       setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
       setMood(""); setVideoUrl(""); setIsNext(false);
+      setIsInstantArchive(false); setInstantDate(""); // Reset
       setAddModalOpen(false); 
       if (isSearchActive) fetchItems(); 
       fetchStats(); fetchPinnedItems();
     } else { alert("Errore salvataggio: " + (error?.message || "sconosciuto")); }
-  }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
+  }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isInstantArchive, instantDate, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
@@ -591,10 +604,43 @@ export default function App(){
               </select>
               <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} />
               <input placeholder="Link (YouTube, Steam...)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{gridColumn: "1 / -1"}} />
-              <div style={{gridColumn: "1 / -1", display:'flex', alignItems:'center', gap:8, marginTop:8}}>
-                <input type="checkbox" id="chk_next" checked={isNext} onChange={e=>setIsNext(e.target.checked)} style={{width:'auto'}}/>
-                <label htmlFor="chk_next">📌 Imposta come "Prossimo" (Focus)</label>
+              
+              {/* --- BLOCCO OPZIONI AGGIUNTA (FINITO / FOCUS) --- */}
+              <div style={{gridColumn: "1 / -1", marginTop:8, display:'flex', flexDirection:'column', gap:8}}>
+                
+                {/* Opzione 1: Già Finito (Archivia subito) */}
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  <input 
+                    type="checkbox" 
+                    id="chk_archive" 
+                    checked={isInstantArchive} 
+                    onChange={e=>setIsInstantArchive(e.target.checked)} 
+                    style={{width:'auto'}}
+                  />
+                  <label htmlFor="chk_archive" style={{fontWeight: isInstantArchive ? 'bold' : 'normal'}}>
+                    ✅ Già completato (Archivia subito)
+                  </label>
+                </div>
+
+                {/* Se è finito, mostra la data. Se NON è finito, mostra il Focus */}
+                {isInstantArchive ? (
+                  <div style={{marginLeft: 24}}>
+                    <label style={{fontSize:'0.9em', marginRight:8}}>Data fine:</label>
+                    <input 
+                      type="date" 
+                      value={instantDate} 
+                      onChange={e=>setInstantDate(e.target.value)} 
+                      style={{width:'auto', display:'inline-block'}}
+                    />
+                  </div>
+                ) : (
+                  <div style={{display:'flex', alignItems:'center', gap:8}}>
+                    <input type="checkbox" id="chk_next" checked={isNext} onChange={e=>setIsNext(e.target.checked)} style={{width:'auto'}}/>
+                    <label htmlFor="chk_next">📌 Imposta come "Prossimo" (Focus)</label>
+                  </div>
+                )}
               </div>
+
               <button type="submit" style={{gridColumn: "1 / -1", marginTop:8}}>Aggiungi</button>
             </form>
             <div className="row" style={{justifyContent:"flex-end", marginTop:12}}><button className="ghost" onClick={()=>setAddModalOpen(false)}>Chiudi</button></div>
