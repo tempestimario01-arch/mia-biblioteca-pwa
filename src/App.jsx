@@ -531,49 +531,102 @@ export default function App(){
       {isSearchActive && (
         <section className="card">
           {loading ? <p>Caricamento…</p> : (
-            <div className="list">
-              {items.map(it=>
-                <div key={it.id} className="item" style={it.is_next ? {borderLeft: '4px solid #38a169', paddingLeft: 12} : {}}>
+           <div className="list" style={{ gap: 16, display: 'flex', flexDirection: 'column' }}>
+              {items.map(it => (
+                <div key={it.id} className="card" style={{ 
+                    padding: 16, 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: 12,
+                    borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0',
+                    backgroundColor: 'white',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                  }}>
+                  
+                  {/* --- ZONA INFO (TITOLO E DATI) --- */}
                   <div>
-                    <div className="item-title">
-                      {it.is_next && <span title="In Coda" style={{marginRight:6}}>📌</span>}
+                    <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 4, display: 'flex', alignItems: 'center' }}>
+                      {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>}
                       {it.title}
                     </div>
-                    <div className="item-meta">
-                      {TYPE_ICONS[it.kind]} {it.creator}
-                      {" · "}<span className="badge">{it.kind}</span>
-                      {it.mood && <span className="badge mood-badge" style={{backgroundColor:'#ebf8ff', color:'#2c5282', marginLeft:4}}>{it.mood}</span>}
-                      {it.genre && showGenreInput(it.kind) ? <> {" · "}genere: {canonGenere(it.genre)}</> : null}
-                      {it.year ? <> {" · "}anno: {it.year}</> : null}
-                      {/* MODIFICA: SOLO ICONE SORGENTI */}
-                      {Array.isArray(it.sourcesArr) && it.sourcesArr.length ? 
-                        it.sourcesArr.map(s => (
-                          <span key={s} title={s} style={{ marginLeft: 6, fontSize: '1.1em', cursor: 'help' }}>
-                            {SOURCE_ICONS[s]}
+                    
+                    <div className="item-meta" style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.5 }}>
+                      <div style={{fontWeight: 500, marginBottom:4}}>
+                        {TYPE_ICONS[it.kind]} {it.creator}
+                      </div>
+                      
+                      {/* Badge e Info raggruppate */}
+                      <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center'}}>
+                        <span className="badge">{it.kind}</span>
+                        {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
+                        {it.genre && showGenreInput(it.kind) && <span style={{opacity:0.8}}>• {canonGenere(it.genre)}</span>}
+                        {it.year && <span style={{opacity:0.8}}>• {it.year}</span>}
+                        
+                        {/* ICONE SORGENTI */}
+                        {Array.isArray(it.sourcesArr) && it.sourcesArr.length > 0 && (
+                          <span style={{ marginLeft: 4, display:'inline-flex', gap:4 }}>
+                            {it.sourcesArr.map(s => <span key={s} title={s}>{SOURCE_ICONS[s]}</span>)}
                           </span>
-                        ))
-                      : null}
-                      {it.finished_at ? <> {" · "}finito: {new Date(it.finished_at).toLocaleDateString()}</> : null}
+                        )}
+                      </div>
+
+                      {it.finished_at && <div style={{marginTop:4, fontSize:'0.85em', color:'#718096'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
                     </div>
                   </div>
-                  <div className="row" style={{gap:8, flexWrap:'wrap', marginTop:8}}>
+
+                  {/* --- ZONA AZIONI (PULSANTI IN BASSO) --- */}
+                  <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'flex-end', 
+                      alignItems: 'center', 
+                      gap: 8, 
+                      marginTop: 4, 
+                      paddingTop: 12, 
+                      borderTop: '1px solid #f7fafc',
+                      flexWrap: 'wrap'
+                    }}>
+                    
+                    {/* Link Video */}
                     {it.video_url && (
-                      <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" style={{textDecoration:'none', lineHeight:'normal'}}>
+                      <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" style={{ textDecoration: 'none', padding:'6px 12px', fontSize:'0.9em' }}>
                         🔗 Apri
                       </a>
                     )}
+
+                    {/* Tasto Focus (Solo se non finito e non archiviato) */}
                     {(!it.finished_at && it.status !== 'archived') && (
-                        <button className="ghost" onClick={()=>toggleFocus(it)}>
-                          {it.is_next ? "🚫 Togli Focus" : "📌 Focus"}
-                        </button>
+                      <button className="ghost" onClick={() => toggleFocus(it)} style={{padding:'6px 12px', fontSize:'0.9em'}}>
+                        {it.is_next ? "🚫 Togli Focus" : "📌 Focus"}
+                      </button>
                     )}
-                    <button className="ghost" onClick={() => openEditModal(it)}>✏️</button>
-                    {(it.sourcesArr||[]).includes("da comprare") && <button className="ghost" onClick={()=>markAsPurchased(it)}>Acquistato</button>}
-                    {(it.finished_at || it.status === "archived") ? <button className="ghost" onClick={()=>unarchive(it)}>Ripristina</button> : <button className="ghost" onClick={()=>openArchiveModal(it)}>Archivia</button>}
+
+                    {/* Tasto Acquistato (Se "da comprare") */}
+                    {(it.sourcesArr || []).includes("da comprare") && (
+                      <button className="ghost" onClick={() => markAsPurchased(it)} style={{padding:'6px 12px', fontSize:'0.9em', color:'#2b6cb0', borderColor:'#bee3f8'}}>
+                        🛒 Preso
+                      </button>
+                    )}
+
+                    {/* Tasto Archivia / Ripristina */}
+                    {(it.finished_at || it.status === "archived") ? (
+                      <button className="ghost" onClick={() => unarchive(it)} style={{padding:'6px 12px', fontSize:'0.9em'}}>
+                        ↩️ Ripristina
+                      </button>
+                    ) : (
+                      <button className="ghost" onClick={() => openArchiveModal(it)} style={{padding:'6px 12px', fontSize:'0.9em'}}>
+                        📦 Archivia
+                      </button>
+                    )}
+
+                    {/* Tasto Modifica (Sempre visibile, icona piccola) */}
+                    <button className="ghost" onClick={() => openEditModal(it)} style={{ padding: '6px 10px', fontSize:'1.1em' }} title="Modifica">
+                      ✏️
+                    </button>
                   </div>
+
                 </div>
-              )}
-              {items.length===0 && <p style={{opacity:.8}}>Nessun elemento trovato.</p>}
+              ))}
+              {items.length === 0 && <p style={{ opacity: .8, textAlign:'center', marginTop:20 }}>Nessun elemento trovato.</p>}
             </div>
           )}
         </section>
