@@ -16,10 +16,9 @@ const TYPES = ["libro", "audiolibro", "film", "album", "video", "gioco"];
 
 const GENRES = [
   "ambiente","cinema","storia","romanzi","asia","sociologia","psicologia",
-  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport",
-  "rpg", "fps", "avventura", "strategia", "documentario", "tutorial"
+  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport"
 ];
-const MOODS = ["Relax", "Focus", "Energia", "Breve", "Apprendimento", "Impegnativo"];
+const MOODS = ["Relax", "Focus", "Breve", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 const SOURCE_OPTIONS = ["fisico","biblio","da comprare","internet"];
@@ -105,9 +104,11 @@ export default function App(){
   const [videoUrl, setVideoUrl] = useState("");
   const [year,setYear] = useState("");
   const [isNext, setIsNext] = useState(false);
-  // Nuovi stati per archiviazione immediata
+  
+  // Nuovi stati per Aggiunta Avanzata
   const [isInstantArchive, setIsInstantArchive] = useState(false);
   const [instantDate, setInstantDate] = useState("");
+  const [addSources, setAddSources] = useState([]); // Sorgenti in fase di aggiunta
 
   // Random / Suggerimenti
   const [randKind,setRandKind] = useState("libro");
@@ -143,9 +144,8 @@ export default function App(){
     }
   }, []);
 
-const fetchItems = useCallback(async () => {
-    // MODIFICA ZEN: Non mostrare il caricamento se abbiamo già i dati (così non salta lo scroll)
-    if (items.length === 0) setLoading(true); 
+  const fetchItems = useCallback(async () => {
+    // FIX SCROLL: Rimosso setLoading(true) da qui per evitare salti durante update.
     
     let query = supabase
       .from("items")
@@ -236,9 +236,7 @@ const fetchItems = useCallback(async () => {
   /* --- 3. HANDLERS --- */
   
   const isSearchActive = useMemo(() => {
-    // FIX ZEN HOME: Se statusFilter è 'active' (default), NON considerarlo come ricerca attiva.
     const isStatusChanged = statusFilter !== 'active';
-
     return q.length > 0 || isStatusChanged || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
            sourceFilter.length > 0 || letterFilter.length > 0 || yearFilter.length > 0 || 
            String(completionMonthFilter).length > 0 || String(completionYearFilter).length > 0;
@@ -248,16 +246,15 @@ const fetchItems = useCallback(async () => {
     e.preventDefault();
     if(!title.trim()) return;
 
-    // Se è archiviazione immediata, usiamo la data scelta o OGGI
     const finalStatus = isInstantArchive ? "archived" : "active";
     const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
-    const finalIsNext = isInstantArchive ? false : isNext; // Se è finito, non può essere in focus
+    const finalIsNext = isInstantArchive ? false : isNext;
 
     const payload = {
       title, author: creator, type: kind, status: finalStatus,
       genre: showGenreInput(kind) ? canonGenere(genre) : null, 
       year: year ? Number(year) : null,
-      source: joinSources([]),
+      source: joinSources(addSources), // Uso le sorgenti selezionate
       mood: mood || null, video_url: videoUrl || null, 
       is_next: finalIsNext,
       ended_on: finalEndedOn
@@ -267,12 +264,13 @@ const fetchItems = useCallback(async () => {
     if(!error){
       setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
       setMood(""); setVideoUrl(""); setIsNext(false);
-      setIsInstantArchive(false); setInstantDate(""); // Reset
+      setIsInstantArchive(false); setInstantDate(""); 
+      setAddSources([]); // Reset sorgenti
       setAddModalOpen(false); 
       if (isSearchActive) fetchItems(); 
       fetchStats(); fetchPinnedItems();
     } else { alert("Errore salvataggio: " + (error?.message || "sconosciuto")); }
-  }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isInstantArchive, instantDate, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
+  }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isInstantArchive, instantDate, addSources, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
@@ -388,10 +386,7 @@ const fetchItems = useCallback(async () => {
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
     else setTypeFilter(''); 
-    
-    // FIX CONFLITTO STATS: Se clicco una stat, mostro tutto (o solo archiviati), sennò non vedo i completati.
     setStatusFilter(''); 
-
     setCompletionYearFilter(String(statYear)); 
     setCompletionMonthFilter(String(statMonth)); 
     setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter('');
@@ -408,8 +403,17 @@ const fetchItems = useCallback(async () => {
   /* --- 4. EFFETTI --- */
   useEffect(() => { const t = setTimeout(() => setQ(qInput.trim()), 250); return () => clearTimeout(t); }, [qInput]);
   useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); 
-  useEffect(() => { if (isSearchActive) { fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]); 
-  useEffect(() => { if (statsModalOpen) fetchPeriodStats(); }, [statsModalOpen, fetchPeriodStats]); 
+  
+  // FIX SCROLL: Caricamento solo quando cambia la ricerca/filtri
+  useEffect(() => { 
+    if (isSearchActive) { 
+      setLoading(true); 
+      fetchItems(); 
+    } else { 
+      setItems([]); 
+      setLoading(false); 
+    } 
+  }, [isSearchActive, fetchItems]);
 
   useEffect(() => {
     const fetchMemory = async () => {
@@ -533,50 +537,49 @@ const fetchItems = useCallback(async () => {
       {isSearchActive && (
         <section className="card">
           {loading ? <p>Caricamento…</p> : (
-           <div className="list" style={{ gap: 16, display: 'flex', flexDirection: 'column' }}>
+            <div className="list" style={{ gap: 16, display: 'flex', flexDirection: 'column' }}>
               {items.map(it => (
                 <div key={it.id} className="card" style={{ 
                     padding: 16, 
                     display: 'flex', 
                     flexDirection: 'column', 
-                    gap: 12,
+                    gap: 12, 
                     borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0',
                     backgroundColor: 'white',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                   }}>
                   
-                  {/* --- ZONA INFO (TITOLO E DATI) --- */}
+                  {/* --- ZONA 1: INFO (Sopra) --- */}
                   <div>
-                    <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 4, display: 'flex', alignItems: 'center' }}>
+                    <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
                       {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>}
                       {it.title}
                     </div>
                     
-                    <div className="item-meta" style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.5 }}>
+                    <div className="item-meta" style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.6 }}>
                       <div style={{fontWeight: 500, marginBottom:4}}>
                         {TYPE_ICONS[it.kind]} {it.creator}
                       </div>
                       
-                      {/* Badge e Info raggruppate */}
-                      <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center'}}>
-                        <span className="badge">{it.kind}</span>
+                      <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center', marginTop:4}}>
+                        <span className="badge" style={{background:'#edf2f7', color:'#4a5568'}}>{it.kind}</span>
                         {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
-                        {it.genre && showGenreInput(it.kind) && <span style={{opacity:0.8}}>• {canonGenere(it.genre)}</span>}
-                        {it.year && <span style={{opacity:0.8}}>• {it.year}</span>}
+                        {it.genre && showGenreInput(it.kind) && <span style={{fontSize:'0.85em', opacity:0.8}}>• {canonGenere(it.genre)}</span>}
+                        {it.year && <span style={{fontSize:'0.85em', opacity:0.8}}>• {it.year}</span>}
                         
-                        {/* ICONE SORGENTI */}
+                        {/* Icone sorgenti */}
                         {Array.isArray(it.sourcesArr) && it.sourcesArr.length > 0 && (
-                          <span style={{ marginLeft: 4, display:'inline-flex', gap:4 }}>
+                          <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9 }}>
                             {it.sourcesArr.map(s => <span key={s} title={s}>{SOURCE_ICONS[s]}</span>)}
                           </span>
                         )}
                       </div>
 
-                      {it.finished_at && <div style={{marginTop:4, fontSize:'0.85em', color:'#718096'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
+                      {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
                     </div>
                   </div>
 
-                  {/* --- ZONA AZIONI (PULSANTI IN BASSO) --- */}
+                  {/* --- ZONA 2: AZIONI (Sotto) --- */}
                   <div style={{ 
                       display: 'flex', 
                       justifyContent: 'flex-end', 
@@ -584,51 +587,45 @@ const fetchItems = useCallback(async () => {
                       gap: 8, 
                       marginTop: 4, 
                       paddingTop: 12, 
-                      borderTop: '1px solid #f7fafc',
+                      borderTop: '1px solid #f0f4f8', 
                       flexWrap: 'wrap'
                     }}>
                     
-                    {/* Link Video */}
                     {it.video_url && (
-                      <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" style={{ textDecoration: 'none', padding:'6px 12px', fontSize:'0.9em' }}>
+                      <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" style={{ textDecoration: 'none', padding:'6px 10px', fontSize:'0.85em', display:'flex', alignItems:'center', gap:4 }}>
                         🔗 Apri
                       </a>
                     )}
 
-                    {/* Tasto Focus (Solo se non finito e non archiviato) */}
                     {(!it.finished_at && it.status !== 'archived') && (
-                      <button className="ghost" onClick={() => toggleFocus(it)} style={{padding:'6px 12px', fontSize:'0.9em'}}>
-                        {it.is_next ? "🚫 Togli Focus" : "📌 Focus"}
+                      <button className="ghost" onClick={() => toggleFocus(it)} style={{padding:'6px 10px', fontSize:'0.85em'}}>
+                        {it.is_next ? "🚫 Togli" : "📌 Focus"}
                       </button>
                     )}
 
-                    {/* Tasto Acquistato (Se "da comprare") */}
                     {(it.sourcesArr || []).includes("da comprare") && (
-                      <button className="ghost" onClick={() => markAsPurchased(it)} style={{padding:'6px 12px', fontSize:'0.9em', color:'#2b6cb0', borderColor:'#bee3f8'}}>
+                      <button className="ghost" onClick={() => markAsPurchased(it)} style={{padding:'6px 10px', fontSize:'0.85em', color:'#2b6cb0', borderColor:'#bee3f8'}}>
                         🛒 Preso
                       </button>
                     )}
 
-                    {/* Tasto Archivia / Ripristina */}
                     {(it.finished_at || it.status === "archived") ? (
-                      <button className="ghost" onClick={() => unarchive(it)} style={{padding:'6px 12px', fontSize:'0.9em'}}>
+                      <button className="ghost" onClick={() => unarchive(it)} style={{padding:'6px 10px', fontSize:'0.85em'}}>
                         ↩️ Ripristina
                       </button>
                     ) : (
-                      <button className="ghost" onClick={() => openArchiveModal(it)} style={{padding:'6px 12px', fontSize:'0.9em'}}>
+                      <button className="ghost" onClick={() => openArchiveModal(it)} style={{padding:'6px 10px', fontSize:'0.85em'}}>
                         📦 Archivia
                       </button>
                     )}
 
-                    {/* Tasto Modifica (Sempre visibile, icona piccola) */}
-                    <button className="ghost" onClick={() => openEditModal(it)} style={{ padding: '6px 10px', fontSize:'1.1em' }} title="Modifica">
+                    <button className="ghost" onClick={() => openEditModal(it)} style={{ padding: '6px 8px', fontSize:'1.1em' }} title="Modifica">
                       ✏️
                     </button>
                   </div>
-
                 </div>
               ))}
-              {items.length === 0 && <p style={{ opacity: .8, textAlign:'center', marginTop:20 }}>Nessun elemento trovato.</p>}
+              {items.length===0 && <p style={{opacity:.8, textAlign:'center'}}>Nessun elemento trovato.</p>}
             </div>
           )}
         </section>
@@ -659,6 +656,35 @@ const fetchItems = useCallback(async () => {
               </select>
               <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} />
               <input placeholder="Link (YouTube, Steam...)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{gridColumn: "1 / -1"}} />
+
+              {/* --- BLOCCO SORGENTI (AGGIUNTA) --- */}
+              <div style={{gridColumn: "1 / -1", marginTop: 8}}>
+                <span style={{fontSize: '0.9em', opacity: 0.7}}>Sorgenti:</span>
+                <div style={{display:'flex', gap: 12, flexWrap:'wrap', marginTop: 4}}>
+                  {SOURCE_OPTIONS.map(s => {
+                    const active = addSources.includes(s);
+                    return (
+                      <label key={s} style={{
+                          display:'flex', alignItems:'center', gap:6, cursor:'pointer',
+                          padding: '4px 8px', borderRadius: 4, 
+                          backgroundColor: active ? '#ebf8ff' : 'transparent',
+                          border: active ? '1px solid #90cdf4' : '1px solid #e2e8f0'
+                        }}>
+                        <input 
+                          type="checkbox" 
+                          checked={active}
+                          onChange={() => {
+                            if (active) setAddSources(prev => prev.filter(x => x !== s));
+                            else setAddSources(prev => [...prev, s]);
+                          }}
+                          style={{margin:0}}
+                        />
+                        <span>{SOURCE_ICONS[s]} {s}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
               
               {/* --- BLOCCO OPZIONI AGGIUNTA (FINITO / FOCUS) --- */}
               <div style={{gridColumn: "1 / -1", marginTop:8, display:'flex', flexDirection:'column', gap:8}}>
