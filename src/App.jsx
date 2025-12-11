@@ -16,9 +16,10 @@ const TYPES = ["libro", "audiolibro", "film", "album", "video", "gioco"];
 
 const GENRES = [
   "ambiente","cinema","storia","romanzi","asia","sociologia","psicologia",
-  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport"
+  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport",
+  "rpg", "fps", "avventura", "strategia", "documentario", "tutorial"
 ];
-const MOODS = ["Relax", "Focus", "Apprendimento", "Impegnativo"];
+const MOODS = ["Relax", "Focus", "Energia", "Breve", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 const SOURCE_OPTIONS = ["fisico","biblio","da comprare","internet"];
@@ -366,7 +367,7 @@ export default function App(){
     setMoodFilter(""); setSourceFilter(""); setLetterFilter(""); setYearFilter(""); 
     setCompletionMonthFilter(""); setCompletionYearFilter(""); 
     setSuggestion(null); 
-    setStatusFilter("active"); 
+    setStatusFilter("active"); // Reset status to active
   }, []);
 
   const openEditModal = useCallback((it) => {
@@ -587,7 +588,7 @@ export default function App(){
                     boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                   }}>
                   
-                  {/* --- ZONA 1: INFO (Sopra) --- */}
+                  {/* --- ZONA 1: INFO --- */}
                   <div>
                     <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
                       {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>}
@@ -600,12 +601,11 @@ export default function App(){
                       </div>
                       
                       <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center', marginTop:4}}>
-                        <span className="badge" style={{background:'#edf2f7', color:'#4a5568'}}>{it.kind}</span>
+                        {/* Rimosso badge duplicato del tipo, tanto c'è l'icona sopra */}
                         {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
                         {it.genre && showGenreInput(it.kind) && <span style={{fontSize:'0.85em', opacity:0.8}}>• {canonGenere(it.genre)}</span>}
                         {it.year && <span style={{fontSize:'0.85em', opacity:0.8}}>• {it.year}</span>}
                         
-                        {/* Icone sorgenti */}
                         {Array.isArray(it.sourcesArr) && it.sourcesArr.length > 0 && (
                           <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9 }}>
                             {it.sourcesArr.map(s => <span key={s} title={s}>{SOURCE_ICONS[s]}</span>)}
@@ -617,12 +617,12 @@ export default function App(){
                     </div>
                   </div>
 
-                  {/* --- ZONA 2: AZIONI (Sotto) --- */}
+                  {/* --- ZONA 2: AZIONI (SOLO ICONE) --- */}
                   <div style={{ 
                       display: 'flex', 
                       justifyContent: 'flex-end', 
                       alignItems: 'center', 
-                      gap: 8, 
+                      gap: 12, 
                       marginTop: 4, 
                       paddingTop: 12, 
                       borderTop: '1px solid #f0f4f8', 
@@ -630,34 +630,34 @@ export default function App(){
                     }}>
                     
                     {it.video_url && (
-                      <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" style={{ textDecoration: 'none', padding:'6px 10px', fontSize:'0.85em', display:'flex', alignItems:'center', gap:4 }}>
-                        🔗 Apri
+                      <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em' }}>
+                        🔗
                       </a>
                     )}
 
                     {(!it.finished_at && it.status !== 'archived') && (
-                      <button className="ghost" onClick={() => toggleFocus(it)} style={{padding:'6px 10px', fontSize:'0.85em'}}>
-                        {it.is_next ? "🚫 Togli" : "📌 Focus"}
+                      <button className="ghost" onClick={() => toggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em'}}>
+                        {it.is_next ? "🚫" : "📌"}
                       </button>
                     )}
 
                     {(it.sourcesArr || []).includes("da comprare") && (
-                      <button className="ghost" onClick={() => markAsPurchased(it)} style={{padding:'6px 10px', fontSize:'0.85em', color:'#2b6cb0', borderColor:'#bee3f8'}}>
-                        🛒 Preso
+                      <button className="ghost" onClick={() => markAsPurchased(it)} title="Segna come acquistato" style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8'}}>
+                        🛒
                       </button>
                     )}
 
                     {(it.finished_at || it.status === "archived") ? (
-                      <button className="ghost" onClick={() => unarchive(it)} style={{padding:'6px 10px', fontSize:'0.85em'}}>
-                        ↩️ Ripristina
+                      <button className="ghost" onClick={() => unarchive(it)} title="Ripristina" style={{padding:'8px', fontSize:'1.2em'}}>
+                        ↩️
                       </button>
                     ) : (
-                      <button className="ghost" onClick={() => openArchiveModal(it)} style={{padding:'6px 10px', fontSize:'0.85em'}}>
-                        📦 Archivia
+                      <button className="ghost" onClick={() => openArchiveModal(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em'}}>
+                        📦
                       </button>
                     )}
 
-                    <button className="ghost" onClick={() => openEditModal(it)} style={{ padding: '6px 8px', fontSize:'1.1em' }} title="Modifica">
+                    <button className="ghost" onClick={() => openEditModal(it)} title="Modifica" style={{ padding: '8px', fontSize:'1.2em' }}>
                       ✏️
                     </button>
                   </div>
