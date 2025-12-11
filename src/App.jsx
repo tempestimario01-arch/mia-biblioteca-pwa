@@ -18,7 +18,7 @@ const GENRES = [
   "ambiente","cinema","storia","romanzi","asia","sociologia","psicologia",
   "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport"
 ];
-const MOODS = ["Relax", "Focus", "Breve", "Apprendimento", "Impegnativo"];
+const MOODS = ["Relax", "Energia", "Breve", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 const SOURCE_OPTIONS = ["fisico","biblio","da comprare","internet"];
@@ -108,7 +108,7 @@ export default function App(){
   // Nuovi stati per Aggiunta Avanzata
   const [isInstantArchive, setIsInstantArchive] = useState(false);
   const [instantDate, setInstantDate] = useState("");
-  const [addSources, setAddSources] = useState([]); // Sorgenti in fase di aggiunta
+  const [addSources, setAddSources] = useState([]); 
 
   // Random / Suggerimenti
   const [randKind,setRandKind] = useState("libro");
@@ -145,7 +145,7 @@ export default function App(){
   }, []);
 
   const fetchItems = useCallback(async () => {
-    // FIX SCROLL: Rimosso setLoading(true) da qui per evitare salti durante update.
+    // FIX SCROLL: Rimosso setLoading(true) per evitare che la lista sparisca durante l'aggiornamento
     
     let query = supabase
       .from("items")
@@ -155,7 +155,6 @@ export default function App(){
 
     if (q) { query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`); }
     
-    // Filtro per Stato
     if (statusFilter) { query = query.eq('status', statusFilter); }
 
     if (typeFilter) { query = query.eq('type', typeFilter); }
@@ -254,7 +253,7 @@ export default function App(){
       title, author: creator, type: kind, status: finalStatus,
       genre: showGenreInput(kind) ? canonGenere(genre) : null, 
       year: year ? Number(year) : null,
-      source: joinSources(addSources), // Uso le sorgenti selezionate
+      source: joinSources(addSources), 
       mood: mood || null, video_url: videoUrl || null, 
       is_next: finalIsNext,
       ended_on: finalEndedOn
@@ -265,7 +264,7 @@ export default function App(){
       setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
       setMood(""); setVideoUrl(""); setIsNext(false);
       setIsInstantArchive(false); setInstantDate(""); 
-      setAddSources([]); // Reset sorgenti
+      setAddSources([]); 
       setAddModalOpen(false); 
       if (isSearchActive) fetchItems(); 
       fetchStats(); fetchPinnedItems();
@@ -275,15 +274,25 @@ export default function App(){
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
     const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
-    if (!error) { fetchItems(); fetchPinnedItems(); }
-  }, [fetchItems, fetchPinnedItems]);
+    if (!error) { 
+      // Aggiornamento locale per il focus
+      setItems(prev => prev.map(x => x.id === it.id ? {...x, is_next: newVal} : x));
+      fetchPinnedItems(); 
+    }
+  }, [fetchPinnedItems]);
 
   const markAsPurchased = useCallback(async (it) => {
     const srcs = new Set([...(it.sourcesArr||[])]);
     srcs.delete("da comprare"); srcs.add("fisico");
-    const { error } = await supabase.from("items").update({ source: joinSources(Array.from(srcs)) }).eq("id", it.id);
-    if (!error) { if(isSearchActive) fetchItems(); fetchStats(); }
-  }, [isSearchActive, fetchItems, fetchStats]);
+    const newSourceStr = joinSources(Array.from(srcs));
+    
+    const { error } = await supabase.from("items").update({ source: newSourceStr }).eq("id", it.id);
+    if (!error) { 
+        // Aggiornamento locale
+        setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x));
+        fetchStats(); 
+    }
+  }, [fetchStats]);
 
   const openArchiveModal = useCallback((it) => {
     setArchModal({
@@ -357,7 +366,7 @@ export default function App(){
     setMoodFilter(""); setSourceFilter(""); setLetterFilter(""); setYearFilter(""); 
     setCompletionMonthFilter(""); setCompletionYearFilter(""); 
     setSuggestion(null); 
-    setStatusFilter("active"); // Reset status to active
+    setStatusFilter("active"); 
   }, []);
 
   const openEditModal = useCallback((it) => {
@@ -365,23 +374,50 @@ export default function App(){
       id: it.id, title: it.title, creator: it.creator, type: it.kind,     
       genre: it.genre || '', year: it.year || '', mood: it.mood || '', 
       video_url: it.video_url || '', is_next: it.is_next || false,
-      source: it.sources || ''
+      source: joinSources(it.sourcesArr)
     });
   }, []);
   
+  // === FUNZIONE AGGIORNAMENTO LOCALE (FIX SPARIZIONE ITEM) ===
   const handleUpdateItem = useCallback(async (e) => {
     e.preventDefault();
     if (!editState || !editState.title.trim()) return;
+
     const payload = {
-      title: editState.title, author: editState.creator, type: editState.type,
+      title: editState.title, 
+      author: editState.creator, 
+      type: editState.type,
       genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
       year: editState.year ? Number(editState.year) : null,
-      mood: editState.mood || null, video_url: editState.video_url || null, is_next: editState.is_next,
+      mood: editState.mood || null, 
+      video_url: editState.video_url || null, 
+      is_next: editState.is_next,
       source: editState.source 
     };
-    await supabase.from("items").update(payload).eq('id', editState.id);
-    setEditState(null); fetchItems(); fetchPinnedItems();
-  }, [editState, fetchItems, fetchPinnedItems]);
+
+    const { error } = await supabase.from("items").update(payload).eq('id', editState.id);
+
+    if (!error) {
+      // Aggiornamento locale dell'array items
+      setItems(prevItems => prevItems.map(it => {
+        if (it.id === editState.id) {
+          return {
+            ...it,               
+            ...payload,          
+            creator: payload.author, 
+            kind: payload.type,      
+            sourcesArr: parseSources(payload.source) 
+          };
+        }
+        return it;
+      }));
+
+      setEditState(null);
+      fetchPinnedItems(); 
+    } else {
+      alert("Errore aggiornamento: " + error.message);
+    }
+  }, [editState, fetchPinnedItems]);
 
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
@@ -395,9 +431,11 @@ export default function App(){
 
   const deleteItem = useCallback(async (itemId) => {
     await supabase.from('items').delete().eq('id', itemId);
-    setEditState(null); fetchItems(); fetchStats(); fetchPinnedItems();
+    setEditState(null); 
+    setItems(prev => prev.filter(x => x.id !== itemId)); // Rimozione locale
+    fetchStats(); fetchPinnedItems();
     if (statsModalOpen) fetchPeriodStats();
-  }, [statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems]);
+  }, [statsModalOpen, fetchStats, fetchPeriodStats, fetchPinnedItems]);
 
   
   /* --- 4. EFFETTI --- */
