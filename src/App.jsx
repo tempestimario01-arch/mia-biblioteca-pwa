@@ -143,8 +143,10 @@ export default function App(){
     }
   }, []);
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
+const fetchItems = useCallback(async () => {
+    // MODIFICA ZEN: Non mostrare il caricamento se abbiamo già i dati (così non salta lo scroll)
+    if (items.length === 0) setLoading(true); 
+    
     let query = supabase
       .from("items")
       .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,is_next,finished_at:ended_on")
