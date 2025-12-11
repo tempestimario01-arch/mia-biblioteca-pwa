@@ -18,7 +18,7 @@ const GENRES = [
   "ambiente","cinema","storia","romanzi","asia","sociologia","psicologia",
   "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport"
 ];
-const MOODS = ["Relax", "Energia", "Breve", "Apprendimento", "Impegnativo"];
+const MOODS = ["Relax", "Focus", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 const SOURCE_OPTIONS = ["fisico","biblio","da comprare","internet"];
