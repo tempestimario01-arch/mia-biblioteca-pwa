@@ -16,10 +16,9 @@ const TYPES = ["libro", "audiolibro", "film", "album", "video", "gioco"];
 
 const GENRES = [
   "ambiente","cinema","storia","romanzi","asia","sociologia","psicologia",
-  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport",
-  "rpg", "fps", "avventura", "strategia", "documentario", "tutorial"
+  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport"
 ];
-const MOODS = ["Relax", "Focus", "Energia", "Breve", "Apprendimento", "Impegnativo"];
+const MOODS = ["Relax", "Focus", "Breve", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 const SOURCE_OPTIONS = ["fisico","biblio","da comprare","internet"];
@@ -95,6 +94,9 @@ export default function App(){
   const [statsModalOpen, setStatsModalOpen] = useState(false); 
   const [statsView, setStatsView] = useState('periodo'); 
   const [editState, setEditState] = useState(null);
+  
+  // STATO PER PULIZIA ZEN (NUOVO)
+  const [cleanupItem, setCleanupItem] = useState(null);
 
   // Form Aggiunta
   const [title,setTitle] = useState("");
@@ -213,27 +215,21 @@ export default function App(){
     } catch (error) { console.error(error); }
   }, []); 
 
-  /* --- ⚡️ NUOVA LOGICA STATISTICHE PERIODO (FIXED) ⚡️ --- */
+  /* --- LOGICA STATISTICHE PERIODO (FIXED) --- */
   const fetchPeriodStats = useCallback(async () => {
-    // Se non ci sono anno o mese, esci
     if (!statYear || !statMonth) return;
-
     setPeriodLoading(true);
 
-    // Calcolo range date
     const y = Number(statYear);
     const m = Number(statMonth);
-    // Data inizio mese
     const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
-    // Data inizio mese successivo (per fare < endDate)
     const nextM = m === 12 ? 1 : m + 1;
     const nextY = m === 12 ? y + 1 : y;
     const endDate = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
 
-    // Query diretta: prendiamo tutti gli elementi finiti in quel range
     const { data, error } = await supabase
       .from('items')
-      .select('type') // Ci serve solo il tipo per contare
+      .select('type')
       .gte('ended_on', startDate)
       .lt('ended_on', endDate);
 
@@ -241,19 +237,14 @@ export default function App(){
       console.error("Errore statistiche periodo:", error);
       setPeriodStats({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 });
     } else {
-      // Aggregazione Manuale
       const counts = { total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 };
-      
       (data || []).forEach(item => {
-        counts.total++; // Incrementa totale generale
+        counts.total++; 
         const t = normType(item.type);
-        if (counts[t] !== undefined) {
-          counts[t]++; // Incrementa specifico tipo
-        }
+        if (counts[t] !== undefined) counts[t]++; 
       });
       setPeriodStats(counts);
     }
-    
     setPeriodLoading(false);
   }, [statYear, statMonth]); 
 
@@ -410,12 +401,54 @@ export default function App(){
     if (statsModalOpen) fetchPeriodStats();
   }, [statsModalOpen, fetchStats, fetchPeriodStats, fetchPinnedItems]);
 
+  /* --- NUOVE FUNZIONI PER PULIZIA ZEN --- */
+  const handleCleanupSuggest = useCallback(async () => {
+    // Calcoliamo la data di 6 mesi fa
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const isoDate = sixMonthsAgo.toISOString();
+
+    // Cerchiamo elementi ATTIVI creati più di 6 mesi fa
+    const { data, error } = await supabase
+      .from('items')
+      .select('*')
+      .eq('status', 'active') 
+      .lt('created_at', isoDate); 
+
+    if (error) { 
+      console.error(error); 
+      return; 
+    }
+
+    if (data && data.length > 0) {
+       // Peschiamo un elemento a caso
+       const random = data[Math.floor(Math.random() * data.length)];
+       setCleanupItem({ ...random, kind: normType(random.type) }); // Normalizziamo il tipo per sicurezza
+       setAdvOpen(false); // Chiudiamo il menu filtri
+    } else {
+       alert("Complimenti! La tua collezione è fresca. Nessun elemento vecchio da revisionare.");
+    }
+  }, []);
+
+  const confirmDeleteCleanup = async () => {
+    if(!cleanupItem) return;
+    await deleteItem(cleanupItem.id);
+    setCleanupItem(null);
+  };
+
   /* --- 4. EFFETTI --- */
   useEffect(() => { const t = setTimeout(() => setQ(qInput.trim()), 250); return () => clearTimeout(t); }, [qInput]);
   useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); 
   useEffect(() => { 
     if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } 
   }, [isSearchActive, fetchItems]);
+
+  /* --- FIX STATISTICHE: Trigger ricalcolo --- */
+  useEffect(() => {
+    if (statsModalOpen) {
+      fetchPeriodStats();
+    }
+  }, [statsModalOpen, statMonth, statYear, fetchPeriodStats]);
 
   useEffect(() => {
     const fetchMemory = async () => {
@@ -621,7 +654,10 @@ export default function App(){
               <div className="sub" style={{marginBottom:8}}>Filtro Autori A–Z</div>
               <div className="row" style={{flexWrap:"wrap", gap:6}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className="ghost" onClick={()=>{ setLetterFilter(L); setAdvOpen(false); }}>{L}</button>))}<button className="ghost" onClick={()=>{ setLetterFilter(""); setAdvOpen(false); }}>Tutti</button></div>
             </div>
-            <div style={{margin:"12px 0"}}><button className="ghost" onClick={()=>exportItemsToCsv(items)}>Esporta CSV</button></div>
+            <div style={{margin:"12px 0", display: 'flex', gap: 12}}>
+                <button className="ghost" onClick={()=>exportItemsToCsv(items)}>Esporta CSV</button>
+                <button className="ghost" onClick={handleCleanupSuggest}>🧹 Pulizia Zen</button>
+            </div>
             <div className="row" style={{justifyContent:"flex-end"}}><button onClick={()=>setAdvOpen(false)}>Chiudi</button></div>
           </div>
         </div>
@@ -674,6 +710,27 @@ export default function App(){
             <div className="sub" style={{marginTop:8, opacity:.8}}>Sorgenti: {(archModal.sourcesArr||[]).join(" + ") || "—"}</div>
             <div className="row" style={{justifyContent:"flex-end", gap:8, marginTop:12}}><button className="ghost" onClick={()=>setArchModal(null)}>Annulla</button><button onClick={()=>saveArchiveFromModal(archModal)}>Archivia</button></div>
           </div>
+        </div>
+      )}
+      {/* MODALE PULIZIA ZEN (NUOVO) */}
+      {cleanupItem && (
+        <div className="modal-backdrop" onClick={() => setCleanupItem(null)}>
+           <div className="card" style={{maxWidth:400, width:"90%", padding:20, textAlign:'center'}} onClick={e => e.stopPropagation()}>
+             <h2 style={{marginTop:0}}>Pulizia Zen 🧹</h2>
+             <p style={{color:'#4a5568'}}>
+               Hai aggiunto questo elemento molto tempo fa. Ti interessa ancora?
+             </p>
+             <div style={{margin: '20px 0', padding: 12, border: '1px dashed #cbd5e0', borderRadius: 8}}>
+               <div style={{fontSize:'1.2rem', fontWeight:'bold', marginBottom:4}}>
+                 {TYPE_ICONS[cleanupItem.kind]} {cleanupItem.title}
+               </div>
+               <div style={{opacity:0.8}}>{cleanupItem.author}</div>
+             </div>
+             <div className="row" style={{justifyContent:"center", gap:12}}>
+               <button className="ghost" onClick={confirmDeleteCleanup} style={{color:'#c53030', borderColor:'#c53030'}}>No, elimina</button>
+               <button onClick={() => setCleanupItem(null)}>Sì, tienilo</button>
+             </div>
+           </div>
         </div>
       )}
       {editState && (
