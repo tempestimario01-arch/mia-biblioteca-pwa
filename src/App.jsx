@@ -482,7 +482,7 @@ export default function App(){
           {pinnedItems.length > 0 && (
             <section className="card" style={{marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4', padding:'12px 16px'}}>
               <h3 style={{marginTop:0, marginBottom:8, fontSize:'1em', color:'#22543d', textTransform:'uppercase', letterSpacing:'0.05em', display:'flex', justifyContent:'space-between'}}>
-                <span>📌 Piano di Lettura</span>
+                <span>📌 Focus</span>
                 <span style={{fontSize:'0.8em', opacity:0.6, fontWeight:'normal'}}>{pinnedItems.length} in programma</span>
               </h3>
               
