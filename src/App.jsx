@@ -213,17 +213,47 @@ export default function App(){
     } catch (error) { console.error(error); }
   }, []); 
 
+  /* --- ⚡️ NUOVA LOGICA STATISTICHE PERIODO (FIXED) ⚡️ --- */
   const fetchPeriodStats = useCallback(async () => {
+    // Se non ci sono anno o mese, esci
+    if (!statYear || !statMonth) return;
+
     setPeriodLoading(true);
-    const { data } = await supabase.rpc('get_period_stats', {
-      p_year: statYear ? Number(statYear) : null,
-      p_month: statMonth ? Number(statMonth) : null
-    });
-    if (data && data.length > 0) {
-      setPeriodStats(data[0]); 
-    } else {
+
+    // Calcolo range date
+    const y = Number(statYear);
+    const m = Number(statMonth);
+    // Data inizio mese
+    const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+    // Data inizio mese successivo (per fare < endDate)
+    const nextM = m === 12 ? 1 : m + 1;
+    const nextY = m === 12 ? y + 1 : y;
+    const endDate = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
+
+    // Query diretta: prendiamo tutti gli elementi finiti in quel range
+    const { data, error } = await supabase
+      .from('items')
+      .select('type') // Ci serve solo il tipo per contare
+      .gte('ended_on', startDate)
+      .lt('ended_on', endDate);
+
+    if (error) {
+      console.error("Errore statistiche periodo:", error);
       setPeriodStats({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 });
+    } else {
+      // Aggregazione Manuale
+      const counts = { total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 };
+      
+      (data || []).forEach(item => {
+        counts.total++; // Incrementa totale generale
+        const t = normType(item.type);
+        if (counts[t] !== undefined) {
+          counts[t]++; // Incrementa specifico tipo
+        }
+      });
+      setPeriodStats(counts);
     }
+    
     setPeriodLoading(false);
   }, [statYear, statMonth]); 
 
@@ -549,7 +579,6 @@ export default function App(){
 
       {/* ===== FAB / MODALI (Resta invariato ma incluso per completezza) ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
-      {/* ... (Codice modali invariato dal tuo ultimo paste, incluso sopra nel blocco completo) ... */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
