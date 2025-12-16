@@ -95,7 +95,7 @@ export default function App(){
   const [statsView, setStatsView] = useState('periodo'); 
   const [editState, setEditState] = useState(null);
   
-  // STATO PER PULIZIA ZEN (NUOVO)
+  // STATO PER PULIZIA ZEN
   const [cleanupItem, setCleanupItem] = useState(null);
 
   // Form Aggiunta
@@ -215,7 +215,7 @@ export default function App(){
     } catch (error) { console.error(error); }
   }, []); 
 
-  /* --- LOGICA STATISTICHE PERIODO (FIXED) --- */
+  /* --- LOGICA STATISTICHE PERIODO (CORRETTA) --- */
   const fetchPeriodStats = useCallback(async () => {
     if (!statYear || !statMonth) return;
     setPeriodLoading(true);
@@ -401,7 +401,7 @@ export default function App(){
     if (statsModalOpen) fetchPeriodStats();
   }, [statsModalOpen, fetchStats, fetchPeriodStats, fetchPinnedItems]);
 
-  /* --- NUOVE FUNZIONI PER PULIZIA ZEN --- */
+  /* --- FUNZIONI PULIZIA ZEN --- */
   const handleCleanupSuggest = useCallback(async () => {
     // Calcoliamo la data di 6 mesi fa
     const sixMonthsAgo = new Date();
@@ -421,10 +421,9 @@ export default function App(){
     }
 
     if (data && data.length > 0) {
-       // Peschiamo un elemento a caso
        const random = data[Math.floor(Math.random() * data.length)];
-       setCleanupItem({ ...random, kind: normType(random.type) }); // Normalizziamo il tipo per sicurezza
-       setAdvOpen(false); // Chiudiamo il menu filtri
+       setCleanupItem({ ...random, kind: normType(random.type) }); 
+       setAdvOpen(false); 
     } else {
        alert("Complimenti! La tua collezione è fresca. Nessun elemento vecchio da revisionare.");
     }
@@ -443,7 +442,7 @@ export default function App(){
     if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } 
   }, [isSearchActive, fetchItems]);
 
-  /* --- FIX STATISTICHE: Trigger ricalcolo --- */
+  /* FIX STATISTICHE: Trigger ricalcolo al cambio mese/anno/modal */
   useEffect(() => {
     if (statsModalOpen) {
       fetchPeriodStats();
@@ -479,26 +478,55 @@ export default function App(){
       {/* ===== HOME ZEN (Minimalista) ===== */}
       {!isSearchActive && !loading && (
         <>
-          {/* FOCUS ZEN */}
+          {/* FOCUS ZEN - DISCIPLINA */}
           {pinnedItems.length > 0 && (
             <section className="card" style={{marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4', padding:'12px 16px'}}>
-              <h3 style={{marginTop:0, marginBottom:8, fontSize:'1em', color:'#22543d', textTransform:'uppercase', letterSpacing:'0.05em'}}>
-                📌 In Corso
+              <h3 style={{marginTop:0, marginBottom:8, fontSize:'1em', color:'#22543d', textTransform:'uppercase', letterSpacing:'0.05em', display:'flex', justifyContent:'space-between'}}>
+                <span>📌 Piano di Lettura</span>
+                <span style={{fontSize:'0.8em', opacity:0.6, fontWeight:'normal'}}>{pinnedItems.length} in programma</span>
               </h3>
+              
               <div style={{display:'flex', flexDirection:'column'}}>
                 {pinnedItems.map((p, idx) => (
                   <div key={p.id} style={{
-                      padding: '8px 0', 
+                      padding: '10px 0', 
                       borderBottom: idx === pinnedItems.length-1 ? 'none' : '1px solid #c6f6d5',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12
                     }}>
+                    
+                    {/* INFO */}
                     <div style={{flex: 1}}>
-                      <div style={{fontWeight:'600', fontSize:'1rem', color:'#2f855a'}}>{TYPE_ICONS[p.kind]} {p.title}</div>
-                      <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>{p.creator}</div>
+                      <div style={{fontWeight:'600', fontSize:'1rem', color:'#2f855a'}}>
+                        {TYPE_ICONS[p.kind]} {p.title}
+                      </div>
+                      <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>
+                        {p.creator}
+                      </div>
                     </div>
-                    {p.video_url && (
-                      <a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Apri Link" style={{fontSize:'1.3em', textDecoration:'none', opacity: 0.9}}>🔗</a>
-                    )}
+
+                    {/* AZIONI (SOLO AVANTI) */}
+                    <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                       {/* Archivia (Finito) */}
+                       <button 
+                        className="ghost" 
+                        onClick={() => openArchiveModal(p)} 
+                        title="Obiettivo Raggiunto! Archivia" 
+                        style={{fontSize:'1.3em', padding:'6px', cursor:'pointer'}}
+                      >
+                        📦
+                      </button>
+
+                      {/* Link (Inizia) */}
+                      {p.video_url && (
+                        <a href={p.video_url} target="_blank" rel="noopener noreferrer" 
+                           title="Inizia ora" 
+                           className="ghost button"
+                           style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center'}}
+                        >
+                          🔗
+                        </a>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -518,7 +546,7 @@ export default function App(){
           {suggestion && (
             <section className="card" style={{marginBottom:12, borderLeft: '4px solid #ed8936', backgroundColor: '#fffaf0', padding:'12px 16px'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
-                <div>
+                <div style={{flex:1}}> 
                   <h3 style={{marginTop:0, marginBottom:4, fontSize:'1em', color:'#c05621'}}>🎲 Perché non provi...</h3>
                   <div style={{fontSize:'1.1em', fontWeight:'bold', marginBottom:2}}>{suggestion.title}</div>
                   <div style={{fontSize:'0.9em', opacity:0.8, marginBottom:8}}>{TYPE_ICONS[suggestion.kind]} {suggestion.author || "Autore sconosciuto"}</div>
@@ -527,17 +555,40 @@ export default function App(){
                       {suggestion.genre && <span className="badge" style={{backgroundColor:'#edf2f7', color:'#4a5568'}}>{suggestion.genre}</span>}
                   </div>
                 </div>
-                {suggestion.video_url && (
-                    <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" title="Apri" style={{
-                      display:'flex', alignItems:'center', justifyContent:'center', width: 40, height: 40, borderRadius: '50%',
-                      backgroundColor: '#feebc8', textDecoration:'none', fontSize:'1.4em'
-                    }}>🔗</a>
-                )}
+                
+                {/* AZIONI SUGGERIMENTO */}
+                <div style={{display:'flex', flexDirection:'column', gap:8, alignItems:'center'}}>
+                   {/* Link */}
+                   {suggestion.video_url && (
+                      <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" title="Apri subito" style={{
+                        display:'flex', alignItems:'center', justifyContent:'center', width: 40, height: 40, borderRadius: '50%',
+                        backgroundColor: '#feebc8', textDecoration:'none', fontSize:'1.4em'
+                      }}>🔗</a>
+                   )}
+                   
+                   {/* PIN (Aggiungi alla lista verde) */}
+                   {!suggestion.is_next && (
+                     <button 
+                       className="ghost"
+                       onClick={() => {
+                         toggleFocus(suggestion); 
+                         setSuggestion(null);     
+                       }}
+                       title="Aggiungi al Piano di Lettura"
+                       style={{
+                         display:'flex', alignItems:'center', justifyContent:'center', width: 40, height: 40, borderRadius: '50%',
+                         backgroundColor: '#c6f6d5', color: '#2f855a', fontSize:'1.4em', border: '1px solid #9ae6b4', cursor:'pointer'
+                       }}
+                     >
+                       📌
+                     </button>
+                   )}
+                </div>
               </div>
             </section>
           )}
 
-          {/* CONTROLLI SUGGERIMENTI ZEN */}
+          {/* CONTROLLI DADO */}
           <section className="card" style={{marginBottom:12, marginTop:12, padding:12}}>
             <div className="row" style={{alignItems:"center", gap:8, flexWrap:"wrap", justifyContent:'center'}}>
               <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:100}}>
@@ -712,7 +763,7 @@ export default function App(){
           </div>
         </div>
       )}
-      {/* MODALE PULIZIA ZEN (NUOVO) */}
+      {/* MODALE PULIZIA ZEN */}
       {cleanupItem && (
         <div className="modal-backdrop" onClick={() => setCleanupItem(null)}>
            <div className="card" style={{maxWidth:400, width:"90%", padding:20, textAlign:'center'}} onClick={e => e.stopPropagation()}>
