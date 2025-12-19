@@ -327,6 +327,38 @@ export default function App(){
     if(statsModalOpen) fetchPeriodStats();
   }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
 
+  const reExperience = useCallback(async (it) => {
+    // Chiediamo conferma per sicurezza
+    if(!window.confirm(`Vuoi iniziare a rileggere/riguardare "${it.title}"? \n\nVerrà creata una copia nel tuo Piano di Lettura per mantenere intatte le statistiche passate.`)) return;
+
+    // Creiamo il payload copiando i dati, ma resettando date e status
+    const payload = {
+      title: it.title,
+      author: it.creator, // Nota: nel DB è author, nell'oggetto locale è creator
+      type: it.kind,      // Nota: nel DB è type, nell'oggetto locale è kind
+      genre: it.genre,
+      mood: it.mood,
+      year: it.year,
+      video_url: it.video_url,
+      source: joinSources(it.sourcesArr), // Manteniamo le sorgenti (es. ce l'ho fisico)
+      status: "active",   // Torna attivo
+      is_next: true,      // Va dritto nel Piano di Lettura (Verde)
+      created_at: new Date().toISOString(), // Data creazione oggi
+      ended_on: null      // Non ancora finito
+    };
+
+    const { error } = await supabase.from("items").insert(payload);
+    
+    if (!error) {
+      if (isSearchActive) fetchItems(); // Aggiorna la lista
+      fetchStats(); 
+      fetchPinnedItems(); // Aggiorna la zona verde
+      alert(`Buon viaggio! Una nuova copia di "${it.title}" è stata aggiunta al tuo Piano.`);
+    } else {
+      alert("Errore durante la creazione della copia: " + error.message);
+    }
+  }, [isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
+
   const handleSuggest = useCallback(async () => {
     setSuggestion(null); 
     const conflict = pinnedItems.find(p => p.kind === randKind);
@@ -647,8 +679,14 @@ export default function App(){
                       <button className="ghost" onClick={() => markAsPurchased(it)} title="Segna come acquistato" style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8'}}>🛒</button>
                     )}
                     {(it.finished_at || it.status === "archived") ? (
-                      <button className="ghost" onClick={() => unarchive(it)} title="Ripristina" style={{padding:'8px', fontSize:'1.2em'}}>↩️</button>
-                    ) : (
+                    <>
+                      {/* Tasto Rileggi (Crea Copia) */}
+                      <button className="ghost" onClick={() => reExperience(it)} title="Rileggi/Riguarda (Crea nuova copia)" style={{padding:'8px', fontSize:'1.2em'}}>🔄</button>
+                      
+                      {/* Tasto Ripristina (Sposta lo stesso) */}
+                      <button className="ghost" onClick={() => unarchive(it)} title="Ripristina (Modifica questo elemento)" style={{padding:'8px', fontSize:'1.2em', opacity: 0.5}}>↩️</button>
+                    </>
+                  ) : (
                       <button className="ghost" onClick={() => openArchiveModal(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em'}}>📦</button>
                     )}
                     <button className="ghost" onClick={() => openEditModal(it)} title="Modifica" style={{ padding: '8px', fontSize:'1.2em' }}>✏️</button>
