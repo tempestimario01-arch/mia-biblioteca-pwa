@@ -16,9 +16,10 @@ const TYPES = ["libro", "audiolibro", "film", "album", "video", "gioco"];
 
 const GENRES = [
   "ambiente","cinema","storia","romanzi","asia","sociologia","psicologia",
-  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport"
+  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport",
+  "rpg", "fps", "avventura", "strategia", "documentario", "tutorial"
 ];
-const MOODS = ["Relax", "Focus", "Breve", "Apprendimento", "Impegnativo"];
+const MOODS = ["Relax", "Focus", "Energia", "Breve", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 const SOURCE_OPTIONS = ["fisico","biblio","da comprare","internet"];
@@ -215,7 +216,7 @@ export default function App(){
     } catch (error) { console.error(error); }
   }, []); 
 
-  /* --- LOGICA STATISTICHE PERIODO (CORRETTA) --- */
+  /* --- LOGICA STATISTICHE PERIODO --- */
   const fetchPeriodStats = useCallback(async () => {
     if (!statYear || !statMonth) return;
     setPeriodLoading(true);
@@ -327,37 +328,45 @@ export default function App(){
     if(statsModalOpen) fetchPeriodStats();
   }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
 
+  // NUOVA FUNZIONE: RILEGGI (CON BLOCCO ZEN ✋)
   const reExperience = useCallback(async (it) => {
-    // Chiediamo conferma per sicurezza
+    // 1. Controllo Zen: Se hai già un elemento di questo tipo in focus, ti fermo.
+    const conflict = pinnedItems.find(p => p.kind === it.kind);
+    if (conflict) {
+      alert(`✋ Alt! Per "${it.kind}" hai già fissato:\n"${conflict.title}".\n\nFinisci prima quello.`);
+      return;
+    }
+
+    // 2. Chiedo conferma
     if(!window.confirm(`Vuoi iniziare a rileggere/riguardare "${it.title}"? \n\nVerrà creata una copia nel tuo Piano di Lettura per mantenere intatte le statistiche passate.`)) return;
 
-    // Creiamo il payload copiando i dati, ma resettando date e status
+    // 3. Creo copia
     const payload = {
       title: it.title,
-      author: it.creator, // Nota: nel DB è author, nell'oggetto locale è creator
-      type: it.kind,      // Nota: nel DB è type, nell'oggetto locale è kind
+      author: it.creator, 
+      type: it.kind,      
       genre: it.genre,
       mood: it.mood,
       year: it.year,
       video_url: it.video_url,
-      source: joinSources(it.sourcesArr), // Manteniamo le sorgenti (es. ce l'ho fisico)
-      status: "active",   // Torna attivo
-      is_next: true,      // Va dritto nel Piano di Lettura (Verde)
-      created_at: new Date().toISOString(), // Data creazione oggi
-      ended_on: null      // Non ancora finito
+      source: joinSources(it.sourcesArr), 
+      status: "active",   
+      is_next: true,      
+      created_at: new Date().toISOString(), 
+      ended_on: null      
     };
 
     const { error } = await supabase.from("items").insert(payload);
     
     if (!error) {
-      if (isSearchActive) fetchItems(); // Aggiorna la lista
+      if (isSearchActive) fetchItems(); 
       fetchStats(); 
-      fetchPinnedItems(); // Aggiorna la zona verde
-      alert(`Buon viaggio! Una nuova copia di "${it.title}" è stata aggiunta al tuo Piano.`);
+      fetchPinnedItems(); 
+      alert(`Buon viaggio! Una copia di "${it.title}" è nel tuo Piano.`);
     } else {
-      alert("Errore durante la creazione della copia: " + error.message);
+      alert("Errore copia: " + error.message);
     }
-  }, [isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
+  }, [isSearchActive, fetchItems, fetchStats, fetchPinnedItems, pinnedItems]); // Aggiunto pinnedItems alle dipendenze
 
   const handleSuggest = useCallback(async () => {
     setSuggestion(null); 
@@ -435,22 +444,17 @@ export default function App(){
 
   /* --- FUNZIONI PULIZIA ZEN --- */
   const handleCleanupSuggest = useCallback(async () => {
-    // Calcoliamo la data di 6 mesi fa
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     const isoDate = sixMonthsAgo.toISOString();
 
-    // Cerchiamo elementi ATTIVI creati più di 6 mesi fa
     const { data, error } = await supabase
       .from('items')
       .select('*')
       .eq('status', 'active') 
       .lt('created_at', isoDate); 
 
-    if (error) { 
-      console.error(error); 
-      return; 
-    }
+    if (error) { console.error(error); return; }
 
     if (data && data.length > 0) {
        const random = data[Math.floor(Math.random() * data.length)];
@@ -474,7 +478,6 @@ export default function App(){
     if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } 
   }, [isSearchActive, fetchItems]);
 
-  /* FIX STATISTICHE: Trigger ricalcolo al cambio mese/anno/modal */
   useEffect(() => {
     if (statsModalOpen) {
       fetchPeriodStats();
@@ -510,11 +513,11 @@ export default function App(){
       {/* ===== HOME ZEN (Minimalista) ===== */}
       {!isSearchActive && !loading && (
         <>
-          {/* FOCUS ZEN - DISCIPLINA */}
+          {/* FOCUS ZEN - PIANO DI LETTURA (DISCIPLINATO) */}
           {pinnedItems.length > 0 && (
             <section className="card" style={{marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4', padding:'12px 16px'}}>
               <h3 style={{marginTop:0, marginBottom:8, fontSize:'1em', color:'#22543d', textTransform:'uppercase', letterSpacing:'0.05em', display:'flex', justifyContent:'space-between'}}>
-                <span>📌 Focus</span>
+                <span>📌 Piano di Lettura</span>
                 <span style={{fontSize:'0.8em', opacity:0.6, fontWeight:'normal'}}>{pinnedItems.length} in programma</span>
               </h3>
               
@@ -669,7 +672,7 @@ export default function App(){
                       {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
                     </div>
                   </div>
-                  {/* ZONA 2: AZIONI (SOLO ICONE) */}
+                  {/* ZONA 2: AZIONI (AGGIORNATO CON TASTO RILEGGI + CHECK ZEN) */}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
                     {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em' }}>🔗</a> )}
                     {(!it.finished_at && it.status !== 'archived') && (
@@ -678,15 +681,13 @@ export default function App(){
                     {(it.sourcesArr || []).includes("da comprare") && (
                       <button className="ghost" onClick={() => markAsPurchased(it)} title="Segna come acquistato" style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8'}}>🛒</button>
                     )}
+                    {/* SEZIONE MODIFICATA: RILEGGI O RIPRISTINA */}
                     {(it.finished_at || it.status === "archived") ? (
-                    <>
-                      {/* Tasto Rileggi (Crea Copia) */}
-                      <button className="ghost" onClick={() => reExperience(it)} title="Rileggi/Riguarda (Crea nuova copia)" style={{padding:'8px', fontSize:'1.2em'}}>🔄</button>
-                      
-                      {/* Tasto Ripristina (Sposta lo stesso) */}
-                      <button className="ghost" onClick={() => unarchive(it)} title="Ripristina (Modifica questo elemento)" style={{padding:'8px', fontSize:'1.2em', opacity: 0.5}}>↩️</button>
-                    </>
-                  ) : (
+                      <>
+                         <button className="ghost" onClick={() => reExperience(it)} title="Rileggi/Riguarda (Crea nuova copia)" style={{padding:'8px', fontSize:'1.2em'}}>🔄</button>
+                         <button className="ghost" onClick={() => unarchive(it)} title="Ripristina (Usa questo elemento)" style={{padding:'8px', fontSize:'1.2em', opacity:0.5}}>↩️</button>
+                      </>
+                    ) : (
                       <button className="ghost" onClick={() => openArchiveModal(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em'}}>📦</button>
                     )}
                     <button className="ghost" onClick={() => openEditModal(it)} title="Modifica" style={{ padding: '8px', fontSize:'1.2em' }}>✏️</button>
@@ -707,132 +708,12 @@ export default function App(){
             <h2 style={{marginTop:0}}>Aggiungi elemento</h2>
             <form onSubmit={addItem} className="grid grid-2">
               <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} />
-              <input placeholder="Autore/Sviluppatore/Canale" value={creator} onChange={e=>setCreator(e.target.value)} />
+              <input placeholder="Autore" value={creator} onChange={e=>setCreator(e.target.value)} />
               <select value={kind} onChange={handleAddKindChange}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
               {showGenreInput(kind) && (<select value={genre} onChange={e=>setGenre(e.target.value)}><option value="">Genere (facoltativo)</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>)}
               <select value={mood} onChange={e=>setMood(e.target.value)}><option value="">Umore / Energia (opz.)</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} />
               <input placeholder="Link (YouTube, Steam...)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{gridColumn: "1 / -1"}} />
-              <div style={{gridColumn: "1 / -1", marginTop: 8}}><span style={{fontSize: '0.9em', opacity: 0.7}}>Sorgenti:</span><div style={{display:'flex', gap: 12, flexWrap:'wrap', marginTop: 4}}>{SOURCE_OPTIONS.map(s => { const active = addSources.includes(s); return (<label key={s} style={{display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding: '4px 8px', borderRadius: 4, backgroundColor: active ? '#ebf8ff' : 'transparent', border: active ? '1px solid #90cdf4' : '1px solid #e2e8f0'}}><input type="checkbox" checked={active} onChange={() => { if (active) setAddSources(prev => prev.filter(x => x !== s)); else setAddSources(prev => [...prev, s]); }} style={{margin:0}} /><span>{SOURCE_ICONS[s]} {s}</span></label>)})}</div></div>
-              <div style={{gridColumn: "1 / -1", marginTop:8, display:'flex', flexDirection:'column', gap:8}}>
-                <div style={{display:'flex', alignItems:'center', gap:8}}><input type="checkbox" id="chk_archive" checked={isInstantArchive} onChange={e=>setIsInstantArchive(e.target.checked)} style={{width:'auto'}}/><label htmlFor="chk_archive" style={{fontWeight: isInstantArchive ? 'bold' : 'normal'}}>✅ Già completato (Archivia subito)</label></div>
-                {isInstantArchive ? (<div style={{marginLeft: 24}}><label style={{fontSize:'0.9em', marginRight:8}}>Data fine:</label><input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{width:'auto', display:'inline-block'}}/></div>) : (<div style={{display:'flex', alignItems:'center', gap:8}}><input type="checkbox" id="chk_next" checked={isNext} onChange={e=>setIsNext(e.target.checked)} style={{width:'auto'}}/><label htmlFor="chk_next">📌 Imposta come "Prossimo" (Focus)</label></div>)}
-              </div>
-              <button type="submit" style={{gridColumn: "1 / -1", marginTop:8}}>Aggiungi</button>
-            </form>
-            <div className="row" style={{justifyContent:"flex-end", marginTop:12}}><button className="ghost" onClick={()=>setAddModalOpen(false)}>Chiudi</button></div>
-          </div>
-        </div>
-      )}
-      {advOpen && (
-        <div className="modal-backdrop" onClick={() => setAdvOpen(false)}>
-          <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Filtri & Strumenti</h2>
-            <div style={{borderBottom:"1px solid #ddd", paddingBottom:12}}>
-              <div className="sub" style={{marginBottom:8}}>Filtri per Proprietà</div>
-              <div className="grid grid-2">
-                <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{fontWeight:'bold', color: statusFilter==='active'?'#2f855a':'#2d3748'}}><option value="active">🟢 Solo Attivi (Da fare)</option><option value="archived">📦 Solo Archiviati (Storico)</option><option value="">👁️ Mostra Tutto</option></select>
-                <select value={typeFilter} onChange={handleTypeChange}> <option value="">Tutti i tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
-                {showGenreInput(typeFilter) && (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)}><option value="">Tutti i generi</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>)}
-                <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)}><option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
-                {(typeFilter !== 'video' && typeFilter !== 'gioco') && (<select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}><option value="">Tutte le sorgenti</option>{SOURCE_OPTIONS.map(s=> <option key={s} value={s}>{SOURCE_ICONS[s]} {s}</option>)}</select>)}
-                <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} />
-              </div>
-            </div>
-            <div style={{margin:"12px 0", borderBottom:"1px solid #ddd", paddingBottom:12}}>
-              <div className="sub" style={{marginBottom:8}}>Filtro Autori A–Z</div>
-              <div className="row" style={{flexWrap:"wrap", gap:6}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className="ghost" onClick={()=>{ setLetterFilter(L); setAdvOpen(false); }}>{L}</button>))}<button className="ghost" onClick={()=>{ setLetterFilter(""); setAdvOpen(false); }}>Tutti</button></div>
-            </div>
-            <div style={{margin:"12px 0", display: 'flex', gap: 12}}>
-                <button className="ghost" onClick={()=>exportItemsToCsv(items)}>Esporta CSV</button>
-                <button className="ghost" onClick={handleCleanupSuggest}>🧹 Pulizia Zen</button>
-            </div>
-            <div className="row" style={{justifyContent:"flex-end"}}><button onClick={()=>setAdvOpen(false)}>Chiudi</button></div>
-          </div>
-        </div>
-      )}
-      {statsModalOpen && (
-        <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
-          <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Statistiche</h2>
-            <div className="row" style={{gap: 8, marginBottom: 16}}>
-              <button className={statsView === 'periodo' ? '' : 'ghost'} onClick={() => setStatsView('periodo')}>Completati nel Periodo</button>
-              <button className={statsView === 'totale' ? '' : 'ghost'} onClick={() => setStatsView('totale')}>Dettagli Collezione</button>
-            </div>
-            {statsView === 'periodo' && (
-              <div>
-                <div className="row" style={{gap: 8, alignItems: 'center', flexWrap:'wrap'}}>
-                  <input type="number" placeholder="Mese" value={statMonth} onChange={e=>setStatMonth(e.target.value)} /><input type="number" placeholder="Anno" value={statYear} onChange={e=>setStatYear(e.target.value)} /><button className="ghost" onClick={() => { setStatMonth(new Date().getMonth() + 1); setStatYear(new Date().getFullYear()); }}>Oggi</button>{periodLoading && <p className="sub" style={{margin:0}}>Caricamento...</p>}
-                </div>
-                <div className="row kpi-row" style={{marginTop: 12, flexWrap: 'wrap', gap: 8}}>
-                  <button className="kpi-button" onClick={() => handleStatClick(null)}><strong>{periodStats.total}</strong> totali</button>
-                  <button className="kpi-button" onClick={() => handleStatClick('libro')}>📚 <strong>{periodStats.libro}</strong></button>
-                  <button className="kpi-button" onClick={() => handleStatClick('audiolibro')}>🎧 <strong>{periodStats.audiolibro}</strong></button>
-                  <button className="kpi-button" onClick={() => handleStatClick('film')}>🎬 <strong>{periodStats.film}</strong></button>
-                  <button className="kpi-button" onClick={() => handleStatClick('album')}>💿 <strong>{periodStats.album}</strong></button>
-                  <button className="kpi-button" onClick={() => handleStatClick('video')}>▶️ <strong>{periodStats.video || 0}</strong></button>
-                  <button className="kpi-button" onClick={() => handleStatClick('gioco')}>🎮 <strong>{periodStats.gioco || 0}</strong></button>
-                </div>
-              </div>
-            )}
-            {statsView === 'totale' && (
-              <div>
-                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}><div className="kpi"><strong>{stats.total}</strong> totali</div><div className="kpi"><strong>{stats.active}</strong> attivi</div><div className="kpi"><strong>{stats.archived}</strong> archiviati</div></div>
-                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}>{stats.byType.map(x=> (<div key={x.t} className="kpi">{TYPE_ICONS[x.t]} <strong>{x.n}</strong></div>))}</div>
-                <div className="row" style={{flexWrap:"wrap", gap:8, marginTop:8}}>{stats.bySource.map(x=>(<div key={x.s} className="kpi">{SOURCE_ICONS[x.s]} <strong>{x.n}</strong></div>))}</div>
-              </div>
-            )}
-            <div className="row" style={{justifyContent:"flex-end", marginTop: 16}}><button onClick={()=>setStatsModalOpen(false)}>Chiudi</button></div>
-          </div>
-        </div>
-      )}
-      {archModal && (
-        <div className="modal-backdrop" onClick={() => setArchModal(null)}>
-          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
-            <div className="row" style={{gap:8, flexWrap:"wrap", alignItems:"center"}}>
-              <label className="sub">Sorgente</label>
-              <select value={archModal.source||""} onChange={e=>setArchModal(m=>({...m, source:e.target.value}))}><option value="">(nessuna)</option>{SOURCE_OPTIONS.map(s=> <option key={s} value={s}>{SOURCE_ICONS[s]} {s}</option>)}</select>
-              <label className="sub">Data fine</label>
-              <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
-            </div>
-            <div className="sub" style={{marginTop:8, opacity:.8}}>Sorgenti: {(archModal.sourcesArr||[]).join(" + ") || "—"}</div>
-            <div className="row" style={{justifyContent:"flex-end", gap:8, marginTop:12}}><button className="ghost" onClick={()=>setArchModal(null)}>Annulla</button><button onClick={()=>saveArchiveFromModal(archModal)}>Archivia</button></div>
-          </div>
-        </div>
-      )}
-      {/* MODALE PULIZIA ZEN */}
-      {cleanupItem && (
-        <div className="modal-backdrop" onClick={() => setCleanupItem(null)}>
-           <div className="card" style={{maxWidth:400, width:"90%", padding:20, textAlign:'center'}} onClick={e => e.stopPropagation()}>
-             <h2 style={{marginTop:0}}>Pulizia Zen 🧹</h2>
-             <p style={{color:'#4a5568'}}>
-               Hai aggiunto questo elemento molto tempo fa. Ti interessa ancora?
-             </p>
-             <div style={{margin: '20px 0', padding: 12, border: '1px dashed #cbd5e0', borderRadius: 8}}>
-               <div style={{fontSize:'1.2rem', fontWeight:'bold', marginBottom:4}}>
-                 {TYPE_ICONS[cleanupItem.kind]} {cleanupItem.title}
-               </div>
-               <div style={{opacity:0.8}}>{cleanupItem.author}</div>
-             </div>
-             <div className="row" style={{justifyContent:"center", gap:12}}>
-               <button className="ghost" onClick={confirmDeleteCleanup} style={{color:'#c53030', borderColor:'#c53030'}}>No, elimina</button>
-               <button onClick={() => setCleanupItem(null)}>Sì, tienilo</button>
-             </div>
-           </div>
-        </div>
-      )}
-      {editState && (
-        <div className="modal-backdrop" onClick={() => setEditState(null)}>
-          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Modifica elemento</h2>
-            <form onSubmit={handleUpdateItem} className="grid grid-2" id="edit-form">
-              <input placeholder="Titolo" value={editState.title} onChange={e => setEditState(curr => ({...curr, title: e.target.value}))} />
-              <input placeholder="Autore" value={editState.creator} onChange={e => setEditState(curr => ({...curr, creator: e.target.value}))} />
-              <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType, genre: showGenreInput(newType) ? curr.genre : ''})); }}>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
-              {showGenreInput(editState.type) && (<select value={editState.genre} onChange={e => setEditState(curr => ({...curr, genre: e.target.value}))}><option value="">Genere (facoltativo)</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>)}
-              <select value={editState.mood || ""} onChange={e => setEditState(curr => ({...curr, mood: e.target.value}))}><option value="">Umore (opz.)</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
-              <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/><input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} />
               <div style={{gridColumn: "1 / -1", marginTop: 8, marginBottom: 8}}><span style={{fontSize: '0.9em', opacity: 0.7, display:'block', marginBottom:4}}>Sorgenti (puoi selezionarne più di una):</span><div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>{SOURCE_OPTIONS.map(s => { const active = parseSources(editState.source).includes(s); return (<label key={s} style={{display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', padding: '6px 10px', borderRadius: 6, fontSize: '0.9rem', backgroundColor: active ? '#ebf8ff' : '#f7fafc', border: active ? '1px solid #4299e1' : '1px solid #cbd5e0', color: active ? '#2b6cb0' : '#4a5568', userSelect: 'none'}}><input type="checkbox" checked={active} onChange={() => { const currentArr = parseSources(editState.source); let newArr; if (active) { newArr = currentArr.filter(x => x !== s); } else { newArr = [...currentArr, s]; } setEditState(curr => ({...curr, source: joinSources(newArr)})); }} style={{display:'none'}} /><span>{SOURCE_ICONS[s]} {s}</span></label>)})}</div></div>
               <div style={{gridColumn: "1 / -1", display:'flex', alignItems:'center', gap:8}}><input type="checkbox" id="edit_chk_next" checked={editState.is_next} onChange={e => setEditState(curr => ({...curr, is_next: e.target.checked}))} style={{width:'auto'}}/><label htmlFor="edit_chk_next">📌 In Coda (Prossimo)</label></div>
             </form>
