@@ -258,9 +258,25 @@ export default function App(){
   const addItem = useCallback(async (e) => {
     e.preventDefault();
     if(!title.trim()) return;
+
+    // --- GUARDIA: Controllo Doppioni Attivi ---
+    // Chiediamo al DB se esiste già un titolo uguale (case insensitive) che è 'active'
+    const { data: duplicates } = await supabase
+      .from('items')
+      .select('title')
+      .ilike('title', title.trim())
+      .eq('status', 'active'); // Controlla solo gli attivi
+
+    if (duplicates && duplicates.length > 0) {
+      alert(`✋ Alt! "${duplicates[0].title}" è già nella tua lista degli elementi attivi.\n\nNon serve aggiungerlo di nuovo!`);
+      return; // Interrompe tutto, non salva nulla.
+    }
+    // ------------------------------------------
+
     const finalStatus = isInstantArchive ? "archived" : "active";
     const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
     const finalIsNext = isInstantArchive ? false : isNext;
+    
     const payload = {
       title, author: creator, type: kind, status: finalStatus,
       genre: showGenreInput(kind) ? canonGenere(genre) : null, 
@@ -269,18 +285,24 @@ export default function App(){
       mood: mood || null, video_url: videoUrl || null, 
       is_next: finalIsNext, ended_on: finalEndedOn
     };
+
     const { error } = await supabase.from("items").insert(payload);
+    
     if(!error){
+      // Reset dei campi solo se è andato tutto bene
       setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
       setMood(""); setVideoUrl(""); setIsNext(false);
       setIsInstantArchive(false); setInstantDate(""); 
       setAddSources([]); 
       setAddModalOpen(false); 
+      
       if (isSearchActive) fetchItems(); 
       fetchStats(); fetchPinnedItems();
-    } else { alert("Errore salvataggio: " + (error?.message || "sconosciuto")); }
+    } else { 
+      alert("Errore salvataggio: " + (error?.message || "sconosciuto")); 
+    }
   }, [title, creator, kind, genre, year, mood, videoUrl, isNext, isInstantArchive, instantDate, addSources, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
-
+ 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
     const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
