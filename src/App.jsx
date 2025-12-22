@@ -540,23 +540,54 @@ export default function App(){
             </section>
           )}
 
-          {/* CONTROLLI DADO */}
-          <section className="card" style={{marginBottom:12, marginTop:12, padding:12}}>
-            <div className="row" style={{alignItems:"center", gap:8, flexWrap:"wrap", justifyContent:'center'}}>
-              <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:100}}>
-                {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
-              </select>
-              <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:120}}>
-                <option value="">Umore</option>
-                {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
-              </select>
-              {showGenreInput(randKind) && (
-                <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:120}}>
-                  <option value="">Genere</option>
-                  {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
-                </select>
-              )}
-              <button className="ghost" onClick={handleSuggest} style={{padding:'8px 16px', fontSize:'1.1em'}}>🎲</button>
+          {/* CONTROLLI DADO (Refactoring Zen) */}
+          <section className="card" style={{marginBottom:16, marginTop:16, padding:'20px', backgroundColor:'#FDF8F2', border:'1px solid #f0e6da'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+              <h3 style={{margin:0, fontSize:'1rem', color:'#744210', display:'flex', alignItems:'center', gap:8}}>
+                <span>🔮</span> Ispirazione
+              </h3>
+              <span style={{fontSize:'0.8em', color:'#975a16', opacity:0.8}}>Lasciati consigliare</span>
+            </div>
+
+            <div style={{display:'flex', gap:12, alignItems:'stretch'}}>
+              {/* Area Select */}
+              <div style={{flex:1, display:'flex', flexDirection:'column', gap:10}}>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                  <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{width:'100%', padding:'10px', borderRadius:12, border:'1px solid #d6bc9b', backgroundColor:'transparent', color:'#553c9a'}}>
+                     {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
+                  </select>
+                  <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{width:'100%', padding:'10px', borderRadius:12, border:'1px solid #d6bc9b', backgroundColor:'transparent', color:'#553c9a'}}>
+                     <option value="">Umore...</option>
+                     {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                {showGenreInput(randKind) && (
+                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{width:'100%', padding:'10px', borderRadius:12, border:'1px solid #d6bc9b', backgroundColor:'transparent', color:'#553c9a'}}>
+                     <option value="">Qualsiasi genere</option>
+                     {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+                  </select>
+                )}
+              </div>
+
+              {/* Big Button */}
+              <button 
+                onClick={handleSuggest} 
+                style={{
+                  width: 60, 
+                  borderRadius: 16, 
+                  border: 'none', 
+                  backgroundColor: '#ed8936', 
+                  color: 'white', 
+                  fontSize: '1.8rem', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 6px rgba(237, 137, 54, 0.3)'
+                }}
+              >
+                🎲
+              </button>
             </div>
           </section>
         </>
@@ -676,7 +707,7 @@ export default function App(){
                   <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Tutti i Tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
                   <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
                   <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', color:'#2d3748'}} />
-                  {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
+                  {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
                 </div>
               </div>
               <div>
@@ -781,7 +812,7 @@ export default function App(){
             <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
               <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border:'1px solid #cbd5e0', cursor:'pointer', backgroundColor:'#f7fafc'}}>
                  <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("da comprare")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("da comprare"); else current.delete("da comprare"); return {...prev, sourcesArr: Array.from(current)}; }); }} />
-                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist</span>
+                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist (da comprare)</span>
               </label>
               <label style={{fontWeight:'bold', fontSize:'0.9rem', color:'#4a5568', marginTop:8}}>Data fine:</label>
               <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
