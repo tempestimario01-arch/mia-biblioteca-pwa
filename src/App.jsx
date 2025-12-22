@@ -17,7 +17,7 @@ const TYPES = ["libro", "audiolibro", "film", "album", "video", "gioco"];
 const GENRES = [
  "ambiente","arte","asia","biografia","cinema","filosofia","fumetto","musica","psicologia","romanzi","scienza","sociologia","sport","storia","vari"
 ];
-const MOODS = ["Breve","Relax", "Focus", "Apprendimento", "Impegnativo"];
+const MOODS = ["Relax", "Focus", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 
@@ -674,9 +674,9 @@ export default function App(){
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Dettagli</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Tutti i Tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
-                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
+                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
                   <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', color:'#2d3748'}} />
-                  {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
+                  {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
                 </div>
               </div>
               <div>
@@ -722,20 +722,20 @@ export default function App(){
                   {periodLoading && <span style={{fontSize:'0.8em', color:'#718096'}}>...</span>}
                 </div>
                 
-                {/* KPI Principale */}
-                <div style={{textAlign:'center', marginBottom:20}}>
+                {/* KPI Principale (CLICCABILE) */}
+                <div onClick={() => handleStatClick(null)} style={{textAlign:'center', marginBottom:20, cursor:'pointer', transition:'all 0.2s', padding: 8, borderRadius: 12, ':hover': {backgroundColor:'rgba(0,0,0,0.02)'}}}>
                   <div style={{fontSize:'3em', fontWeight:'bold', color:'#2d3748', lineHeight:1}}>{periodStats.total}</div>
-                  <div style={{fontSize:'0.9em', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Elementi completati</div>
+                  <div style={{fontSize:'0.9em', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Elementi completati (Vedi tutti)</div>
                 </div>
 
-                {/* Griglia Dettagli */}
+                {/* Griglia Dettagli (CLICCABILE) */}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12}}>
-                  <div style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center'}}><div style={{fontSize:'1.5em'}}>📚</div><div style={{fontWeight:'bold'}}>{periodStats.libro}</div></div>
-                  <div style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center'}}><div style={{fontSize:'1.5em'}}>🎬</div><div style={{fontWeight:'bold'}}>{periodStats.film}</div></div>
-                  <div style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center'}}><div style={{fontSize:'1.5em'}}>🎮</div><div style={{fontWeight:'bold'}}>{periodStats.gioco || 0}</div></div>
-                  <div style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center'}}><div style={{fontSize:'1.5em'}}>🎧</div><div style={{fontWeight:'bold'}}>{periodStats.audiolibro}</div></div>
-                  <div style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center'}}><div style={{fontSize:'1.5em'}}>💿</div><div style={{fontWeight:'bold'}}>{periodStats.album}</div></div>
-                  <div style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center'}}><div style={{fontSize:'1.5em'}}>▶️</div><div style={{fontWeight:'bold'}}>{periodStats.video || 0}</div></div>
+                  <div onClick={() => handleStatClick('libro')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>📚</div><div style={{fontWeight:'bold'}}>{periodStats.libro}</div></div>
+                  <div onClick={() => handleStatClick('film')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎬</div><div style={{fontWeight:'bold'}}>{periodStats.film}</div></div>
+                  <div onClick={() => handleStatClick('gioco')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎮</div><div style={{fontWeight:'bold'}}>{periodStats.gioco || 0}</div></div>
+                  <div onClick={() => handleStatClick('audiolibro')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎧</div><div style={{fontWeight:'bold'}}>{periodStats.audiolibro}</div></div>
+                  <div onClick={() => handleStatClick('album')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>💿</div><div style={{fontWeight:'bold'}}>{periodStats.album}</div></div>
+                  <div onClick={() => handleStatClick('video')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>▶️</div><div style={{fontWeight:'bold'}}>{periodStats.video || 0}</div></div>
                 </div>
               </div>
             )}
@@ -781,7 +781,7 @@ export default function App(){
             <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
               <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border:'1px solid #cbd5e0', cursor:'pointer', backgroundColor:'#f7fafc'}}>
                  <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("da comprare")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("da comprare"); else current.delete("da comprare"); return {...prev, sourcesArr: Array.from(current)}; }); }} />
-                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist </span>
+                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist</span>
               </label>
               <label style={{fontWeight:'bold', fontSize:'0.9rem', color:'#4a5568', marginTop:8}}>Data fine:</label>
               <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
