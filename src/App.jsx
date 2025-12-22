@@ -620,33 +620,31 @@ export default function App(){
       {/* ===== FAB / MODALI ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
       {/* ===== MODALE AGGIUNTA (UX MIGLIORATA) ===== */}
+     {/* ===== MODALE AGGIUNTA (Versione Beige Zen) ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
           <div className="card" style={{maxWidth:500, width:"94%", padding:"20px 24px", borderRadius: 20, backgroundColor:'#fffcf5'}} onClick={e => e.stopPropagation()}>
             
-            {/* Intestazione */}
             <h2 style={{marginTop:0, marginBottom:20, fontSize:'1.4rem', color:'#2d3748', textAlign:'center'}}>Nuovo Elemento</h2>
             
             <form onSubmit={addItem} id="add-form" style={{display:'flex', flexDirection:'column', gap:12}}>
               
-              {/* 1. Dati Principali (Full Width) */}
               <input 
                 placeholder="Titolo" 
                 value={title} 
                 onChange={e=>setTitle(e.target.value)} 
-                style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box'}} 
+                style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', backgroundColor:'#fffcf5'}} 
                 autoFocus
               />
               <input 
                 placeholder="Autore / Regista / Sviluppatore" 
                 value={creator} 
                 onChange={e=>setCreator(e.target.value)} 
-                style={{padding:'12px', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box'}} 
+                style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', backgroundColor:'#fffcf5'}} 
               />
 
-              {/* 2. Griglia Dettagli (2 per riga) */}
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white'}}>
+                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5'}}>
                    {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                 </select>
                 
@@ -655,39 +653,36 @@ export default function App(){
                   placeholder="Anno" 
                   value={year} 
                   onChange={e=>setYear(e.target.value)} 
-                  style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box'}} 
+                  style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', backgroundColor:'#fffcf5'}} 
                 />
 
                 {showGenreInput(kind) ? (
-                  <select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white'}}>
+                  <select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5'}}>
                     <option value="">Genere...</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
-                ) : <div />} {/* Spaziatore vuoto se non c'è genere */}
+                ) : <div />}
 
-                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white'}}>
+                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5'}}>
                   <option value="">Umore...</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
 
-              {/* Link opzionale (Full) */}
               <input 
                  placeholder="Link (opzionale)" 
                  value={videoUrl} 
                  onChange={e=>setVideoUrl(e.target.value)} 
-                 style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box', fontSize:'0.9em'}} 
+                 style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'#fffcf5'}} 
               />
 
-              {/* 3. Sezione STATO (Le "Tiles") */}
               <div style={{marginTop:8}}>
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
                   
-                  {/* Tile Wishlist */}
                   <div 
                     onClick={() => setIsToBuy(!isToBuy)}
                     style={{
                       border: isToBuy ? '2px solid #3182ce' : '1px solid #cbd5e0',
-                      backgroundColor: isToBuy ? '#ebf8ff' : 'white',
+                      backgroundColor: isToBuy ? '#ebf8ff' : '#fffcf5',
                       color: isToBuy ? '#2b6cb0' : '#718096',
                       borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'
                     }}
@@ -696,14 +691,13 @@ export default function App(){
                     <div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div>
                   </div>
 
-                  {/* Tile Focus */}
                   <div 
                     onClick={() => { setIsNext(!isNext); if(!isNext) setIsInstantArchive(false); }}
                     style={{
                       border: isNext ? '2px solid #38a169' : '1px solid #cbd5e0',
-                      backgroundColor: isNext ? '#f0fff4' : 'white',
+                      backgroundColor: isNext ? '#f0fff4' : '#fffcf5',
                       color: isNext ? '#2f855a' : '#718096',
-                      opacity: isInstantArchive ? 0.4 : 1, // Disabilita se è finito
+                      opacity: isInstantArchive ? 0.4 : 1,
                       borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'
                     }}
                   >
@@ -711,12 +705,11 @@ export default function App(){
                     <div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Corso</div>
                   </div>
 
-                  {/* Tile Finito */}
                   <div 
                     onClick={() => { setIsInstantArchive(!isInstantArchive); if(!isInstantArchive) setIsNext(false); }}
                     style={{
                       border: isInstantArchive ? '2px solid #d69e2e' : '1px solid #cbd5e0',
-                      backgroundColor: isInstantArchive ? '#fffff0' : 'white',
+                      backgroundColor: isInstantArchive ? '#fffff0' : '#fffcf5',
                       color: isInstantArchive ? '#b7791f' : '#718096',
                       borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'
                     }}
@@ -726,126 +719,113 @@ export default function App(){
                   </div>
                 </div>
 
-                {/* Data fine (appare solo se Finito è attivo) */}
                 {isInstantArchive && (
                   <div style={{marginTop:12, animation:'fadeIn 0.3s'}}>
                     <label style={{fontSize:'0.85em', color:'#718096'}}>Data completamento:</label>
-                    <input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginLeft:8, padding:'6px', borderRadius:8, border:'1px solid #cbd5e0'}} />
+                    <input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginLeft:8, padding:'6px', borderRadius:8, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5'}} />
                   </div>
                 )}
               </div>
 
             </form>
 
-            {/* 4. Bottoni Azione (Footer) */}
             <div style={{display:'flex', gap:12, marginTop:24}}>
-              <button 
-                type="button" 
-                className="ghost" 
-                onClick={()=>setAddModalOpen(false)} 
-                style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', fontWeight:'600'}}
-              >
-                Annulla
-              </button>
-              <button 
-                type="submit" 
-                form="add-form"
-                style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}
-              >
-                Salva Elemento
-              </button>
+              <button type="button" className="ghost" onClick={()=>setAddModalOpen(false)} style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', fontWeight:'600'}}>Annulla</button>
+              <button type="submit" form="add-form" style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>Salva Elemento</button>
             </div>
-
           </div>
         </div>
       )}
     {/* ===== MODALE FILTRI & STRUMENTI (Senza Reset) ===== */}
+    {/* ===== MODALE FILTRI & STRUMENTI (Versione Beige Zen) ===== */}
       {advOpen && (
         <div className="modal-backdrop" onClick={() => setAdvOpen(false)} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)'}}>
           <div className="card" style={{maxWidth:500, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#fffcf5', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}} onClick={e => e.stopPropagation()}>
             
-            {/* Intestazione Pulita */}
             <div style={{marginBottom:20, textAlign:'center'}}>
               <h2 style={{margin:0, fontSize:'1.4rem', color:'#2d3748'}}>Filtri & Strumenti</h2>
             </div>
 
-            <div style={{display:'flex', flexDirection:'column', gap:20}}>
+            <div style={{display:'flex', flexDirection:'column', gap:24}}>
               
-              {/* 1. SEZIONE FILTRI RAPIDI (Tiles) */}
+              {/* VISUALIZZAZIONE */}
               <div>
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Visualizzazione</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   
-                  {/* Tile STATO */}
+                  {/* Tile STATO (3 stati) */}
                   <div 
-                    onClick={() => setStatusFilter(prev => prev === 'active' ? 'archived' : 'active')}
+                    onClick={() => {
+                      if (statusFilter === 'active') setStatusFilter('archived');
+                      else if (statusFilter === 'archived') setStatusFilter('');
+                      else setStatusFilter('active');
+                    }}
                     style={{
-                      border: statusFilter === 'active' ? '2px solid #38a169' : '2px solid #d69e2e',
-                      backgroundColor: statusFilter === 'active' ? '#f0fff4' : '#fffff0',
-                      color: statusFilter === 'active' ? '#2f855a' : '#b7791f',
-                      borderRadius: 16, padding: '12px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4
+                      border: statusFilter === 'active' ? '2px solid #38a169' : (statusFilter === 'archived' ? '2px solid #d69e2e' : '2px solid #718096'),
+                      backgroundColor: statusFilter === 'active' ? '#f0fff4' : (statusFilter === 'archived' ? '#fffff0' : '#edf2f7'),
+                      color: statusFilter === 'active' ? '#2f855a' : (statusFilter === 'archived' ? '#b7791f' : '#2d3748'),
+                      borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4
                     }}
                   >
-                    <div style={{fontSize:'1.6em'}}>{statusFilter === 'active' ? '🟢' : '📦'}</div>
-                    <div style={{fontSize:'0.9em', fontWeight:'bold'}}>{statusFilter === 'active' ? 'In Corso' : 'Archivio'}</div>
+                    <div style={{fontSize:'1.8em', marginBottom:2}}>
+                      {statusFilter === 'active' ? '🟢' : (statusFilter === 'archived' ? '📦' : '👁️')}
+                    </div>
+                    <div style={{fontSize:'0.9em', fontWeight:'bold'}}>
+                      {statusFilter === 'active' ? 'In Corso' : (statusFilter === 'archived' ? 'Archivio' : 'Mostra Tutti')}
+                    </div>
                   </div>
 
                   {/* Tile WISHLIST */}
                   <div 
                     onClick={() => setSourceFilter(prev => prev === 'da comprare' ? '' : 'da comprare')}
                     style={{
-                      border: sourceFilter === 'da comprare' ? '2px solid #3182ce' : '1px solid #e2e8f0',
-                      backgroundColor: sourceFilter === 'da comprare' ? '#ebf8ff' : 'white',
+                      border: sourceFilter === 'da comprare' ? '2px solid #3182ce' : '1px solid #cbd5e0',
+                      backgroundColor: sourceFilter === 'da comprare' ? '#ebf8ff' : '#fffcf5',
                       color: sourceFilter === 'da comprare' ? '#2b6cb0' : '#718096',
-                      borderRadius: 16, padding: '12px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4
+                      borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4
                     }}
                   >
-                    <div style={{fontSize:'1.6em'}}>🛒</div>
+                    <div style={{fontSize:'1.8em', marginBottom:2}}>🛒</div>
                     <div style={{fontSize:'0.9em', fontWeight:'bold'}}>Wishlist</div>
                   </div>
                 </div>
               </div>
 
-              {/* 2. SEZIONE DETTAGLI (Griglia 2x2) */}
+              {/* DETTAGLI (Sfondo Beige) */}
               <div>
-                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Proprietà</label>
+                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Dettagli</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   
-                  {/* Tipo */}
-                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white', fontSize:'0.95em'}}>
+                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5', fontSize:'0.95em', color:'#2d3748'}}>
                     <option value="">Tutti i Tipi</option>
                     {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                   </select>
                   
-                  {/* Umore */}
-                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white', fontSize:'0.95em'}}>
+                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5', fontSize:'0.95em', color:'#2d3748'}}>
                     <option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
                   </select>
 
-                  {/* Anno */}
-                  <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box', fontSize:'0.95em'}} />
+                  <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'#fffcf5', color:'#2d3748'}} />
                   
-                  {/* Genere */}
                   {showGenreInput(typeFilter) ? (
-                    <select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white', fontSize:'0.95em'}}>
+                    <select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5', fontSize:'0.95em', color:'#2d3748'}}>
                       <option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
                     </select>
                   ) : (
-                    <div style={{padding:'10px', borderRadius:12, border:'1px dashed #e2e8f0', backgroundColor:'#f7fafc', color:'#a0aec0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>
+                    <div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'#fffcf5', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>
                   )}
                 </div>
               </div>
 
-              {/* 3. SEZIONE AUTORI A-Z */}
+              {/* AUTORI A-Z */}
               <div>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
                   <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Autori A-Z</label>
                   {letterFilter && <button className="ghost" onClick={()=>setLetterFilter("")} style={{fontSize:'0.8em', color:'#e53e3e', padding:'2px 6px'}}>Cancella filtro</button>}
                 </div>
                 <div style={{display:'flex', flexWrap:"wrap", gap:6, justifyContent:'center'}}>
-                  <button className={`ghost ${letterFilter === '' ? 'active-letter' : ''}`} onClick={()=>setLetterFilter("")} style={{padding:'6px 10px', borderRadius:8, fontSize:'0.9em', border:'1px solid #e2e8f0', backgroundColor: letterFilter === '' ? '#e2e8f0' : 'white', fontWeight: letterFilter === '' ? 'bold' : 'normal'}}>Tutti</button>
                   {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(
-                    <button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'6px 10px', borderRadius:8, fontSize:'0.9em', border:'1px solid #e2e8f0', backgroundColor: letterFilter === L ? '#e2e8f0' : 'white', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>
+                    <button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'8px 12px', borderRadius:8, fontSize:'0.9em', border:'1px solid #cbd5e0', backgroundColor: letterFilter === L ? '#e2e8f0' : '#fffcf5', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>
                   ))}
                 </div>
               </div>
@@ -853,21 +833,16 @@ export default function App(){
 
             <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
 
-            {/* 4. FOOTER */}
             <div style={{display:'flex', flexDirection:'column', gap:16}}>
               <div style={{display:'flex', gap:12}}>
-                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>
+                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>
                    📤 Esporta CSV
                  </button>
-                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>
+                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'#fffcf5', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>
                    🧹 Pulizia Zen
                  </button>
               </div>
-
-              <button 
-                onClick={()=>setAdvOpen(false)} 
-                style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}
-              >
+              <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}>
                 Chiudi Pannello
               </button>
             </div>
