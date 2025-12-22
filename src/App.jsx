@@ -781,7 +781,7 @@ export default function App(){
             <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
               <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border:'1px solid #cbd5e0', cursor:'pointer', backgroundColor:'#f7fafc'}}>
                  <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("da comprare")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("da comprare"); else current.delete("da comprare"); return {...prev, sourcesArr: Array.from(current)}; }); }} />
-                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist (da comprare)</span>
+                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist </span>
               </label>
               <label style={{fontWeight:'bold', fontSize:'0.9rem', color:'#4a5568', marginTop:8}}>Data fine:</label>
               <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
