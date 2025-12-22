@@ -427,7 +427,7 @@ export default function App(){
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
       
       {/* ===== Ricerca Zen "Cool Gray" ===== */}
-      <section className="card" style={{marginBottom:0, padding: "6px 12px", display:'flex', alignItems:'center', gap:8, backgroundColor:'#cccc9dff', borderRadius: 12, boxShadow:'none'}}>
+      <section className="card" style={{marginBottom:0, padding: "6px 12px", display:'flex', alignItems:'center', gap:8, backgroundColor:'#f0fff4', borderRadius: '1px solid #c6f6d5', boxShadow:'none'}}>
         <div style={{flex:1, display:'flex', alignItems:'center', gap:8}}>
           <span style={{opacity:0.4, fontSize:'1.1em'}}>🔍</span>
           <input 
