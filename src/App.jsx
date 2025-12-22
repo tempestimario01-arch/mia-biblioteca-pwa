@@ -463,8 +463,21 @@ export default function App(){
           {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
           {/* Chip LETTERA */}
           {letterFilter && (<button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Autore: {letterFilter}... <span>✖</span></button>)}
-          {/* CANCELLA TUTTO */}
-          <button className="ghost" onClick={clearAllFilters} style={{fontSize:'0.8em', textDecoration:'underline', marginLeft:'auto', padding:4}}>Reset</button>
+          {/* Tasto CANCELLA TUTTO (Stile Zen) */}
+          <button 
+            className="ghost" 
+            onClick={clearAllFilters} 
+            style={{
+              fontSize:'0.85em', 
+              fontWeight:'600', 
+              color:'#e53e3e', // Rosso leggero per indicare azione "distruttiva" ma soft
+              marginLeft:'auto', 
+              padding:'4px 8px',
+              cursor:'pointer'
+            }}
+          >
+            Pulisci
+          </button>
         </div>
       )}
 
