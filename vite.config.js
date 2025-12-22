@@ -1,52 +1,78 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa' // <-- 1. Importa il plugin
+import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    
-    // --- 2. Aggiungi il plugin PWA ---
     VitePWA({
-      registerType: 'autoUpdate', // Aggiorna l'app automaticamente
-      injectRegister: 'auto',
-      
-      // workbox è il motore che crea il service worker
-      workbox: {
-        // Mette in cache tutti i file principali dell'app
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
-      },
-
-      // Questo crea il file 'manifest.json' per noi
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'mia-Biblioteca',
+        name: 'Biblioteca Personale',
         short_name: 'Biblioteca',
-        description: 'La tua libreria PWA personale',
-        theme_color: '#F4F1E9', // Un colore seppia per la barra del browser
-        background_color: '#F4F1E9',
-        display: 'standalone',
-        scope: '/',
-        start_url: '/',
+        description: 'La mia collezione personale di libri, video e giochi',
+        theme_color: '#ffffff',
         icons: [
           {
-            src: 'vite.svg', // Usa l'icona vite.svg che hai già
-            sizes: 'any',
-            type: 'image/svg+xml'
-          },
-          {
-            src: 'vite_192.png', // Dovremo creare questa icona
+            src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'vite_512.png', // Dovremo creare questa icona
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png'
           }
         ]
+      },
+      workbox: {
+        // 1. Caching dei file statici (App Shell)
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+
+        // 2. Caching dei Dati (API Supabase)
+        runtimeCaching: [
+          {
+            // Caching della tabella 'items' (Lettura dati)
+            // Sostituisci 'IL_TUO_PROJECT_ID' qui sotto! 👇
+            urlPattern: ({ url }) => {
+              return url.hostname.includes('sszleskfdwmfyisshgug.supabase.co') && 
+                     url.pathname.includes('/rest/v1/items');
+            },
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'supabase-items-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 Giorni
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            // Caching delle funzioni RPC (Statistiche e Consigli)
+            // Sostituisci 'IL_TUO_PROJECT_ID' qui sotto! 👇
+            urlPattern: ({ url }) => {
+              return url.hostname.includes('sszleskfdwmfyisshgug.supabase.co') && 
+                     url.pathname.includes('/rest/v1/rpc/');
+            },
+            method: 'POST', // Le RPC usano POST
+            handler: 'StaleWhileRevalidate', 
+            options: {
+              cacheName: 'supabase-rpc-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 2 // 2 Giorni
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
       }
     })
-    // --- Fine plugin PWA ---
-  ],
+  ]
 })
