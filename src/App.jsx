@@ -426,8 +426,8 @@ export default function App(){
     <div className="app">
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
       
-      {/* ===== Ricerca Zen Purissima ===== */}
-      <section className="card" style={{marginBottom:0, padding: "6px 12px", display:'flex', alignItems:'center', gap:8, backgroundColor:'white', borderRadius: 12, boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
+      {/* ===== Ricerca Zen "Cool Gray" ===== */}
+      <section className="card" style={{marginBottom:0, padding: "6px 12px", display:'flex', alignItems:'center', gap:8, backgroundColor:'#E2E8F0', borderRadius: 12, boxShadow:'none'}}>
         <div style={{flex:1, display:'flex', alignItems:'center', gap:8}}>
           <span style={{opacity:0.4, fontSize:'1.1em'}}>🔍</span>
           <input 
@@ -437,6 +437,11 @@ export default function App(){
             onChange={e=>setQInput(e.target.value)} 
           />
         </div>
+        
+        {/* Tasto STATISTICHE (Riapparso!) */}
+        <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
+
+        {/* Menu Avanzato */}
         <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
       </section>
 
@@ -713,22 +718,6 @@ export default function App(){
             </div>
             <div className="row" style={{justifyContent:"flex-end", gap:8, marginTop:12}}><button className="ghost" onClick={()=>setArchModal(null)}>Annulla</button><button onClick={()=>saveArchiveFromModal(archModal)}>Archivia</button></div>
           </div>
-        </div>
-      )}
-      {cleanupItem && (
-        <div className="modal-backdrop" onClick={() => setCleanupItem(null)}>
-           <div className="card" style={{maxWidth:400, width:"90%", padding:20, textAlign:'center'}} onClick={e => e.stopPropagation()}>
-             <h2 style={{marginTop:0}}>Pulizia Zen 🧹</h2>
-             <p style={{color:'#4a5568'}}>Hai aggiunto questo elemento molto tempo fa. Ti interessa ancora?</p>
-             <div style={{margin: '20px 0', padding: 12, border: '1px dashed #cbd5e0', borderRadius: 8}}>
-               <div style={{fontSize:'1.2rem', fontWeight:'bold', marginBottom:4}}>{TYPE_ICONS[cleanupItem.kind]} {cleanupItem.title}</div>
-               <div style={{opacity:0.8}}>{cleanupItem.author}</div>
-             </div>
-             <div className="row" style={{justifyContent:"center", gap:12}}>
-               <button className="ghost" onClick={confirmDeleteCleanup} style={{color:'#c53030', borderColor:'#c53030'}}>No, elimina</button>
-               <button onClick={() => setCleanupItem(null)}>Sì, tienilo</button>
-             </div>
-           </div>
         </div>
       )}
       {editState && (
