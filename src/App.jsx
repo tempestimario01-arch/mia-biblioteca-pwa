@@ -619,34 +619,143 @@ export default function App(){
 
       {/* ===== FAB / MODALI ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
+      {/* ===== MODALE AGGIUNTA (UX MIGLIORATA) ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
-          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Aggiungi elemento</h2>
-            <form onSubmit={addItem} className="grid grid-2">
-              <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} />
-              <input placeholder="Autore" value={creator} onChange={e=>setCreator(e.target.value)} />
-              <select value={kind} onChange={handleAddKindChange}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
-              {showGenreInput(kind) && (<select value={genre} onChange={e=>setGenre(e.target.value)}><option value="">Genere (facoltativo)</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>)}
-              <select value={mood} onChange={e=>setMood(e.target.value)}><option value="">Umore (opz.)</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
-              <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} />
-              <input placeholder="Link (YouTube, Steam...)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{gridColumn: "1 / -1"}} />
+          <div className="card" style={{maxWidth:500, width:"94%", padding:"20px 24px", borderRadius: 20, backgroundColor:'#fffcf5'}} onClick={e => e.stopPropagation()}>
+            
+            {/* Intestazione */}
+            <h2 style={{marginTop:0, marginBottom:20, fontSize:'1.4rem', color:'#2d3748', textAlign:'center'}}>Nuovo Elemento</h2>
+            
+            <form onSubmit={addItem} id="add-form" style={{display:'flex', flexDirection:'column', gap:12}}>
               
-              {/* CHECKBOX WISHLIST */}
-              <div style={{gridColumn: "1 / -1", marginTop: 8}}>
-                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border:'1px solid #cbd5e0', backgroundColor: isToBuy ? '#ebf8ff' : '#fff'}}>
-                  <input type="checkbox" checked={isToBuy} onChange={e=>setIsToBuy(e.target.checked)} style={{margin:0}} />
-                  <span style={{fontWeight: isToBuy ? 'bold' : 'normal', color: isToBuy ? '#2b6cb0' : '#4a5568'}}>🛒 Voglio comprarlo (Aggiungi alla Wishlist)</span>
-                </label>
+              {/* 1. Dati Principali (Full Width) */}
+              <input 
+                placeholder="Titolo" 
+                value={title} 
+                onChange={e=>setTitle(e.target.value)} 
+                style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box'}} 
+                autoFocus
+              />
+              <input 
+                placeholder="Autore / Regista / Sviluppatore" 
+                value={creator} 
+                onChange={e=>setCreator(e.target.value)} 
+                style={{padding:'12px', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box'}} 
+              />
+
+              {/* 2. Griglia Dettagli (2 per riga) */}
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white'}}>
+                   {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                </select>
+                
+                <input 
+                  type="number" 
+                  placeholder="Anno" 
+                  value={year} 
+                  onChange={e=>setYear(e.target.value)} 
+                  style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box'}} 
+                />
+
+                {showGenreInput(kind) ? (
+                  <select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white'}}>
+                    <option value="">Genere...</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                ) : <div />} {/* Spaziatore vuoto se non c'è genere */}
+
+                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white'}}>
+                  <option value="">Umore...</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
 
-              <div style={{gridColumn: "1 / -1", marginTop:8, display:'flex', flexDirection:'column', gap:8}}>
-                <div style={{display:'flex', alignItems:'center', gap:8}}><input type="checkbox" id="chk_archive" checked={isInstantArchive} onChange={e=>setIsInstantArchive(e.target.checked)} style={{width:'auto'}}/><label htmlFor="chk_archive" style={{fontWeight: isInstantArchive ? 'bold' : 'normal'}}>✅ Già completato (Archivia subito)</label></div>
-                {isInstantArchive ? (<div style={{marginLeft: 24}}><label style={{fontSize:'0.9em', marginRight:8}}>Data fine:</label><input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{width:'auto', display:'inline-block'}}/></div>) : (<div style={{display:'flex', alignItems:'center', gap:8}}><input type="checkbox" id="chk_next" checked={isNext} onChange={e=>setIsNext(e.target.checked)} style={{width:'auto'}}/><label htmlFor="chk_next">📌 Imposta come "Prossimo" (Focus)</label></div>)}
+              {/* Link opzionale (Full) */}
+              <input 
+                 placeholder="Link (opzionale)" 
+                 value={videoUrl} 
+                 onChange={e=>setVideoUrl(e.target.value)} 
+                 style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box', fontSize:'0.9em'}} 
+              />
+
+              {/* 3. Sezione STATO (Le "Tiles") */}
+              <div style={{marginTop:8}}>
+                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
+                  
+                  {/* Tile Wishlist */}
+                  <div 
+                    onClick={() => setIsToBuy(!isToBuy)}
+                    style={{
+                      border: isToBuy ? '2px solid #3182ce' : '1px solid #cbd5e0',
+                      backgroundColor: isToBuy ? '#ebf8ff' : 'white',
+                      color: isToBuy ? '#2b6cb0' : '#718096',
+                      borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'
+                    }}
+                  >
+                    <div style={{fontSize:'1.4em', marginBottom:4}}>🛒</div>
+                    <div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div>
+                  </div>
+
+                  {/* Tile Focus */}
+                  <div 
+                    onClick={() => { setIsNext(!isNext); if(!isNext) setIsInstantArchive(false); }}
+                    style={{
+                      border: isNext ? '2px solid #38a169' : '1px solid #cbd5e0',
+                      backgroundColor: isNext ? '#f0fff4' : 'white',
+                      color: isNext ? '#2f855a' : '#718096',
+                      opacity: isInstantArchive ? 0.4 : 1, // Disabilita se è finito
+                      borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'
+                    }}
+                  >
+                    <div style={{fontSize:'1.4em', marginBottom:4}}>📌</div>
+                    <div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Corso</div>
+                  </div>
+
+                  {/* Tile Finito */}
+                  <div 
+                    onClick={() => { setIsInstantArchive(!isInstantArchive); if(!isInstantArchive) setIsNext(false); }}
+                    style={{
+                      border: isInstantArchive ? '2px solid #d69e2e' : '1px solid #cbd5e0',
+                      backgroundColor: isInstantArchive ? '#fffff0' : 'white',
+                      color: isInstantArchive ? '#b7791f' : '#718096',
+                      borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'
+                    }}
+                  >
+                    <div style={{fontSize:'1.4em', marginBottom:4}}>✅</div>
+                    <div style={{fontSize:'0.75em', fontWeight:'bold'}}>Finito</div>
+                  </div>
+                </div>
+
+                {/* Data fine (appare solo se Finito è attivo) */}
+                {isInstantArchive && (
+                  <div style={{marginTop:12, animation:'fadeIn 0.3s'}}>
+                    <label style={{fontSize:'0.85em', color:'#718096'}}>Data completamento:</label>
+                    <input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginLeft:8, padding:'6px', borderRadius:8, border:'1px solid #cbd5e0'}} />
+                  </div>
+                )}
               </div>
-              <button type="submit" style={{gridColumn: "1 / -1", marginTop:8}}>Aggiungi</button>
+
             </form>
-            <div className="row" style={{justifyContent:"flex-end", marginTop:12}}><button className="ghost" onClick={()=>setAddModalOpen(false)}>Chiudi</button></div>
+
+            {/* 4. Bottoni Azione (Footer) */}
+            <div style={{display:'flex', gap:12, marginTop:24}}>
+              <button 
+                type="button" 
+                className="ghost" 
+                onClick={()=>setAddModalOpen(false)} 
+                style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', fontWeight:'600'}}
+              >
+                Annulla
+              </button>
+              <button 
+                type="submit" 
+                form="add-form"
+                style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}
+              >
+                Salva Elemento
+              </button>
+            </div>
+
           </div>
         </div>
       )}
