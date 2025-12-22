@@ -15,11 +15,9 @@ const TYPE_ICONS = {
 const TYPES = ["libro", "audiolibro", "film", "album", "video", "gioco"];
 
 const GENRES = [
-  "ambiente","cinema","storia","romanzi","asia","sociologia","psicologia",
-  "filosofia","musica","arte","biografia","vari","scienza","fumetto","sport",
-  "rpg", "fps", "avventura", "strategia", "documentario", "tutorial"
+ "ambiente","arte","asia","biografia","cinema","filosofia","fumetto","musica","psicologia","romanzi","scienza","sociologia","sport","storia","vari"
 ];
-const MOODS = ["Relax", "Focus", "Energia", "Breve", "Apprendimento", "Impegnativo"];
+const MOODS = ["Breve","Relax", "Focus", "Apprendimento", "Impegnativo"];
 
 const GENRE_ALIAS = { socilogia: "sociologia" };
 
@@ -470,7 +468,7 @@ export default function App(){
             style={{
               fontSize:'0.85em', 
               fontWeight:'600', 
-              color:'#e53e3e', // Rosso leggero per indicare azione "distruttiva" ma soft
+              color:'#fd8383ff', // Rosso leggero per indicare azione "distruttiva" ma soft
               marginLeft:'auto', 
               padding:'4px 8px',
               cursor:'pointer'
@@ -549,12 +547,12 @@ export default function App(){
                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
               </select>
               <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:120}}>
-                <option value="">Qualsiasi Umore</option>
+                <option value="">Umore</option>
                 {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
               </select>
               {showGenreInput(randKind) && (
                 <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:120}}>
-                  <option value="">Qualsiasi Genere</option>
+                  <option value="">Genere</option>
                   {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
                 </select>
               )}
@@ -627,10 +625,10 @@ export default function App(){
             <h2 style={{marginTop:0}}>Aggiungi elemento</h2>
             <form onSubmit={addItem} className="grid grid-2">
               <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} />
-              <input placeholder="Autore/Sviluppatore/Canale" value={creator} onChange={e=>setCreator(e.target.value)} />
+              <input placeholder="Autore" value={creator} onChange={e=>setCreator(e.target.value)} />
               <select value={kind} onChange={handleAddKindChange}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
               {showGenreInput(kind) && (<select value={genre} onChange={e=>setGenre(e.target.value)}><option value="">Genere (facoltativo)</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>)}
-              <select value={mood} onChange={e=>setMood(e.target.value)}><option value="">Umore / Energia (opz.)</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
+              <select value={mood} onChange={e=>setMood(e.target.value)}><option value="">Umore (opz.)</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} />
               <input placeholder="Link (YouTube, Steam...)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{gridColumn: "1 / -1"}} />
               
@@ -665,8 +663,8 @@ export default function App(){
                 {/* Filtro Tipo (Rimesso qui) */}
                 <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="">Tutti i tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
 
-                {showGenreInput(typeFilter) && (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)}><option value="">Tutti i generi</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>)}
-                <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)}><option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
+                {showGenreInput(typeFilter) && (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)}><option value="">Generi</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>)}
+                <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)}><option value="">Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
                 <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} />
               </div>
             </div>
