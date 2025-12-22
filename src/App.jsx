@@ -759,33 +759,119 @@ export default function App(){
           </div>
         </div>
       )}
+    {/* ===== MODALE FILTRI & STRUMENTI (Senza Reset) ===== */}
       {advOpen && (
-        <div className="modal-backdrop" onClick={() => setAdvOpen(false)}>
-          <div className="card" style={{maxWidth:720, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Filtri & Strumenti</h2>
-            <div style={{borderBottom:"1px solid #ddd", paddingBottom:12}}>
-              <div className="sub" style={{marginBottom:8}}>Filtri per Proprietà</div>
-              <div className="grid grid-2">
-                <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{fontWeight:'bold', color: statusFilter==='active'?'#2f855a':'#2d3748'}}><option value="active">🟢 Solo Attivi (Da fare)</option><option value="archived">📦 Solo Archiviati (Storico)</option><option value="">👁️ Mostra Tutto</option></select>
-                {/* Tasto Wishlist */}
-                <button className={sourceFilter === 'da comprare' ? '' : 'ghost'} onClick={() => setSourceFilter(prev => prev === 'da comprare' ? '' : 'da comprare')} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8, borderColor: sourceFilter === 'da comprare' ? '#3182ce' : '#cbd5e0', color: sourceFilter === 'da comprare' ? '#2b6cb0' : '#4a5568', backgroundColor: sourceFilter === 'da comprare' ? '#ebf8ff' : 'transparent'}}>{sourceFilter === 'da comprare' ? '🛒 Sto guardando la lista' : '🛒 Filtra: Da Comprare'}</button>
-                {/* Filtro Tipo (Rimesso qui) */}
-                <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="">Tutti i tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
+        <div className="modal-backdrop" onClick={() => setAdvOpen(false)} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="card" style={{maxWidth:500, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#fffcf5', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}} onClick={e => e.stopPropagation()}>
+            
+            {/* Intestazione Pulita */}
+            <div style={{marginBottom:20, textAlign:'center'}}>
+              <h2 style={{margin:0, fontSize:'1.4rem', color:'#2d3748'}}>Filtri & Strumenti</h2>
+            </div>
 
-                {showGenreInput(typeFilter) && (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)}><option value="">Generi</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>)}
-                <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)}><option value="">Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
-                <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} />
+            <div style={{display:'flex', flexDirection:'column', gap:20}}>
+              
+              {/* 1. SEZIONE FILTRI RAPIDI (Tiles) */}
+              <div>
+                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Visualizzazione</label>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                  
+                  {/* Tile STATO */}
+                  <div 
+                    onClick={() => setStatusFilter(prev => prev === 'active' ? 'archived' : 'active')}
+                    style={{
+                      border: statusFilter === 'active' ? '2px solid #38a169' : '2px solid #d69e2e',
+                      backgroundColor: statusFilter === 'active' ? '#f0fff4' : '#fffff0',
+                      color: statusFilter === 'active' ? '#2f855a' : '#b7791f',
+                      borderRadius: 16, padding: '12px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4
+                    }}
+                  >
+                    <div style={{fontSize:'1.6em'}}>{statusFilter === 'active' ? '🟢' : '📦'}</div>
+                    <div style={{fontSize:'0.9em', fontWeight:'bold'}}>{statusFilter === 'active' ? 'In Corso' : 'Archivio'}</div>
+                  </div>
+
+                  {/* Tile WISHLIST */}
+                  <div 
+                    onClick={() => setSourceFilter(prev => prev === 'da comprare' ? '' : 'da comprare')}
+                    style={{
+                      border: sourceFilter === 'da comprare' ? '2px solid #3182ce' : '1px solid #e2e8f0',
+                      backgroundColor: sourceFilter === 'da comprare' ? '#ebf8ff' : 'white',
+                      color: sourceFilter === 'da comprare' ? '#2b6cb0' : '#718096',
+                      borderRadius: 16, padding: '12px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4
+                    }}
+                  >
+                    <div style={{fontSize:'1.6em'}}>🛒</div>
+                    <div style={{fontSize:'0.9em', fontWeight:'bold'}}>Wishlist</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. SEZIONE DETTAGLI (Griglia 2x2) */}
+              <div>
+                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Proprietà</label>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                  
+                  {/* Tipo */}
+                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white', fontSize:'0.95em'}}>
+                    <option value="">Tutti i Tipi</option>
+                    {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                  </select>
+                  
+                  {/* Umore */}
+                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white', fontSize:'0.95em'}}>
+                    <option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
+                  </select>
+
+                  {/* Anno */}
+                  <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', width:'100%', boxSizing:'border-box', fontSize:'0.95em'}} />
+                  
+                  {/* Genere */}
+                  {showGenreInput(typeFilter) ? (
+                    <select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #e2e8f0', backgroundColor:'white', fontSize:'0.95em'}}>
+                      <option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  ) : (
+                    <div style={{padding:'10px', borderRadius:12, border:'1px dashed #e2e8f0', backgroundColor:'#f7fafc', color:'#a0aec0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. SEZIONE AUTORI A-Z */}
+              <div>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
+                  <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Autori A-Z</label>
+                  {letterFilter && <button className="ghost" onClick={()=>setLetterFilter("")} style={{fontSize:'0.8em', color:'#e53e3e', padding:'2px 6px'}}>Cancella filtro</button>}
+                </div>
+                <div style={{display:'flex', flexWrap:"wrap", gap:6, justifyContent:'center'}}>
+                  <button className={`ghost ${letterFilter === '' ? 'active-letter' : ''}`} onClick={()=>setLetterFilter("")} style={{padding:'6px 10px', borderRadius:8, fontSize:'0.9em', border:'1px solid #e2e8f0', backgroundColor: letterFilter === '' ? '#e2e8f0' : 'white', fontWeight: letterFilter === '' ? 'bold' : 'normal'}}>Tutti</button>
+                  {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(
+                    <button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'6px 10px', borderRadius:8, fontSize:'0.9em', border:'1px solid #e2e8f0', backgroundColor: letterFilter === L ? '#e2e8f0' : 'white', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>
+                  ))}
+                </div>
               </div>
             </div>
-            <div style={{margin:"12px 0", borderBottom:"1px solid #ddd", paddingBottom:12}}>
-              <div className="sub" style={{marginBottom:8}}>Filtro Autori A–Z</div>
-              <div className="row" style={{flexWrap:"wrap", gap:6}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className="ghost" onClick={()=>{ setLetterFilter(L); setAdvOpen(false); }}>{L}</button>))}<button className="ghost" onClick={()=>{ setLetterFilter(""); setAdvOpen(false); }}>Tutti</button></div>
+
+            <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
+
+            {/* 4. FOOTER */}
+            <div style={{display:'flex', flexDirection:'column', gap:16}}>
+              <div style={{display:'flex', gap:12}}>
+                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>
+                   📤 Esporta CSV
+                 </button>
+                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>
+                   🧹 Pulizia Zen
+                 </button>
+              </div>
+
+              <button 
+                onClick={()=>setAdvOpen(false)} 
+                style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}
+              >
+                Chiudi Pannello
+              </button>
             </div>
-            <div style={{margin:"12px 0", display: 'flex', gap: 12}}>
-                <button className="ghost" onClick={()=>exportItemsToCsv(items)}>Esporta CSV</button>
-                <button className="ghost" onClick={handleCleanupSuggest}>🧹 Pulizia Zen</button>
-            </div>
-            <div className="row" style={{justifyContent:"flex-end"}}><button onClick={()=>setAdvOpen(false)}>Chiudi</button></div>
+
           </div>
         </div>
       )}
