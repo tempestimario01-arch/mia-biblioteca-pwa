@@ -443,39 +443,39 @@ export default function App(){
         <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
       </section>
 
-      {/* ===== ETICHETTE FILTRI ATTIVI (Briciole di Pane) ===== */}
+      {/* ===== ETICHETTE FILTRI ATTIVI (Split Layout) ===== */}
       {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter) && (
-        <div style={{display:'flex', gap:8, flexWrap:'wrap', padding:'12px 12px 12px 12px', alignItems:'center'}}>
-          <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
-          {/* Chip STATO */}
-          {statusFilter !== 'active' && (<button className="ghost" onClick={()=>setStatusFilter('active')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{statusFilter === 'archived' ? '📦 Archivio' : '👁️ Tutto'} <span>✖</span></button>)}
-          {/* Chip TIPO */}
-          {typeFilter && (<button className="ghost" onClick={()=>setTypeFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{TYPE_ICONS[typeFilter]} {typeFilter} <span>✖</span></button>)}
-          {/* Chip WISHLIST */}
-          {sourceFilter === 'da comprare' && (<button className="ghost" onClick={()=>setSourceFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#ebf8ff', color:'#2b6cb0', display:'flex', alignItems:'center', gap:4, border:'1px solid #bee3f8'}}>🛒 Da Comprare <span>✖</span></button>)}
-          {/* Chip GENERE */}
-          {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
-          {/* Chip UMORE */}
-          {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
-          {/* Chip ANNO */}
-          {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
-          {/* Chip LETTERA */}
-          {letterFilter && (<button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Autore: {letterFilter}... <span>✖</span></button>)}
-          {/* Tasto CANCELLA TUTTO (Stile Zen) */}
-          <button 
-            className="ghost" 
-            onClick={clearAllFilters} 
-            style={{
-              fontSize:'0.85em', 
-              fontWeight:'600', 
-              color:'#fd8383ff', 
-              marginLeft:'auto', 
-              padding:'4px 8px',
-              cursor:'pointer'
-            }}
-          >
-            Pulisci
-          </button>
+        <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'12px', gap:12}}>
+          
+          {/* COLONNA SINISTRA (Tag Flessibili) */}
+          <div style={{display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', flex:1}}>
+            <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
+            {statusFilter !== 'active' && (<button className="ghost" onClick={()=>setStatusFilter('active')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{statusFilter === 'archived' ? '📦 Archivio' : '👁️ Tutto'} <span>✖</span></button>)}
+            {typeFilter && (<button className="ghost" onClick={()=>setTypeFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{TYPE_ICONS[typeFilter]} {typeFilter} <span>✖</span></button>)}
+            {sourceFilter === 'da comprare' && (<button className="ghost" onClick={()=>setSourceFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#ebf8ff', color:'#2b6cb0', display:'flex', alignItems:'center', gap:4, border:'1px solid #bee3f8'}}>🛒 Da Comprare <span>✖</span></button>)}
+            {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
+            {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
+            {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
+            {letterFilter && (<button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Autore: {letterFilter}... <span>✖</span></button>)}
+          </div>
+
+          {/* COLONNA DESTRA (Bottone Pulisci Fisso) */}
+          <div style={{flexShrink:0}}>
+            <button 
+              className="ghost" 
+              onClick={clearAllFilters} 
+              style={{
+                fontSize:'0.85em', 
+                fontWeight:'600', 
+                color:'#fd8383ff', 
+                padding:'4px 8px',
+                cursor:'pointer',
+                whiteSpace:'nowrap'
+              }}
+            >
+              Pulisci
+            </button>
+          </div>
         </div>
       )}
 
@@ -540,50 +540,45 @@ export default function App(){
             </section>
           )}
 
-          {/* CONTROLLI DADO (Refactoring Zen) */}
-          <section className="card" style={{marginBottom:16, marginTop:16, padding:'20px', backgroundColor:'#FDF8F2', border:'1px solid #f0e6da'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
-              <h3 style={{margin:0, fontSize:'1rem', color:'#744210', display:'flex', alignItems:'center', gap:8}}>
-                <span>🔮</span> Ispirazione
-              </h3>
-              <span style={{fontSize:'0.8em', color:'#975a16', opacity:0.8}}>Lasciati consigliare</span>
-            </div>
+          {/* CONTROLLI DADO (Low Profile - Minimal Zen) */}
+          <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'transparent', border:'1px dashed #cbd5e0'}}>
+            <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', justifyContent:'center'}}>
+              
+              {/* Select Tipo */}
+              <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:90, padding:'8px', borderRadius:10, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em'}}>
+                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
+              </select>
 
-            <div style={{display:'flex', gap:12, alignItems:'stretch'}}>
-              {/* Area Select */}
-              <div style={{flex:1, display:'flex', flexDirection:'column', gap:10}}>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
-                  <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{width:'100%', padding:'10px', borderRadius:12, border:'1px solid #d6bc9b', backgroundColor:'transparent', color:'#553c9a'}}>
-                     {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
-                  </select>
-                  <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{width:'100%', padding:'10px', borderRadius:12, border:'1px solid #d6bc9b', backgroundColor:'transparent', color:'#553c9a'}}>
-                     <option value="">Umore...</option>
-                     {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-                {showGenreInput(randKind) && (
-                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{width:'100%', padding:'10px', borderRadius:12, border:'1px solid #d6bc9b', backgroundColor:'transparent', color:'#553c9a'}}>
-                     <option value="">Qualsiasi genere</option>
-                     {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
-                  </select>
-                )}
-              </div>
+              {/* Select Umore */}
+              <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:100, padding:'8px', borderRadius:10, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em'}}>
+                 <option value="">Umore...</option>
+                 {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
+              </select>
 
-              {/* Big Button */}
+              {/* Select Genere (se serve) */}
+              {showGenreInput(randKind) && (
+                <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:100, padding:'8px', borderRadius:10, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em'}}>
+                   <option value="">Genere...</option>
+                   {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+                </select>
+              )}
+
+              {/* Bottone Dado (Discreto) */}
               <button 
                 onClick={handleSuggest} 
+                className="ghost"
+                title="Consigliami qualcosa!"
                 style={{
-                  width: 60, 
-                  borderRadius: 16, 
-                  border: 'none', 
-                  backgroundColor: '#ed8936', 
-                  color: 'white', 
-                  fontSize: '1.8rem', 
+                  width: 42, height: 42,
+                  borderRadius: 12, 
+                  border: '1px solid #ed8936', 
+                  color: '#ed8936', 
+                  fontSize: '1.4rem', 
                   cursor: 'pointer', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  boxShadow: '0 4px 6px rgba(237, 137, 54, 0.3)'
+                  backgroundColor: '#fffaf0' // Leggerissimo arancio chiaro
                 }}
               >
                 🎲
@@ -705,7 +700,7 @@ export default function App(){
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Dettagli</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Tutti i Tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
-                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
+                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
                   <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', color:'#2d3748'}} />
                   {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
                 </div>
