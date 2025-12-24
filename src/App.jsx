@@ -540,45 +540,46 @@ export default function App(){
             </section>
           )}
 
-          {/* CONTROLLI DADO (Low Profile - Minimal Zen) */}
-          <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'transparent', border:'1px dashed #cbd5e0'}}>
-            <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', justifyContent:'center'}}>
+          {/* CONTROLLI DADO (Barra Compatta & Elegante) */}
+          <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', borderRadius:16, border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)'}}>
+            <div style={{display:'flex', alignItems:'center', gap:12}}>
               
-              {/* Select Tipo */}
-              <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:90, padding:'8px', borderRadius:10, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em'}}>
-                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
-              </select>
-
-              {/* Select Umore */}
-              <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:100, padding:'8px', borderRadius:10, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em'}}>
-                 <option value="">Umore...</option>
-                 {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
-              </select>
-
-              {/* Select Genere (se serve) */}
-              {showGenreInput(randKind) && (
-                <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:100, padding:'8px', borderRadius:10, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em'}}>
-                   <option value="">Genere...</option>
-                   {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+              {/* Area Menu (Si espande) */}
+              <div style={{display:'grid', gridTemplateColumns: showGenreInput(randKind) ? '1fr 1fr 1fr' : '1fr 1fr', gap:8, flex:1}}>
+                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{width:'100%', padding:'10px 4px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
+                   {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
                 </select>
-              )}
 
-              {/* Bottone Dado (Discreto) */}
+                <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{width:'100%', padding:'10px 4px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
+                   <option value="">Umore...</option>
+                   {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
+                </select>
+
+                {showGenreInput(randKind) && (
+                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{width:'100%', padding:'10px 4px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
+                     <option value="">Genere...</option>
+                     {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+                  </select>
+                )}
+              </div>
+
+              {/* Bottone Dado (Fisso a destra) */}
               <button 
                 onClick={handleSuggest} 
-                className="ghost"
-                title="Consigliami qualcosa!"
+                title="Dammi un consiglio!"
                 style={{
-                  width: 42, height: 42,
+                  width: 48, height: 48,
                   borderRadius: 12, 
-                  border: '1px solid #ed8936', 
-                  color: '#ed8936', 
-                  fontSize: '1.4rem', 
+                  border: 'none', 
+                  backgroundColor: '#ed8936', 
+                  color: 'white', 
+                  fontSize: '1.6rem', 
                   cursor: 'pointer', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  backgroundColor: '#fffaf0' // Leggerissimo arancio chiaro
+                  boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)',
+                  flexShrink: 0
                 }}
               >
                 🎲
