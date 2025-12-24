@@ -551,13 +551,13 @@ export default function App(){
                 </select>
 
                 <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{width:'100%', padding:'10px 4px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
-                   <option value="">Umore...</option>
+                   <option value="">Umore</option>
                    {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
                 </select>
 
                 {showGenreInput(randKind) && (
                   <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{width:'100%', padding:'10px 4px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
-                     <option value="">Genere...</option>
+                     <option value="">Genere</option>
                      {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
                   </select>
                 )}
@@ -571,7 +571,7 @@ export default function App(){
                   width: 48, height: 48,
                   borderRadius: 12, 
                   border: 'none', 
-                  backgroundColor: '#ed8936', 
+                  backgroundColor: '#FDF8F2', 
                   color: 'white', 
                   fontSize: '1.6rem', 
                   cursor: 'pointer', 
@@ -658,8 +658,8 @@ export default function App(){
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                 <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
                 <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
-                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Genere...</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
-                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Umore...</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Genere</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
+                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Umore</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
               <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
               <div style={{marginTop:8}}>
@@ -701,9 +701,9 @@ export default function App(){
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Dettagli</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Tutti i Tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
-                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
+                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
                   <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', color:'#2d3748'}} />
-                  {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
+                  {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
                 </div>
               </div>
               <div>
