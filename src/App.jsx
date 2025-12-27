@@ -45,7 +45,7 @@ function joinSources(arr){
   return uniq.join(", ");
 }
 
-// NUOVA LOGICA LINK: Distinzione semplice (Esterno vs Appunti)
+// LOGICA LINK: Distinzione semplice (Esterno vs Appunti)
 function getLinkEmoji(url) {
   if (!url) return "🔗";
   const u = url.toLowerCase();
@@ -58,7 +58,6 @@ function getLinkEmoji(url) {
 }
 
 function exportItemsToCsv(rows){
-  // Aggiunto campo 'note' all'export
   const headers = ["id","title","creator","kind","status","genre","mood","year","sources","video_url","note","finished_at","created_at"];
   const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
   const body = rows.map(i => headers.map(h => esc(i[h])).join(",")).join("\n");
@@ -120,7 +119,7 @@ export default function App(){
   const [mood, setMood] = useState(""); 
   const [videoUrl, setVideoUrl] = useState("");
   const [year,setYear] = useState("");
-  const [note, setNote] = useState(""); // NUOVO STATO NOTE
+  const [note, setNote] = useState(""); // Note interne
   const [isNext, setIsNext] = useState(false);
   
   // Nuovi stati per Aggiunta Avanzata
@@ -145,10 +144,9 @@ export default function App(){
   /* --- 2. FUNZIONI ASINCRONE --- */
 
   const fetchPinnedItems = useCallback(async () => {
-    // Aggiunto 'note' alla select
     const { data, error } = await supabase
       .from('items')
-      .select('*, note')
+      .select('*, note') // Includiamo le note
       .eq('is_next', true)
       .neq('status', 'archived'); 
     
@@ -164,10 +162,9 @@ export default function App(){
   }, []);
 
   const fetchItems = useCallback(async () => {
-    // Aggiunto 'note' alla select
     let query = supabase
       .from("items")
-      .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on")
+      .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on") // Includiamo le note
       .order("created_at", { ascending:false })
       .limit(500); 
 
@@ -271,13 +268,13 @@ export default function App(){
       year: year ? Number(year) : null,
       source: finalSource, 
       mood: mood || null, video_url: videoUrl || null, 
-      note: note || null, // Salva la nota
+      note: note || null, // Salvataggio note
       is_next: finalIsNext, ended_on: finalEndedOn
     };
     const { error } = await supabase.from("items").insert(payload);
     if(!error){
       setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
-      setMood(""); setVideoUrl(""); setNote(""); setIsNext(false);
+      setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); // Reset note
       setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false); 
       setAddModalOpen(false); 
       if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
@@ -328,7 +325,7 @@ export default function App(){
   const reExperience = useCallback(async (it) => {
     if(!window.confirm(`Vuoi iniziare a rileggere/riguardare "${it.title}"? \n\nVerrà creata una copia nel tuo Piano di Lettura per mantenere intatte le statistiche passate.`)) return;
     const payload = {
-      title: it.title, author: it.creator, type: it.kind, genre: it.genre, mood: it.mood, year: it.year, video_url: it.video_url, note: it.note, // Copia anche la nota
+      title: it.title, author: it.creator, type: it.kind, genre: it.genre, mood: it.mood, year: it.year, video_url: it.video_url, note: it.note, // Copia note
       source: joinSources(it.sourcesArr), status: "active", is_next: true, created_at: new Date().toISOString(), ended_on: null
     };
     const { error } = await supabase.from("items").insert(payload);
@@ -363,7 +360,7 @@ export default function App(){
     setEditState({
       id: it.id, title: it.title, creator: it.creator, type: it.kind,     
       genre: it.genre || '', year: it.year || '', mood: it.mood || '', 
-      video_url: it.video_url || '', note: it.note || '', // Carica nota esistente
+      video_url: it.video_url || '', note: it.note || '', // Carica note
       is_next: it.is_next || false, source: joinSources(it.sourcesArr)
     });
   }, []);
@@ -375,7 +372,7 @@ export default function App(){
       title: editState.title, author: editState.creator, type: editState.type,
       genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
       year: editState.year ? Number(editState.year) : null, mood: editState.mood || null, 
-      video_url: editState.video_url || null, note: editState.note || null, // Aggiorna nota
+      video_url: editState.video_url || null, note: editState.note || null, // Aggiorna note
       is_next: editState.is_next, source: editState.source 
     };
     const { error } = await supabase.from("items").update(payload).eq('id', editState.id);
@@ -590,9 +587,9 @@ export default function App(){
                 style={{
                   width: 48, height: 48,
                   borderRadius: 12, 
-                  border: 'none', 
-                  backgroundColor: '#ed8936', 
-                  color: 'white', 
+                  border: '1px solid #ed8936', 
+                  backgroundColor: '#FDF8F2', // BEIGE PWA
+                  color: '#ed8936', 
                   fontSize: '1.6rem', 
                   cursor: 'pointer', 
                   display: 'flex', 
@@ -654,9 +651,22 @@ export default function App(){
                   {/* ZONA 2: AZIONI (SOLO ICONE) */}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
                     {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em' }}>{getLinkEmoji(it.video_url)}</a> )}
-                    {/* Indicatore NOTA - Clicca per leggere al volo */}
+                    {/* Indicatore NOTA - Clicca per leggere al volo (Stile corretto) */}
                     {it.note && (
-                      <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={{padding:'8px', fontSize:'1.2em'}}>📝</button>
+                      <button 
+                        className="ghost" 
+                        onClick={() => alert(it.note)} 
+                        title="Leggi nota personale" 
+                        style={{
+                          padding:'8px', 
+                          fontSize:'1.2em', 
+                          border: '1px solid #cbd5e0', 
+                          borderRadius: '8px', 
+                          lineHeight: 1
+                        }}
+                      >
+                        📝
+                      </button>
                     )}
                     {(!it.finished_at && it.status !== 'archived') && (
                       <button className="ghost" onClick={() => toggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em'}}>{it.is_next ? "🚫" : "📌"}</button>
@@ -697,12 +707,12 @@ export default function App(){
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                 <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
                 <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
-                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Genere...</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
-                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Umore...</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Genere</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
+                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Umore</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
               <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
               {/* AREA NOTE AGGIUNTA */}
-              <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit'}} />
+              <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
               
               <div style={{marginTop:8}}>
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
@@ -872,7 +882,7 @@ export default function App(){
               <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/><input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} />
               {/* AREA NOTE MODIFICA */}
               <div style={{gridColumn: "1 / -1"}}>
-                <textarea placeholder="Note personali..." value={editState.note || ""} onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} rows={3} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit'}} />
+                <textarea placeholder="Note personali..." value={editState.note || ""} onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} rows={3} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
               </div>
 
               <div style={{gridColumn: "1 / -1", marginTop: 8}}>
