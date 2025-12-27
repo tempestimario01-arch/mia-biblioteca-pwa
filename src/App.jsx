@@ -245,7 +245,7 @@ export default function App(){
 
   /* --- 3. HANDLERS E LOGICA "SMART SEARCH" --- */
   
-  // MODIFICA 1: Logica elastica della ricerca
+  // MODIFICA: Logica elastica della ricerca
   useEffect(() => {
     const t = setTimeout(() => {
       const val = qInput.trim();
@@ -453,7 +453,7 @@ export default function App(){
     <div className="app">
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
       
-      {/* ===== Ricerca Zen "Cool Gray" ===== */}
+      {/* ===== Ricerca Zen "Cool Gray" (CON TASTO X FIXATO) ===== */}
       <section className="card" style={{marginBottom:0, padding: "6px 12px", display:'flex', alignItems:'center', gap:8, backgroundColor:'#FFF9F0', borderRadius: 12, boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
         <div style={{flex:1, display:'flex', alignItems:'center', gap:8}}>
           <span style={{opacity:0.4, fontSize:'1.1em'}}>🔍</span>
@@ -463,12 +463,18 @@ export default function App(){
             value={qInput} 
             onChange={e=>setQInput(e.target.value)} 
           />
+          {/* TASTO X: Appare solo se scrivi e resetta tutto */}
+          {qInput && (
+            <button 
+              onClick={() => { setQInput(""); setStatusFilter("active"); }} 
+              style={{background:'transparent', border:'none', fontSize:'1.1em', color:'#718096', cursor:'pointer', padding:'0 8px'}}
+            >
+              ✖
+            </button>
+          )}
         </div>
         
-        {/* Tasto STATISTICHE (Riapparso!) */}
         <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
-
-        {/* Menu Avanzato */}
         <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
       </section>
 
@@ -569,36 +575,37 @@ export default function App(){
             </section>
           )}
 
-          {/* CONTROLLI DADO (Low Profile - Minimal Zen - COLORE PWA) */}
+          {/* CONTROLLI DADO (Compatto & Allineato su una riga FIXATO) */}
           <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', border:'1px solid #e2e8f0'}}>
-            <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', justifyContent:'center'}}>
+            <div style={{display:'flex', gap:8, alignItems:'center'}}>
               
-              {/* Select Tipo */}
-              <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:90, padding:'8px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}>
-                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
-              </select>
-
-              {/* Select Umore */}
-              <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:100, padding:'8px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}>
-                 <option value="">Umore...</option>
-                 {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
-              </select>
-
-              {/* Select Genere (se serve) */}
-              {showGenreInput(randKind) && (
-                <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:100, padding:'8px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}>
-                   <option value="">Genere...</option>
-                   {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+              {/* Menu Flessibili (si stringono per far spazio) */}
+              <div style={{display:'flex', gap:8, flex:1}}>
+                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
+                   {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
                 </select>
-              )}
 
-              {/* Bottone Dado (Discreto) */}
+                <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
+                   <option value="">Umore...</option>
+                   {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
+                </select>
+
+                {showGenreInput(randKind) && (
+                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
+                     <option value="">Genere...</option>
+                     {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+                  </select>
+                )}
+              </div>
+
+              {/* Bottone Dado (Fisso, non si schiaccia mai) */}
               <button 
                 onClick={handleSuggest} 
                 className="ghost"
                 title="Consigliami qualcosa!"
                 style={{
-                  width: 42, height: 42,
+                  width: 44, height: 44,
+                  flexShrink: 0,
                   borderRadius: 12, 
                   border: '1px solid #ed8936', 
                   color: '#ed8936', 
@@ -631,7 +638,7 @@ export default function App(){
                   borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', 
                   backgroundColor: 'white', 
                   boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  // MODIFICA 3: Opacità se archiviato
+                  // MODIFICA: Opacità se archiviato
                   opacity: it.status === 'archived' ? 0.75 : 1,
                   transition: 'opacity 0.3s'
                 }}>
