@@ -645,12 +645,9 @@ export default function App(){
                   borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', 
                   backgroundColor: 'white', 
                   boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  // MODIFICA: Opacità se archiviato
-                  opacity: it.status === 'archived' ? 0.6 : 1,
-                  transition: 'opacity 0.3s'
                 }}>
                   {/* ZONA 1: INFO */}
-                  <div>
+                  <div style={{ opacity: it.status === 'archived' ? 0.6 : 1, transition: 'opacity 0.3s' }}>
                     <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
                       {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>} {it.title}
                     </div>
