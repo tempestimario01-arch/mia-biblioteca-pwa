@@ -27,9 +27,6 @@ const SOURCE_ICONS = {
   "da comprare": "🛒" 
 };
 
-/* === CONFIGURAZIONE STILE (NUOVO BEIGE SCURO) === */
-const BORDER_COLOR = '#d6bc9b'; // Beige sabbia per contorni uniformi
-
 /* === HELPER FUNCTIONS === */
 function showGenreInput(t) { return t === 'libro' || t === 'video'; }
 
@@ -52,40 +49,22 @@ function joinSources(arr){
 function getLinkEmoji(url) {
   if (!url) return "🔗";
   const u = url.toLowerCase();
-  // Se è un servizio di scrittura noto, usa l'icona "Note" (📝)
   if (u.includes("onenote") || u.includes("docs.google") || u.includes("drive.google") || u.includes("notion")) {
     return "📝"; 
   }
-  // Per tutto il resto, la classica catena
   return "🔗";
 }
 
 function exportItemsToCsv(rows){
-  // 1. Definiamo le colonne
   const headers = ["id","title","creator","kind","status","genre","mood","year","sources","video_url","note","finished_at","created_at"];
-  
-  // 2. Funzione per pulire i dati: 
-  // - Gestisce i null/undefined
-  // - Raddoppia le virgolette interne (regola CSV)
-  // - Racchiude tutto tra virgolette
   const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
-
-  // 3. Creiamo le righe
-  // NOTA IMPORTANTE: Uso ";" invece di "," perché Excel italiano lo preferisce
-  const body = rows.map(i => headers.map(h => esc(i[h])).join(";")).join("\n");
-  
-  // 4. Uniamo intestazione e corpo
-  const headerRow = headers.map(h => esc(h)).join(";");
-  const csvContent = [headerRow, body].join("\n");
-
-  // 5. Creiamo il file con il BOM (\uFEFF)
-  // Questo "carattere invisibile" dice a Excel: "Ehi, questo è UTF-8, leggi bene gli accenti!"
-  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8" });
-  
+  const body = rows.map(i => headers.map(h => esc(i[h])).join(",")).join("\n");
+  const csv = [headers.join(","), body].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `biblioteca_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `items_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -111,7 +90,7 @@ export default function App(){
   const [typeFilter,setTypeFilter] = useState("");
   const [genreFilter,setGenreFilter] = useState("");
   const [moodFilter, setMoodFilter] = useState("");
-  const [sourceFilter,setSourceFilter] = useState(""); // Filtro Wishlist
+  const [sourceFilter,setSourceFilter] = useState(""); 
   const [letterFilter, setLetterFilter] = useState("");
   const [yearFilter, setYearFilter] = useState(""); 
 
@@ -138,7 +117,7 @@ export default function App(){
   const [mood, setMood] = useState(""); 
   const [videoUrl, setVideoUrl] = useState("");
   const [year,setYear] = useState("");
-  const [note, setNote] = useState(""); // Note interne
+  const [note, setNote] = useState(""); 
   const [isNext, setIsNext] = useState(false);
   
   // Nuovi stati per Aggiunta Avanzata
@@ -165,7 +144,7 @@ export default function App(){
   const fetchPinnedItems = useCallback(async () => {
     const { data, error } = await supabase
       .from('items')
-      .select('*, note') 
+      .select('*, note')
       .eq('is_next', true)
       .neq('status', 'archived'); 
     
@@ -264,7 +243,23 @@ export default function App(){
     setPeriodLoading(false);
   }, [statYear, statMonth]); 
 
-  /* --- 3. HANDLERS --- */
+  /* --- 3. HANDLERS E LOGICA "SMART SEARCH" --- */
+  
+  // MODIFICA 1: Logica elastica della ricerca
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const val = qInput.trim();
+      setQ(val);
+      // Se c'è testo cercato, mostra TUTTO (""). Se vuoto, torna a "active".
+      if (val.length > 0) {
+        setStatusFilter("");
+      } else {
+        setStatusFilter("active");
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [qInput]);
+
   const isSearchActive = useMemo(() => {
     const isStatusChanged = statusFilter !== 'active';
     return q.length > 0 || isStatusChanged || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
@@ -292,7 +287,7 @@ export default function App(){
     const { error } = await supabase.from("items").insert(payload);
     if(!error){
       setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
-      setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); 
+      setMood(""); setVideoUrl(""); setNote(""); setIsNext(false);
       setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false); 
       setAddModalOpen(false); 
       if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
@@ -343,7 +338,7 @@ export default function App(){
   const reExperience = useCallback(async (it) => {
     if(!window.confirm(`Vuoi iniziare a rileggere/riguardare "${it.title}"? \n\nVerrà creata una copia nel tuo Piano di Lettura per mantenere intatte le statistiche passate.`)) return;
     const payload = {
-      title: it.title, author: it.creator, type: it.kind, genre: it.genre, mood: it.mood, year: it.year, video_url: it.video_url, note: it.note, 
+      title: it.title, author: it.creator, type: it.kind, genre: it.genre, mood: it.mood, year: it.year, video_url: it.video_url, note: it.note,
       source: joinSources(it.sourcesArr), status: "active", is_next: true, created_at: new Date().toISOString(), ended_on: null
     };
     const { error } = await supabase.from("items").insert(payload);
@@ -438,7 +433,6 @@ export default function App(){
   };
 
   /* --- 4. EFFETTI --- */
-  useEffect(() => { const t = setTimeout(() => setQ(qInput.trim()), 250); return () => clearTimeout(t); }, [qInput]);
   useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); 
   useEffect(() => { if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]);
   useEffect(() => { if (statsModalOpen) { fetchPeriodStats(); } }, [statsModalOpen, statMonth, statYear, fetchPeriodStats]);
@@ -532,8 +526,8 @@ export default function App(){
                       <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>{p.creator}</div>
                     </div>
                     <div style={{display:'flex', alignItems:'center', gap: 8}}>
-                       <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
-                       {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{getLinkEmoji(p.video_url)}</a>)}
+                       <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer'}}>📦</button>
+                       {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center'}}>{getLinkEmoji(p.video_url)}</a>)}
                     </div>
                   </div>
                 ))}
@@ -575,46 +569,45 @@ export default function App(){
             </section>
           )}
 
-          {/* CONTROLLI DADO (Barra Compatta & Elegante) */}
-          <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', borderRadius:16, border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)'}}>
-            <div style={{display:'flex', alignItems:'center', gap:12}}>
+          {/* CONTROLLI DADO (Low Profile - Minimal Zen - COLORE PWA) */}
+          <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', border:'1px solid #e2e8f0'}}>
+            <div style={{display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', justifyContent:'center'}}>
               
-              {/* Area Menu (Si espande) */}
-              <div style={{display:'grid', gridTemplateColumns: showGenreInput(randKind) ? '1fr 1fr 1fr' : '1fr 1fr', gap:8, flex:1}}>
-                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{width:'100%', padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
-                   {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
+              {/* Select Tipo */}
+              <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:90, padding:'8px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}>
+                 {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
+              </select>
+
+              {/* Select Umore */}
+              <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:100, padding:'8px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}>
+                 <option value="">Umore...</option>
+                 {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
+              </select>
+
+              {/* Select Genere (se serve) */}
+              {showGenreInput(randKind) && (
+                <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:100, padding:'8px', borderRadius:10, border:'1px solid #d6bc9b', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}>
+                   <option value="">Genere...</option>
+                   {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
                 </select>
+              )}
 
-                <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{width:'100%', padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
-                   <option value="">Umore</option>
-                   {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
-                </select>
-
-                {showGenreInput(randKind) && (
-                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{width:'100%', padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748'}}>
-                     <option value="">Genere</option>
-                     {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
-                  </select>
-                )}
-              </div>
-
-              {/* Bottone Dado (Fisso a destra) */}
+              {/* Bottone Dado (Discreto) */}
               <button 
                 onClick={handleSuggest} 
-                title="Dammi un consiglio!"
+                className="ghost"
+                title="Consigliami qualcosa!"
                 style={{
-                  width: 48, height: 48,
+                  width: 42, height: 42,
                   borderRadius: 12, 
                   border: '1px solid #ed8936', 
-                  backgroundColor: '#FDF8F2', // BEIGE PWA
                   color: '#ed8936', 
-                  fontSize: '1.6rem', 
+                  fontSize: '1.4rem', 
                   cursor: 'pointer', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)',
-                  flexShrink: 0
+                  backgroundColor: '#fffaf0' 
                 }}
               >
                 🎲
@@ -630,17 +623,28 @@ export default function App(){
           {loading ? <p>Caricamento…</p> : (
             <div className="list" style={{ gap: 16, display: 'flex', flexDirection: 'column' }}>
               {items.map(it => (
-                <div key={it.id} className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12, borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                <div key={it.id} className="card" style={{ 
+                  padding: 16, 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: 12, 
+                  borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', 
+                  backgroundColor: 'white', 
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  // MODIFICA 3: Opacità se archiviato
+                  opacity: it.status === 'archived' ? 0.75 : 1,
+                  transition: 'opacity 0.3s'
+                }}>
                   {/* ZONA 1: INFO */}
                   <div>
                     <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
                       {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>} {it.title}
                     </div>
                     <div className="item-meta" style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.6 }}>
-                      {/* AUTORE CLICCABILE */}
+                      {/* AUTORE CLICCABILE: Il click attiva la ricerca, che a sua volta pulisce il filtro stato */}
                       <div 
                         onClick={() => { setQInput(it.creator); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                        title="Filtra per questo autore"
+                        title="Filtra per questo autore (anche archiviati)"
                         style={{
                           fontWeight: 500, 
                           marginBottom: 4, 
@@ -666,27 +670,29 @@ export default function App(){
                       {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
                     </div>
                   </div>
-                  {/* ZONA 2: AZIONI (SOLO ICONE CON BORDO UNIFORME) */}
+                  {/* ZONA 2: AZIONI (SOLO ICONE) */}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
-                    {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>{getLinkEmoji(it.video_url)}</a> )}
+                    {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em' }}>{getLinkEmoji(it.video_url)}</a> )}
+                    {/* Indicatore NOTA - Clicca per leggere al volo */}
                     {it.note && (
-                      <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', lineHeight: 1}}>📝</button>
+                      <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={{padding:'8px', fontSize:'1.2em'}}>📝</button>
                     )}
                     {(!it.finished_at && it.status !== 'archived') && (
-                      <button className="ghost" onClick={() => toggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{it.is_next ? "🚫" : "📌"}</button>
+                      <button className="ghost" onClick={() => toggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em'}}>{it.is_next ? "🚫" : "📌"}</button>
                     )}
+                    {/* Tasto SOLO se c'è "da comprare" */}
                     {(it.sourcesArr || []).includes("da comprare") && (
-                      <button className="ghost" onClick={() => markAsPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8', border: `1px solid #bee3f8`, borderRadius: '8px'}}>🛒</button>
+                      <button className="ghost" onClick={() => markAsPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8'}}>🛒</button>
                     )}
                     {(it.finished_at || it.status === "archived") ? (
                       <>
-                        <button className="ghost" onClick={() => reExperience(it)} title="Rileggi/Riguarda (Crea nuova copia)" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>🔄</button>
-                        <button className="ghost" onClick={() => unarchive(it)} title="Ripristina (Modifica questo elemento)" style={{padding:'8px', fontSize:'1.2em', opacity: 0.5, border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>↩️</button>
+                        <button className="ghost" onClick={() => reExperience(it)} title="Rileggi/Riguarda (Crea nuova copia)" style={{padding:'8px', fontSize:'1.2em'}}>🔄</button>
+                        <button className="ghost" onClick={() => unarchive(it)} title="Ripristina (Modifica questo elemento)" style={{padding:'8px', fontSize:'1.2em', opacity: 0.5}}>↩️</button>
                       </>
                     ) : (
-                      <button className="ghost" onClick={() => openArchiveModal(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
+                      <button className="ghost" onClick={() => openArchiveModal(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em'}}>📦</button>
                     )}
-                    <button className="ghost" onClick={() => openEditModal(it)} title="Modifica" style={{ padding: '8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>✏️</button>
+                    <button className="ghost" onClick={() => openEditModal(it)} title="Modifica" style={{ padding: '8px', fontSize:'1.2em' }}>✏️</button>
                   </div>
                 </div>
               ))}
@@ -705,26 +711,26 @@ export default function App(){
           <div className="card" style={{maxWidth:500, width:"94%", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
             <h2 style={{marginTop:0, marginBottom:20, fontSize:'1.4rem', color:'#2d3748', textAlign:'center'}}>Nuovo Elemento</h2>
             <form onSubmit={addItem} id="add-form" style={{display:'flex', flexDirection:'column', gap:12}}>
-              <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} autoFocus />
-              <input placeholder="Autore / Regista / Sviluppatore" value={creator} onChange={e=>setCreator(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
+              <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} autoFocus />
+              <input placeholder="Autore / Regista / Sviluppatore" value={creator} onChange={e=>setCreator(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
-                <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
-                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}><option value="">Genere</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
-                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}><option value="">Umore</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
+                <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
+                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Genere...</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
+                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent'}}><option value="">Umore...</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
-              <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
+              <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
               {/* AREA NOTE AGGIUNTA */}
-              <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
+              <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit'}} />
               
               <div style={{marginTop:8}}>
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
-                  <div onClick={() => setIsToBuy(!isToBuy)} style={{border: isToBuy ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: isToBuy ? '#ebf8ff' : 'transparent', color: isToBuy ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>🛒</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div></div>
-                  <div onClick={() => { setIsNext(!isNext); if(!isNext) setIsInstantArchive(false); }} style={{border: isNext ? '2px solid #38a169' : `1px solid ${BORDER_COLOR}`, backgroundColor: isNext ? '#f0fff4' : 'transparent', color: isNext ? '#2f855a' : '#718096', opacity: isInstantArchive ? 0.4 : 1, borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>📌</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Corso</div></div>
-                  <div onClick={() => { setIsInstantArchive(!isInstantArchive); if(!isInstantArchive) setIsNext(false); }} style={{border: isInstantArchive ? '2px solid #d69e2e' : `1px solid ${BORDER_COLOR}`, backgroundColor: isInstantArchive ? '#fffff0' : 'transparent', color: isInstantArchive ? '#b7791f' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>✅</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Finito</div></div>
+                  <div onClick={() => setIsToBuy(!isToBuy)} style={{border: isToBuy ? '2px solid #3182ce' : '1px solid #cbd5e0', backgroundColor: isToBuy ? '#ebf8ff' : 'transparent', color: isToBuy ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>🛒</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div></div>
+                  <div onClick={() => { setIsNext(!isNext); if(!isNext) setIsInstantArchive(false); }} style={{border: isNext ? '2px solid #38a169' : '1px solid #cbd5e0', backgroundColor: isNext ? '#f0fff4' : 'transparent', color: isNext ? '#2f855a' : '#718096', opacity: isInstantArchive ? 0.4 : 1, borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>📌</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Corso</div></div>
+                  <div onClick={() => { setIsInstantArchive(!isInstantArchive); if(!isInstantArchive) setIsNext(false); }} style={{border: isInstantArchive ? '2px solid #d69e2e' : '1px solid #cbd5e0', backgroundColor: isInstantArchive ? '#fffff0' : 'transparent', color: isInstantArchive ? '#b7791f' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>✅</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Finito</div></div>
                 </div>
-                {isInstantArchive && (<div style={{marginTop:12, animation:'fadeIn 0.3s'}}><label style={{fontSize:'0.85em', color:'#718096'}}>Data completamento:</label><input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginLeft:8, padding:'6px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}} /></div>)}
+                {isInstantArchive && (<div style={{marginTop:12, animation:'fadeIn 0.3s'}}><label style={{fontSize:'0.85em', color:'#718096'}}>Data completamento:</label><input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginLeft:8, padding:'6px', borderRadius:8, border:'1px solid #cbd5e0', backgroundColor:'transparent'}} /></div>)}
               </div>
             </form>
             <div style={{display:'flex', gap:12, marginTop:24}}>
@@ -747,7 +753,7 @@ export default function App(){
                   <div onClick={() => { if (statusFilter === 'active') setStatusFilter('archived'); else if (statusFilter === 'archived') setStatusFilter(''); else setStatusFilter('active'); }} style={{border: statusFilter === 'active' ? '2px solid #38a169' : (statusFilter === 'archived' ? '2px solid #d69e2e' : '2px solid #718096'), backgroundColor: statusFilter === 'active' ? '#f0fff4' : (statusFilter === 'archived' ? '#fffff0' : '#edf2f7'), color: statusFilter === 'active' ? '#2f855a' : (statusFilter === 'archived' ? '#b7791f' : '#2d3748'), borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
                     <div style={{fontSize:'1.8em', marginBottom:2}}>{statusFilter === 'active' ? '🟢' : (statusFilter === 'archived' ? '📦' : '👁️')}</div><div style={{fontSize:'0.9em', fontWeight:'bold'}}>{statusFilter === 'active' ? 'In Corso' : (statusFilter === 'archived' ? 'Archivio' : 'Mostra Tutti')}</div>
                   </div>
-                  <div onClick={() => setSourceFilter(prev => prev === 'da comprare' ? '' : 'da comprare')} style={{border: sourceFilter === 'da comprare' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: sourceFilter === 'da comprare' ? '#ebf8ff' : 'transparent', color: sourceFilter === 'da comprare' ? '#2b6cb0' : '#718096', borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
+                  <div onClick={() => setSourceFilter(prev => prev === 'da comprare' ? '' : 'da comprare')} style={{border: sourceFilter === 'da comprare' ? '2px solid #3182ce' : '1px solid #cbd5e0', backgroundColor: sourceFilter === 'da comprare' ? '#ebf8ff' : 'transparent', color: sourceFilter === 'da comprare' ? '#2b6cb0' : '#718096', borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
                     <div style={{fontSize:'1.8em', marginBottom:2}}>🛒</div><div style={{fontSize:'0.9em', fontWeight:'bold'}}>Wishlist</div>
                   </div>
                 </div>
@@ -755,22 +761,22 @@ export default function App(){
               <div>
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Dettagli</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Tutti i Tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
-                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
-                  <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', color:'#2d3748'}} />
-                  {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border: `1px dashed ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
+                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Tutti i Tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
+                  <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
+                  <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', color:'#2d3748'}} />
+                  {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border:'1px dashed #cbd5e0', backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
                 </div>
               </div>
               <div>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}><label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Autori A-Z</label>{letterFilter && <button className="ghost" onClick={()=>setLetterFilter("")} style={{fontSize:'0.8em', color:'#e53e3e', padding:'2px 6px'}}>Cancella filtro</button>}</div>
-                <div style={{display:'flex', flexWrap:"wrap", gap:6, justifyContent:'center'}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'8px 12px', borderRadius:8, fontSize:'0.9em', border: `1px solid ${BORDER_COLOR}`, backgroundColor: letterFilter === L ? '#e2e8f0' : 'transparent', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>))}</div>
+                <div style={{display:'flex', flexWrap:"wrap", gap:6, justifyContent:'center'}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'8px 12px', borderRadius:8, fontSize:'0.9em', border:'1px solid #cbd5e0', backgroundColor: letterFilter === L ? '#e2e8f0' : 'transparent', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>))}</div>
               </div>
             </div>
             <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
             <div style={{display:'flex', flexDirection:'column', gap:16}}>
               <div style={{display:'flex', gap:12}}>
-                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
-                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
+                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
+                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border:'1px solid #cbd5e0', backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
               </div>
               <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}>Chiudi Pannello</button>
             </div>
@@ -786,10 +792,10 @@ export default function App(){
             
             {/* TOGGLE PRINCIPALE (A Piastrelle) */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
-              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
+              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : '1px solid #cbd5e0', backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
                  📅 Periodo
               </div>
-              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
+              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : '1px solid #cbd5e0', backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
                  📈 Totale
               </div>
             </div>
@@ -798,8 +804,8 @@ export default function App(){
               <div style={{animation:'fadeIn 0.3s'}}>
                 {/* Selettori Data */}
                 <div style={{display:'flex', gap: 8, alignItems: 'center', justifyContent:'center', marginBottom:20}}>
-                  <input type="number" placeholder="Mese" value={statMonth} onChange={e=>setStatMonth(e.target.value)} style={{width:60, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
-                  <input type="number" placeholder="Anno" value={statYear} onChange={e=>setStatYear(e.target.value)} style={{width:80, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
+                  <input type="number" placeholder="Mese" value={statMonth} onChange={e=>setStatMonth(e.target.value)} style={{width:60, padding:8, borderRadius:8, border:'1px solid #cbd5e0', backgroundColor:'transparent', textAlign:'center'}} />
+                  <input type="number" placeholder="Anno" value={statYear} onChange={e=>setStatYear(e.target.value)} style={{width:80, padding:8, borderRadius:8, border:'1px solid #cbd5e0', backgroundColor:'transparent', textAlign:'center'}} />
                   <button className="ghost" onClick={() => { setStatMonth(new Date().getMonth() + 1); setStatYear(new Date().getFullYear()); }} style={{fontSize:'0.9em', textDecoration:'underline'}}>Oggi</button>
                   {periodLoading && <span style={{fontSize:'0.8em', color:'#718096'}}>...</span>}
                 </div>
@@ -812,12 +818,12 @@ export default function App(){
 
                 {/* Griglia Dettagli (CLICCABILE) */}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12}}>
-                  <div onClick={() => handleStatClick('libro')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>📚</div><div style={{fontWeight:'bold'}}>{periodStats.libro}</div></div>
-                  <div onClick={() => handleStatClick('film')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎬</div><div style={{fontWeight:'bold'}}>{periodStats.film}</div></div>
-                  <div onClick={() => handleStatClick('gioco')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎮</div><div style={{fontWeight:'bold'}}>{periodStats.gioco || 0}</div></div>
-                  <div onClick={() => handleStatClick('audiolibro')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎧</div><div style={{fontWeight:'bold'}}>{periodStats.audiolibro}</div></div>
-                  <div onClick={() => handleStatClick('album')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>💿</div><div style={{fontWeight:'bold'}}>{periodStats.album}</div></div>
-                  <div onClick={() => handleStatClick('video')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>▶️</div><div style={{fontWeight:'bold'}}>{periodStats.video || 0}</div></div>
+                  <div onClick={() => handleStatClick('libro')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>📚</div><div style={{fontWeight:'bold'}}>{periodStats.libro}</div></div>
+                  <div onClick={() => handleStatClick('film')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎬</div><div style={{fontWeight:'bold'}}>{periodStats.film}</div></div>
+                  <div onClick={() => handleStatClick('gioco')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎮</div><div style={{fontWeight:'bold'}}>{periodStats.gioco || 0}</div></div>
+                  <div onClick={() => handleStatClick('audiolibro')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎧</div><div style={{fontWeight:'bold'}}>{periodStats.audiolibro}</div></div>
+                  <div onClick={() => handleStatClick('album')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>💿</div><div style={{fontWeight:'bold'}}>{periodStats.album}</div></div>
+                  <div onClick={() => handleStatClick('video')} style={{backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>▶️</div><div style={{fontWeight:'bold'}}>{periodStats.video || 0}</div></div>
                 </div>
               </div>
             )}
@@ -825,18 +831,18 @@ export default function App(){
             {statsView === 'totale' && (
               <div style={{animation:'fadeIn 0.3s'}}>
                 {/* KPI Totali */}
-                <div style={{display:'flex', justifyContent:'space-between', backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:16, padding:16, marginBottom:20}}>
+                <div style={{display:'flex', justifyContent:'space-between', backgroundColor:'transparent', border:'1px solid #cbd5e0', borderRadius:16, padding:16, marginBottom:20}}>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold'}}>{stats.total}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Totali</div></div>
-                   <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
+                   <div style={{width:1, backgroundColor:'#cbd5e0'}}></div>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#38a169'}}>{stats.active}</div><div style={{fontSize:'0.8em', color:'#718096'}}>In Corso</div></div>
-                   <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
+                   <div style={{width:1, backgroundColor:'#cbd5e0'}}></div>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#d69e2e'}}>{stats.archived}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Archivio</div></div>
                 </div>
 
                 <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Per Tipo</h4>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20}}>
                    {stats.byType.map(x=> (
-                     <div key={x.t} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border: `1px solid ${BORDER_COLOR}`, borderRadius:12}}>
+                     <div key={x.t} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border:'1px solid #cbd5e0', borderRadius:12}}>
                         <span>{TYPE_ICONS[x.t]} {x.t.charAt(0).toUpperCase() + x.t.slice(1)}</span>
                         <strong>{x.n}</strong>
                      </div>
@@ -861,7 +867,7 @@ export default function App(){
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
             <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
             <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
-              <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, cursor:'pointer', backgroundColor:'#f7fafc'}}>
+              <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border:'1px solid #cbd5e0', cursor:'pointer', backgroundColor:'#f7fafc'}}>
                  <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("da comprare")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("da comprare"); else current.delete("da comprare"); return {...prev, sourcesArr: Array.from(current)}; }); }} />
                  <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist (da comprare)</span>
               </label>
@@ -885,11 +891,11 @@ export default function App(){
               <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/><input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} />
               {/* AREA NOTE MODIFICA */}
               <div style={{gridColumn: "1 / -1"}}>
-                <textarea placeholder="Note personali..." value={editState.note || ""} onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
+                <textarea placeholder="Note personali..." value={editState.note || ""} onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} rows={3} style={{padding:'10px', borderRadius:12, border:'1px solid #cbd5e0', width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit'}} />
               </div>
 
               <div style={{gridColumn: "1 / -1", marginTop: 8}}>
-                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border: parseSources(editState.source).includes('da comprare') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: parseSources(editState.source).includes('da comprare') ? '#ebf8ff' : '#fff'}}>
+                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border:'1px solid #cbd5e0', backgroundColor: parseSources(editState.source).includes('da comprare') ? '#ebf8ff' : '#fff'}}>
                   <input type="checkbox" checked={parseSources(editState.source).includes('da comprare')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'da comprare'); if (active) currentArr.push('da comprare'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} />
                   <span style={{color:'#4a5568'}}>🛒 Da comprare</span>
                 </label>
