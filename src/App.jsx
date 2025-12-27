@@ -696,7 +696,7 @@ export default function App(){
                     {(it.finished_at || it.status === "archived") ? (
                       <>
                         <button className="ghost" onClick={() => reExperience(it)} title="Rileggi/Riguarda (Crea nuova copia)" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>🔄</button>
-                        <button className="ghost" onClick={() => unarchive(it)} title="Ripristina (Modifica questo elemento)" style={{padding:'8px', fontSize:'1.2em', opacity: 0.5, border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>↩️</button>
+                        <button className="ghost" onClick={() => unarchive(it)} title="Ripristina (Modifica questo elemento)" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>↩️</button>
                       </>
                     ) : (
                       <button className="ghost" onClick={() => openArchiveModal(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
