@@ -61,15 +61,31 @@ function getLinkEmoji(url) {
 }
 
 function exportItemsToCsv(rows){
+  // 1. Definiamo le colonne
   const headers = ["id","title","creator","kind","status","genre","mood","year","sources","video_url","note","finished_at","created_at"];
+  
+  // 2. Funzione per pulire i dati: 
+  // - Gestisce i null/undefined
+  // - Raddoppia le virgolette interne (regola CSV)
+  // - Racchiude tutto tra virgolette
   const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
-  const body = rows.map(i => headers.map(h => esc(i[h])).join(",")).join("\n");
-  const csv = [headers.join(","), body].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+
+  // 3. Creiamo le righe
+  // NOTA IMPORTANTE: Uso ";" invece di "," perché Excel italiano lo preferisce
+  const body = rows.map(i => headers.map(h => esc(i[h])).join(";")).join("\n");
+  
+  // 4. Uniamo intestazione e corpo
+  const headerRow = headers.map(h => esc(h)).join(";");
+  const csvContent = [headerRow, body].join("\n");
+
+  // 5. Creiamo il file con il BOM (\uFEFF)
+  // Questo "carattere invisibile" dice a Excel: "Ehi, questo è UTF-8, leggi bene gli accenti!"
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8" });
+  
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `items_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `biblioteca_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
