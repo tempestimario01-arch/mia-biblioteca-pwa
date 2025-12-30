@@ -22,9 +22,9 @@ const MOODS = ["Relax", "Focus", "Apprendimento", "Impegnativo"];
 const GENRE_ALIAS = { socilogia: "sociologia" };
 
 /* === CONFIGURAZIONE WISHLIST === */
-const SOURCE_OPTIONS = ["da comprare"];
+const SOURCE_OPTIONS = ["Wishlist"];
 const SOURCE_ICONS = { 
-  "da comprare": "🛒" 
+  "Wishlist": "🛒" 
 };
 
 /* === CONFIGURAZIONE STILE (BEIGE SCURO) === */
@@ -217,8 +217,8 @@ export default function App(){
       const typeResults = await Promise.all(typePromises);
       const byType = typeResults.map((res, idx) => ({ t: TYPES[idx], n: res.count || 0 }));
 
-      const { count: toBuyCount } = await supabase.from("items").select('*', { count: 'exact', head: true }).ilike('source', `%da comprare%`);
-      const bySource = [{ s: 'da comprare', n: toBuyCount || 0 }];
+      const { count: toBuyCount } = await supabase.from("items").select('*', { count: 'exact', head: true }).ilike('source', `%Wishlist%`);
+      const bySource = [{ s: 'Wishlist', n: toBuyCount || 0 }];
 
       setStats({
         total: totalCount ?? 0,
@@ -296,7 +296,7 @@ export default function App(){
     const finalStatus = isInstantArchive ? "archived" : "active";
     const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
     const finalIsNext = isInstantArchive ? false : isNext;
-    const finalSource = isToBuy ? "da comprare" : "";
+    const finalSource = isToBuy ? "Wishlist" : "";
 
     const payload = {
       title, author: creator, type: kind, status: finalStatus,
@@ -328,7 +328,7 @@ export default function App(){
 
   const markAsPurchased = useCallback(async (it) => {
     const srcs = new Set([...(it.sourcesArr||[])]);
-    srcs.delete("da comprare"); 
+    srcs.delete("Wishlist"); 
     const newSourceStr = joinSources(Array.from(srcs));
     const { error } = await supabase.from("items").update({ source: newSourceStr }).eq("id", it.id);
     if (!error) { 
@@ -513,7 +513,7 @@ export default function App(){
             <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
             {statusFilter !== 'active' && (<button className="ghost" onClick={()=>setStatusFilter('active')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{statusFilter === 'archived' ? '📦 Archivio' : '👁️ Tutto'} <span>✖</span></button>)}
             {typeFilter && (<button className="ghost" onClick={()=>setTypeFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{TYPE_ICONS[typeFilter]} {typeFilter} <span>✖</span></button>)}
-            {sourceFilter === 'da comprare' && (<button className="ghost" onClick={()=>setSourceFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#ebf8ff', color:'#2b6cb0', display:'flex', alignItems:'center', gap:4, border:'1px solid #bee3f8'}}>🛒 Da Comprare <span>✖</span></button>)}
+            {sourceFilter === 'Wishlist' && (<button className="ghost" onClick={()=>setSourceFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#ebf8ff', color:'#2b6cb0', display:'flex', alignItems:'center', gap:4, border:'1px solid #bee3f8'}}>🛒 Wishlist <span>✖</span></button>)}
             {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
@@ -709,8 +709,8 @@ export default function App(){
                     {(!it.finished_at && it.status !== 'archived') && (
                       <button className="ghost" onClick={() => toggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{it.is_next ? "🚫" : "📌"}</button>
                     )}
-                    {(it.sourcesArr || []).includes("da comprare") && (
-                      <button className="ghost" onClick={() => markAsPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8', border: `1px solid #bee3f8`, borderRadius: '8px'}}>🛒</button>
+                    {(it.sourcesArr || []).includes("Wishlist") && (
+                      <button className="ghost" onClick={() => markAsPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>🛒</button>
                     )}
                     {(it.finished_at || it.status === "archived") ? (
                       <>
@@ -781,7 +781,7 @@ export default function App(){
                   <div onClick={() => { if (statusFilter === 'active') setStatusFilter('archived'); else if (statusFilter === 'archived') setStatusFilter(''); else setStatusFilter('active'); }} style={{border: statusFilter === 'active' ? '2px solid #38a169' : (statusFilter === 'archived' ? '2px solid #d69e2e' : '2px solid #718096'), backgroundColor: statusFilter === 'active' ? '#f0fff4' : (statusFilter === 'archived' ? '#fffff0' : '#edf2f7'), color: statusFilter === 'active' ? '#2f855a' : (statusFilter === 'archived' ? '#b7791f' : '#2d3748'), borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
                     <div style={{fontSize:'1.8em', marginBottom:2}}>{statusFilter === 'active' ? '🟢' : (statusFilter === 'archived' ? '📦' : '👁️')}</div><div style={{fontSize:'0.9em', fontWeight:'bold'}}>{statusFilter === 'active' ? 'In Corso' : (statusFilter === 'archived' ? 'Archivio' : 'Mostra Tutti')}</div>
                   </div>
-                  <div onClick={() => setSourceFilter(prev => prev === 'da comprare' ? '' : 'da comprare')} style={{border: sourceFilter === 'da comprare' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: sourceFilter === 'da comprare' ? '#ebf8ff' : 'transparent', color: sourceFilter === 'da comprare' ? '#2b6cb0' : '#718096', borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
+                  <div onClick={() => setSourceFilter(prev => prev === 'Wishlist' ? '' : 'Wishlist')} style={{border: sourceFilter === 'Wishlist' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: sourceFilter === 'Wishlist' ? '#ebf8ff' : 'transparent', color: sourceFilter === 'Wishlist' ? '#2b6cb0' : '#718096', borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
                     <div style={{fontSize:'1.8em', marginBottom:2}}>🛒</div><div style={{fontSize:'0.9em', fontWeight:'bold'}}>Wishlist</div>
                   </div>
                 </div>
@@ -879,7 +879,7 @@ export default function App(){
 
                 <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Altro</h4>
                 <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border:'1px solid #bee3f8', backgroundColor:'#ebf8ff', borderRadius:12, color:'#2b6cb0'}}>
-                    <span>🛒 Wishlist (Da comprare)</span>
+                    <span>🛒 Wishlist (Wishlist)</span>
                     <strong>{stats.bySource[0]?.n || 0}</strong>
                 </div>
               </div>
@@ -896,8 +896,8 @@ export default function App(){
             <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
             <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
               <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, cursor:'pointer', backgroundColor:'#f7fafc'}}>
-                 <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("da comprare")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("da comprare"); else current.delete("da comprare"); return {...prev, sourcesArr: Array.from(current)}; }); }} />
-                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist (da comprare)</span>
+                 <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("Wishlist")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("Wishlist"); else current.delete("Wishlist"); return {...prev, sourcesArr: Array.from(current)}; }); }} />
+                 <span style={{color:'#4a5568'}}>Mi è piaciuto! Metti in Wishlist</span>
               </label>
               <label style={{fontWeight:'bold', fontSize:'0.9rem', color:'#4a5568', marginTop:8}}>Data fine:</label>
               <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
@@ -923,9 +923,9 @@ export default function App(){
               </div>
 
               <div style={{gridColumn: "1 / -1", marginTop: 8}}>
-                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border: parseSources(editState.source).includes('da comprare') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: parseSources(editState.source).includes('da comprare') ? '#ebf8ff' : '#fff'}}>
-                  <input type="checkbox" checked={parseSources(editState.source).includes('da comprare')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'da comprare'); if (active) currentArr.push('da comprare'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} />
-                  <span style={{color:'#4a5568'}}>🛒 Da comprare</span>
+                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border: parseSources(editState.source).includes('Wishlist') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : '#fff'}}>
+                  <input type="checkbox" checked={parseSources(editState.source).includes('Wishlist')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'Wishlist'); if (active) currentArr.push('Wishlist'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} />
+                  <span style={{color:'#4a5568'}}>🛒 Wishlist</span>
                 </label>
               </div>
 
