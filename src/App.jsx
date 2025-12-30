@@ -22,9 +22,10 @@ const MOODS = ["Relax", "Focus", "Apprendimento", "Impegnativo"];
 const GENRE_ALIAS = { socilogia: "sociologia" };
 
 /* === CONFIGURAZIONE WISHLIST === */
-const SOURCE_OPTIONS = ["Wishlist"];
 const SOURCE_ICONS = { 
-  "Wishlist": "🛒" 
+  "Wishlist": "🛒",
+  "wishlist": "🛒", 
+  "da comprare": "🛒" 
 };
 
 /* === CONFIGURAZIONE STILE (BEIGE SCURO) === */
@@ -39,10 +40,18 @@ function canonGenere(g){
   return GENRE_ALIAS[x] || x;
 }
 function normType(v){ return String(v ?? "").trim().toLowerCase(); }
+
+// FIX CRUCIALE: Normalizza "da comprare" in "Wishlist" per uniformità nell'app
 function parseSources(str){
   if (!str) return [];
-  return String(str).toLowerCase().split(/[,;/|+]+/).map(s => s.trim()).filter(Boolean);
+  return String(str).toLowerCase().split(/[,;/|+]+/).map(s => {
+    const clean = s.trim();
+    // Se trova la vecchia dicitura o la nuova, restituisce sempre quella standard "Wishlist"
+    if (clean === "da comprare" || clean === "wishlist") return "Wishlist";
+    return clean;
+  }).filter(Boolean);
 }
+
 function joinSources(arr){
   const uniq = Array.from(new Set((arr||[]).map(s=>s.trim()).filter(Boolean)));
   return uniq.join(", ");
@@ -175,7 +184,11 @@ export default function App(){
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
     if (moodFilter) { query = query.eq('mood', moodFilter); }
-    if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
+    
+    // FIX: Se filtro per 'Wishlist', cerco anche 'da comprare' nel DB
+    if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
+    else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
+    
     if (letterFilter) { query = query.ilike('author', `${letterFilter}%`); }
     if (yearFilter) { query = query.eq('year', Number(yearFilter)); }
 
@@ -217,7 +230,8 @@ export default function App(){
       const typeResults = await Promise.all(typePromises);
       const byType = typeResults.map((res, idx) => ({ t: TYPES[idx], n: res.count || 0 }));
 
-      const { count: toBuyCount } = await supabase.from("items").select('*', { count: 'exact', head: true }).ilike('source', `%Wishlist%`);
+      // FIX: Conta sia 'Wishlist' che 'da comprare'
+      const { count: toBuyCount } = await supabase.from("items").select('*', { count: 'exact', head: true }).or('source.ilike.%Wishlist%,source.ilike.%da comprare%');
       const bySource = [{ s: 'Wishlist', n: toBuyCount || 0 }];
 
       setStats({
@@ -230,7 +244,7 @@ export default function App(){
     } catch (error) { console.error(error); }
   }, []); 
 
- const fetchPeriodStats = useCallback(async () => {
+  const fetchPeriodStats = useCallback(async () => {
     // FIX: Ora controlliamo solo se manca l'anno. Il mese è opzionale.
     if (!statYear) return;
     
@@ -248,7 +262,7 @@ export default function App(){
       const nextY = m === 12 ? y + 1 : y;
       endDate = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
     } else {
-      // CASO 2: Mese vuoto -> Calcola tutto l'anno (dal 1 Gennaio anno X al 1 Gennaio anno X+1)
+      // CASO 2: Mese vuoto -> Calcola tutto l'anno
       startDate = `${y}-01-01`;
       endDate = `${y + 1}-01-01`;
     }
@@ -264,16 +278,14 @@ export default function App(){
       setPeriodStats(counts);
     }
     setPeriodLoading(false);
-  }, [statYear, statMonth]);
+  }, [statYear, statMonth]); 
 
-  /* --- 3. HANDLERS E LOGICA SMART SEARCH --- */
+  /* --- 3. HANDLERS --- */
   
-  // MODIFICA CRUCIALE: Logica elastica della ricerca
   useEffect(() => {
     const t = setTimeout(() => {
       const val = qInput.trim();
       setQ(val);
-      // Se c'è testo cercato, mostra TUTTO (""). Se vuoto, torna a "active".
       if (val.length > 0) {
         setStatusFilter("");
       } else {
@@ -296,6 +308,7 @@ export default function App(){
     const finalStatus = isInstantArchive ? "archived" : "active";
     const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
     const finalIsNext = isInstantArchive ? false : isNext;
+    // FIX: Salva sempre "Wishlist" da ora in poi
     const finalSource = isToBuy ? "Wishlist" : "";
 
     const payload = {
@@ -328,7 +341,9 @@ export default function App(){
 
   const markAsPurchased = useCallback(async (it) => {
     const srcs = new Set([...(it.sourcesArr||[])]);
+    // FIX: Rimuove entrambe le diciture per sicurezza
     srcs.delete("Wishlist"); 
+    srcs.delete("da comprare"); 
     const newSourceStr = joinSources(Array.from(srcs));
     const { error } = await supabase.from("items").update({ source: newSourceStr }).eq("id", it.id);
     if (!error) { 
@@ -486,7 +501,7 @@ export default function App(){
             value={qInput} 
             onChange={e=>setQInput(e.target.value)} 
           />
-          {/* TASTO X: Appare solo se scrivi e resetta tutto */}
+          {/* TASTO X */}
           {qInput && (
             <button 
               onClick={() => { setQInput(""); setStatusFilter("active"); }} 
@@ -693,15 +708,21 @@ export default function App(){
                         {it.year && <span style={{fontSize:'0.85em', opacity:0.8}}>• {it.year}</span>}
                         {Array.isArray(it.sourcesArr) && it.sourcesArr.length > 0 && (
                           <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9 }}>
-                            {it.sourcesArr.map(s => SOURCE_ICONS[s] && <span key={s} title={s}>{SOURCE_ICONS[s]}</span>)}
+                            {it.sourcesArr.map(s => {
+                                // FIX: Normalizza l'etichetta visuale
+                                const label = "Wishlist"; 
+                                // Mostra l'icona se è presente nella lista (vecchia o nuova)
+                                return <span key={s} title={label}>🛒</span>;
+                            })}
                           </span>
                         )}
                       </div>
                       {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
                     </div>
                   </div>
-                  {/* ZONA 2: AZIONI (SOLO ICONE CON BORDO UNIFORME) */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
+                  
+                  {/* ZONA 2: AZIONI (SPOSTATE A SINISTRA per evitare il FAB) */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
                     {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>{getLinkEmoji(it.video_url)}</a> )}
                     {it.note && (
                       <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', lineHeight: 1}}>📝</button>
@@ -709,9 +730,12 @@ export default function App(){
                     {(!it.finished_at && it.status !== 'archived') && (
                       <button className="ghost" onClick={() => toggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{it.is_next ? "🚫" : "📌"}</button>
                     )}
-                    {(it.sourcesArr || []).includes("Wishlist") && (
-                      <button className="ghost" onClick={() => markAsPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>🛒</button>
+                    
+                    {/* FIX: Controlla 'Wishlist' (che parseSources ha già normalizzato) */}
+                    {(it.sourcesArr || []).includes('Wishlist') && (
+                      <button className="ghost" onClick={() => markAsPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8', border: `1px solid #bee3f8`, borderRadius: '8px'}}>🛒</button>
                     )}
+
                     {(it.finished_at || it.status === "archived") ? (
                       <>
                         <button className="ghost" onClick={() => reExperience(it)} title="Rileggi/Riguarda (Crea nuova copia)" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>🔄</button>
@@ -748,7 +772,6 @@ export default function App(){
                 <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}><option value="">Umore</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
               <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
-              {/* AREA NOTE AGGIUNTA */}
               <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
               
               <div style={{marginTop:8}}>
@@ -896,8 +919,8 @@ export default function App(){
             <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
             <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
               <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, cursor:'pointer', backgroundColor:'#f7fafc'}}>
-                 <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("Wishlist")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("Wishlist"); else current.delete("Wishlist"); return {...prev, sourcesArr: Array.from(current)}; }); }} />
-                 <span style={{color:'#4a5568'}}>Mi è piaciuto! Metti in Wishlist</span>
+                 <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("Wishlist")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("Wishlist"); else { current.delete("Wishlist"); current.delete("da comprare"); } return {...prev, sourcesArr: Array.from(current)}; }); }} />
+                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist</span>
               </label>
               <label style={{fontWeight:'bold', fontSize:'0.9rem', color:'#4a5568', marginTop:8}}>Data fine:</label>
               <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
@@ -924,7 +947,7 @@ export default function App(){
 
               <div style={{gridColumn: "1 / -1", marginTop: 8}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border: parseSources(editState.source).includes('Wishlist') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : '#fff'}}>
-                  <input type="checkbox" checked={parseSources(editState.source).includes('Wishlist')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'Wishlist'); if (active) currentArr.push('Wishlist'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} />
+                  <input type="checkbox" checked={parseSources(editState.source).includes('Wishlist')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'Wishlist' && x !== 'da comprare'); if (active) currentArr.push('Wishlist'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} />
                   <span style={{color:'#4a5568'}}>🛒 Wishlist</span>
                 </label>
               </div>
