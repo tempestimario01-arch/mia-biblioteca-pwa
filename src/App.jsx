@@ -230,22 +230,41 @@ export default function App(){
     } catch (error) { console.error(error); }
   }, []); 
 
-  const fetchPeriodStats = useCallback(async () => {
-    if (!statYear || !statMonth) return;
+ const fetchPeriodStats = useCallback(async () => {
+    // FIX: Ora controlliamo solo se manca l'anno. Il mese è opzionale.
+    if (!statYear) return;
+    
     setPeriodLoading(true);
-    const y = Number(statYear); const m = Number(statMonth);
-    const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
-    const nextM = m === 12 ? 1 : m + 1; const nextY = m === 12 ? y + 1 : y;
-    const endDate = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
+    
+    const y = Number(statYear); 
+    let startDate, endDate;
+
+    // LOGICA INTELLIGENTE DATE:
+    if (statMonth) {
+      // CASO 1: C'è un mese specifico -> Calcola dal 1° del mese al 1° del mese dopo
+      const m = Number(statMonth);
+      startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+      const nextM = m === 12 ? 1 : m + 1; 
+      const nextY = m === 12 ? y + 1 : y;
+      endDate = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
+    } else {
+      // CASO 2: Mese vuoto -> Calcola tutto l'anno (dal 1 Gennaio anno X al 1 Gennaio anno X+1)
+      startDate = `${y}-01-01`;
+      endDate = `${y + 1}-01-01`;
+    }
+
     const { data, error } = await supabase.from('items').select('type').gte('ended_on', startDate).lt('ended_on', endDate);
-    if (error) { setPeriodStats({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 }); } 
+    
+    if (error) { 
+      setPeriodStats({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 }); 
+    } 
     else {
       const counts = { total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 };
       (data || []).forEach(item => { counts.total++; const t = normType(item.type); if (counts[t] !== undefined) counts[t]++; });
       setPeriodStats(counts);
     }
     setPeriodLoading(false);
-  }, [statYear, statMonth]); 
+  }, [statYear, statMonth]);
 
   /* --- 3. HANDLERS E LOGICA SMART SEARCH --- */
   
