@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, memo } from "react";
 import "./index.css";
 import { supabase } from "./supabaseClient";
 
-/* === COSTANTI E ICONE === */
+/* =========================================
+   1. COSTANTI E CONFIGURAZIONI GLOBALI
+   ========================================= */
+
 const TYPE_ICONS = {
   libro: "📚",
   audiolibro: "🎧",
@@ -18,20 +21,13 @@ const GENRES = [
  "ambiente","arte","asia","biografia","cinema","filosofia","fumetto","musica","psicologia","romanzi","scienza","sociologia","sport","storia","vari"
 ];
 const MOODS = ["Relax", "Focus", "Apprendimento", "Impegnativo"];
-
 const GENRE_ALIAS = { socilogia: "sociologia" };
-
-/* === CONFIGURAZIONE WISHLIST === */
-const SOURCE_ICONS = { 
-  "Wishlist": "🛒",
-  "wishlist": "🛒", 
-  "da comprare": "🛒" 
-};
-
-/* === CONFIGURAZIONE STILE (BEIGE SCURO) === */
 const BORDER_COLOR = '#d6bc9b';
 
-/* === HELPER FUNCTIONS === */
+/* =========================================
+   2. HELPER FUNCTIONS (Logiche Pure)
+   ========================================= */
+
 function showGenreInput(t) { return t === 'libro' || t === 'video'; }
 
 function canonGenere(g){
@@ -41,12 +37,11 @@ function canonGenere(g){
 }
 function normType(v){ return String(v ?? "").trim().toLowerCase(); }
 
-// FIX CRUCIALE: Normalizza "da comprare" in "Wishlist" per uniformità nell'app
+// LOGICA WISHLIST (MANTENUTA)
 function parseSources(str){
   if (!str) return [];
   return String(str).toLowerCase().split(/[,;/|+]+/).map(s => {
     const clean = s.trim();
-    // Se trova la vecchia dicitura o la nuova, restituisce sempre quella standard "Wishlist"
     if (clean === "da comprare" || clean === "wishlist") return "Wishlist";
     return clean;
   }).filter(Boolean);
@@ -57,7 +52,6 @@ function joinSources(arr){
   return uniq.join(", ");
 }
 
-// LOGICA LINK: Distinzione semplice (Esterno vs Appunti)
 function getLinkEmoji(url) {
   if (!url) return "🔗";
   const u = url.toLowerCase();
@@ -82,12 +76,128 @@ function exportItemsToCsv(rows){
   URL.revokeObjectURL(url);
 }
 
+/* =========================================
+   3. COMPONENTI UI ISOLATI (Performance)
+   ========================================= */
+
+// TOAST NOTIFICATION COMPONENT
+const ToastContainer = ({ toasts }) => {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', 
+      zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', pointerEvents: 'none'
+    }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{
+          backgroundColor: t.type === 'error' ? '#c53030' : '#2d3748',
+          color: 'white', padding: '10px 20px', borderRadius: 20,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: '0.95em', fontWeight: 500,
+          animation: 'fadeIn 0.3s forwards', opacity: 0.95
+        }}>
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// LIBRARY ITEM (Card ottimizzata con React.memo)
+const LibraryItem = memo(({ 
+  it, 
+  onToggleFocus, 
+  onMarkPurchased, 
+  onArchive, 
+  onEdit, 
+  onReExperience, 
+  onUnarchive, 
+  onFilterAuthor 
+}) => {
+  const isArchived = it.status === 'archived';
+  const hasWishlist = (it.sourcesArr || []).includes('Wishlist');
+
+  return (
+    <div className="card" style={{ 
+      padding: 16, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: 12, 
+      borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', 
+      backgroundColor: 'white', 
+      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      transform: 'translateZ(0)' // GPU acceleration hint
+    }}>
+      {/* ZONA 1: INFO */}
+      <div style={{ opacity: isArchived ? 0.6 : 1, transition: 'opacity 0.3s' }}>
+        <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
+          {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>} {it.title}
+        </div>
+        <div className="item-meta" style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.6 }}>
+          {/* AUTORE CLICCABILE */}
+          <div 
+            onClick={() => onFilterAuthor(it.creator)} 
+            title="Filtra per questo autore"
+            style={{
+              fontWeight: 500, marginBottom: 4, cursor: 'pointer', 
+              textDecoration: 'underline', textDecorationColor: 'rgba(0,0,0,0.1)', textUnderlineOffset: '3px'
+            }}
+          >
+            {TYPE_ICONS[it.kind]} {it.creator}
+          </div>
+          
+          <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center', marginTop:4}}>
+            {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
+            {it.genre && showGenreInput(it.kind) && <span style={{fontSize:'0.85em', opacity:0.8}}>• {canonGenere(it.genre)}</span>}
+            {it.year && <span style={{fontSize:'0.85em', opacity:0.8}}>• {it.year}</span>}
+            {Array.isArray(it.sourcesArr) && it.sourcesArr.length > 0 && (
+              <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9 }}>
+                {it.sourcesArr.map((s, idx) => <span key={idx} title="Wishlist">🛒</span>)}
+              </span>
+            )}
+          </div>
+          {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
+        </div>
+      </div>
+      
+      {/* ZONA 2: AZIONI (Allineate a SINISTRA) */}
+      <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
+        {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>{getLinkEmoji(it.video_url)}</a> )}
+        {it.note && (
+          <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', lineHeight: 1}}>📝</button>
+        )}
+        {(!it.finished_at && !isArchived) && (
+          <button className="ghost" onClick={() => onToggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{it.is_next ? "🚫" : "📌"}</button>
+        )}
+        
+        {hasWishlist && (
+          <button className="ghost" onClick={() => onMarkPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8', border: `1px solid #bee3f8`, borderRadius: '8px'}}>🛒</button>
+        )}
+
+        {(it.finished_at || isArchived) ? (
+          <>
+            <button className="ghost" onClick={() => onReExperience(it)} title="Rileggi/Riguarda" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>🔄</button>
+            <button className="ghost" onClick={() => onUnarchive(it)} title="Ripristina" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>↩️</button>
+          </>
+        ) : (
+          <button className="ghost" onClick={() => onArchive(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
+        )}
+        <button className="ghost" onClick={() => onEdit(it)} title="Modifica" style={{ padding: '8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>✏️</button>
+      </div>
+    </div>
+  );
+});
+
+/* =========================================
+   4. APP PRINCIPALE
+   ========================================= */
+
 export default function App(){
   
   /* --- 1. STATI --- */
   const [items,setItems] = useState([]);
   const [pinnedItems, setPinnedItems] = useState([]); 
   const [loading,setLoading] = useState(false); 
+  const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
+  const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
 
   // Stats
   const [stats, setStats] = useState({
@@ -119,7 +229,7 @@ export default function App(){
   const [statsView, setStatsView] = useState('periodo'); 
   const [editState, setEditState] = useState(null);
   
-  // STATO PER PULIZIA ZEN
+  // Clean Up
   const [cleanupItem, setCleanupItem] = useState(null);
 
   // Form Aggiunta
@@ -133,7 +243,7 @@ export default function App(){
   const [note, setNote] = useState(""); 
   const [isNext, setIsNext] = useState(false);
   
-  // Nuovi stati per Aggiunta Avanzata
+  // Aggiunta Avanzata
   const [isInstantArchive, setIsInstantArchive] = useState(false);
   const [instantDate, setInstantDate] = useState("");
   const [isToBuy, setIsToBuy] = useState(false); 
@@ -152,7 +262,17 @@ export default function App(){
   const [statYear,setStatYear] = useState(new Date().getFullYear());
 
 
-  /* --- 2. FUNZIONI ASINCRONE --- */
+  /* --- 2. SISTEMA NOTIFICHE (TOAST) --- */
+  const showToast = useCallback((message, type = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  }, []);
+
+
+  /* --- 3. FUNZIONI ASINCRONE --- */
 
   const fetchPinnedItems = useCallback(async () => {
     const { data, error } = await supabase
@@ -185,7 +305,6 @@ export default function App(){
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
     if (moodFilter) { query = query.eq('mood', moodFilter); }
     
-    // FIX: Se filtro per 'Wishlist', cerco anche 'da comprare' nel DB
     if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
     else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
     
@@ -230,7 +349,6 @@ export default function App(){
       const typeResults = await Promise.all(typePromises);
       const byType = typeResults.map((res, idx) => ({ t: TYPES[idx], n: res.count || 0 }));
 
-      // FIX: Conta sia 'Wishlist' che 'da comprare'
       const { count: toBuyCount } = await supabase.from("items").select('*', { count: 'exact', head: true }).or('source.ilike.%Wishlist%,source.ilike.%da comprare%');
       const bySource = [{ s: 'Wishlist', n: toBuyCount || 0 }];
 
@@ -245,24 +363,19 @@ export default function App(){
   }, []); 
 
   const fetchPeriodStats = useCallback(async () => {
-    // FIX: Ora controlliamo solo se manca l'anno. Il mese è opzionale.
     if (!statYear) return;
-    
     setPeriodLoading(true);
     
     const y = Number(statYear); 
     let startDate, endDate;
 
-    // LOGICA INTELLIGENTE DATE:
     if (statMonth) {
-      // CASO 1: C'è un mese specifico -> Calcola dal 1° del mese al 1° del mese dopo
       const m = Number(statMonth);
       startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const nextM = m === 12 ? 1 : m + 1; 
       const nextY = m === 12 ? y + 1 : y;
       endDate = `${nextY}-${String(nextM).padStart(2, '0')}-01`;
     } else {
-      // CASO 2: Mese vuoto -> Calcola tutto l'anno
       startDate = `${y}-01-01`;
       endDate = `${y + 1}-01-01`;
     }
@@ -280,8 +393,24 @@ export default function App(){
     setPeriodLoading(false);
   }, [statYear, statMonth]); 
 
-  /* --- 3. HANDLERS --- */
+  /* --- 4. HANDLERS --- */
   
+  // RESET INFINITE SCROLL ON FILTER CHANGE
+  useEffect(() => {
+    setVisibleCount(50);
+  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
+
+  // INFINITE SCROLL LISTENER
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+        setVisibleCount(prev => prev + 50);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => {
       const val = qInput.trim();
@@ -308,7 +437,6 @@ export default function App(){
     const finalStatus = isInstantArchive ? "archived" : "active";
     const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
     const finalIsNext = isInstantArchive ? false : isNext;
-    // FIX: Salva sempre "Wishlist" da ora in poi
     const finalSource = isToBuy ? "Wishlist" : "";
 
     const payload = {
@@ -326,9 +454,10 @@ export default function App(){
       setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); 
       setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false); 
       setAddModalOpen(false); 
+      showToast("Elemento aggiunto con successo!", "success");
       if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
-    } else { alert("Errore salvataggio: " + (error?.message || "sconosciuto")); }
-  }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
+    } else { showToast("Errore salvataggio: " + (error?.message), "error"); }
+  }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
@@ -336,12 +465,12 @@ export default function App(){
     if (!error) { 
       setItems(prev => prev.map(x => x.id === it.id ? {...x, is_next: newVal} : x));
       fetchPinnedItems(); 
+      showToast(newVal ? "Aggiunto ai Focus 📌" : "Focus rimosso");
     }
-  }, [fetchPinnedItems]);
+  }, [fetchPinnedItems, showToast]);
 
   const markAsPurchased = useCallback(async (it) => {
     const srcs = new Set([...(it.sourcesArr||[])]);
-    // FIX: Rimuove entrambe le diciture per sicurezza
     srcs.delete("Wishlist"); 
     srcs.delete("da comprare"); 
     const newSourceStr = joinSources(Array.from(srcs));
@@ -349,8 +478,9 @@ export default function App(){
     if (!error) { 
         setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x));
         fetchStats(); 
+        showToast("Rimosso dalla Wishlist 🛒", "success");
     }
-  }, [fetchStats]);
+  }, [fetchStats, showToast]);
 
   const openArchiveModal = useCallback((it) => {
     setArchModal({
@@ -363,18 +493,20 @@ export default function App(){
   const saveArchiveFromModal = useCallback(async (m) => {
     await supabase.from("items").update({ status: "archived", ended_on: m.dateISO, source: joinSources(m.sourcesArr), is_next: false }).eq("id", m.id);
     setArchModal(null);
+    showToast("Archiviato con successo! 📦", "success");
     if(isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
     if(statsModalOpen) fetchPeriodStats(); 
-  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems]);
+  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems, showToast]);
   
   const unarchive = useCallback(async (it) => {
     await supabase.from("items").update({ status: "active", ended_on: null }).eq("id", it.id);
+    showToast("Elemento ripristinato! ↩️", "success");
     if(isSearchActive) fetchItems(); fetchStats();
     if(statsModalOpen) fetchPeriodStats();
-  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats]);
+  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, showToast]);
 
   const reExperience = useCallback(async (it) => {
-    if(!window.confirm(`Vuoi iniziare a rileggere/riguardare "${it.title}"? \n\nVerrà creata una copia nel tuo Piano di Lettura per mantenere intatte le statistiche passate.`)) return;
+    if(!window.confirm(`Vuoi iniziare a rileggere/riguardare "${it.title}"? \n\nVerrà creata una copia nel tuo Piano di Lettura.`)) return;
     const payload = {
       title: it.title, author: it.creator, type: it.kind, genre: it.genre, mood: it.mood, year: it.year, video_url: it.video_url, note: it.note, 
       source: joinSources(it.sourcesArr), status: "active", is_next: true, created_at: new Date().toISOString(), ended_on: null
@@ -382,23 +514,24 @@ export default function App(){
     const { error } = await supabase.from("items").insert(payload);
     if (!error) {
       if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
-      alert(`Buon viaggio! Una nuova copia di "${it.title}" è stata aggiunta al tuo Piano.`);
-    } else { alert("Errore durante la creazione della copia: " + error.message); }
-  }, [isSearchActive, fetchItems, fetchStats, fetchPinnedItems]);
+      showToast("Nuova copia creata! Buon viaggio 🔄", "success");
+    } else { showToast("Errore: " + error.message, "error"); }
+  }, [isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
   const handleSuggest = useCallback(async () => {
     setSuggestion(null); 
     const conflict = pinnedItems.find(p => p.kind === randKind);
-    if (conflict) { alert(`✋ Alt! Per "${randKind}" hai già fissato:\n"${conflict.title}".\n\nFinisci prima quello.`); return; }
+    if (conflict) { showToast(`Hai già "${conflict.title}" in focus per ${randKind}!`, "error"); return; }
     const gCanon = canonGenere(randGenre);
     const { data, error } = await supabase.rpc('get_random_suggestion', {
       p_kind: randKind, p_genre: showGenreInput(randKind) ? (gCanon || null) : null, p_mood: randMood || null 
     });
-    if (error || !data || data.length === 0) { alert("Nessun elemento trovato."); return; }
+    if (error || !data || data.length === 0) { showToast("Nessun elemento trovato nei dadi.", "error"); return; }
     const raw = data[0];
     setSuggestion({ ...raw, kind: normType(raw.type), author: raw.author || raw.creator });
-  }, [pinnedItems, randKind, randGenre, randMood]); 
+  }, [pinnedItems, randKind, randGenre, randMood, showToast]); 
 
+  
   const handleAddKindChange = useCallback((e) => {
     const newKind = e.target.value; setKind(newKind);
     if (!showGenreInput(newKind)) setGenre(""); 
@@ -409,7 +542,7 @@ export default function App(){
   }, []);
   const openEditModal = useCallback((it) => {
     setEditState({
-      id: it.id, title: it.title, creator: it.creator, type: it.kind,      
+      id: it.id, title: it.title, creator: it.creator, type: it.kind,       
       genre: it.genre || '', year: it.year || '', mood: it.mood || '', 
       video_url: it.video_url || '', note: it.note || '', 
       is_next: it.is_next || false, source: joinSources(it.sourcesArr)
@@ -434,8 +567,9 @@ export default function App(){
         } return it;
       }));
       setEditState(null); fetchPinnedItems(); 
-    } else { alert("Errore aggiornamento: " + error.message); }
-  }, [editState, fetchPinnedItems]);
+      showToast("Modifiche salvate! 💾", "success");
+    } else { showToast("Errore aggiornamento: " + error.message, "error"); }
+  }, [editState, fetchPinnedItems, showToast]);
 
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
@@ -449,8 +583,9 @@ export default function App(){
     await supabase.from('items').delete().eq('id', itemId);
     setEditState(null); setItems(prev => prev.filter(x => x.id !== itemId)); 
     fetchStats(); fetchPinnedItems();
+    showToast("Elemento eliminato per sempre.", "success");
     if (statsModalOpen) fetchPeriodStats();
-  }, [statsModalOpen, fetchStats, fetchPeriodStats, fetchPinnedItems]);
+  }, [statsModalOpen, fetchStats, fetchPeriodStats, fetchPinnedItems, showToast]);
 
   const handleCleanupSuggest = useCallback(async () => {
     const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -461,16 +596,22 @@ export default function App(){
        const random = data[Math.floor(Math.random() * data.length)];
        setCleanupItem({ ...random, kind: normType(random.type) }); 
        setAdvOpen(false); 
-    } else { alert("Complimenti! La tua collezione è fresca. Nessun elemento vecchio da revisionare."); }
-  }, []);
+    } else { showToast("Collezione pulita! Nessun elemento vecchio trovato.", "success"); }
+  }, [showToast]);
 
   const confirmDeleteCleanup = async () => {
     if(!cleanupItem) return;
     await deleteItem(cleanupItem.id);
     setCleanupItem(null);
   };
+  
+  // Handler rapido per filtro autore dalla Card
+  const handleFilterAuthor = useCallback((authorName) => {
+    setQInput(authorName); 
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
-  /* --- 4. EFFETTI --- */
+  /* --- 5. EFFETTI --- */
   useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); 
   useEffect(() => { if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]);
   useEffect(() => { if (statsModalOpen) { fetchPeriodStats(); } }, [statsModalOpen, statMonth, statYear, fetchPeriodStats]);
@@ -486,9 +627,11 @@ export default function App(){
     }; fetchMemory();
   }, []);
 
-  /* --- 5. RENDER (JSX) --- */
+  /* --- 6. RENDER (JSX) --- */
   return (
     <div className="app">
+      <ToastContainer toasts={toasts} />
+      
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
       
       {/* ===== Ricerca Zen "Cool Gray" CON TASTO X ===== */}
@@ -573,8 +716,8 @@ export default function App(){
                       <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>{p.creator}</div>
                     </div>
                     <div style={{display:'flex', alignItems:'center', gap: 8}}>
-                       <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
-                       {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{getLinkEmoji(p.video_url)}</a>)}
+                        <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
+                        {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{getLinkEmoji(p.video_url)}</a>)}
                     </div>
                   </div>
                 ))}
@@ -616,11 +759,9 @@ export default function App(){
             </section>
           )}
 
-          {/* CONTROLLI DADO (Barra Compatta & Elegante FIX FLEX) */}
+          {/* CONTROLLI DADO */}
           <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', borderRadius:16, border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)'}}>
             <div style={{display:'flex', alignItems:'center', gap:8}}>
-              
-              {/* Area Menu (Flessibile con minWidth: 0 per evitare overflow) */}
               <div style={{display:'flex', gap:8, flex:1, minWidth:0}}>
                 <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
                    {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
@@ -639,23 +780,14 @@ export default function App(){
                 )}
               </div>
 
-              {/* Bottone Dado (Fisso a destra) */}
               <button 
                 onClick={handleSuggest} 
                 title="Dammi un consiglio!"
                 style={{
-                  width: 48, height: 48,
-                  borderRadius: 12, 
-                  border: '1px solid #ed8936', 
-                  backgroundColor: '#FDF8F2', // BEIGE PWA
-                  color: '#ed8936', 
-                  fontSize: '1.6rem', 
-                  cursor: 'pointer', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)',
-                  flexShrink: 0
+                  width: 48, height: 48, borderRadius: 12, border: '1px solid #ed8936', 
+                  backgroundColor: '#FDF8F2', color: '#ed8936', fontSize: '1.6rem', 
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)', flexShrink: 0
                 }}
               >
                 🎲
@@ -665,90 +797,30 @@ export default function App(){
         </>
       )}
       
-      {/* ===== Lista Risultati (Card Minimal) ===== */}
+      {/* ===== Lista Risultati (Card Minimal) con Infinite Scroll ===== */}
       {isSearchActive && (
         <section className="card" style={{marginTop: 12}}>
           {loading ? <p>Caricamento…</p> : (
             <div className="list" style={{ gap: 16, display: 'flex', flexDirection: 'column' }}>
-              {items.map(it => (
-                <div key={it.id} className="card" style={{ 
-                  padding: 16, 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: 12, 
-                  borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', 
-                  backgroundColor: 'white', 
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                }}>
-                  {/* ZONA 1: INFO */}
-                  <div style={{ opacity: it.status === 'archived' ? 0.6 : 1, transition: 'opacity 0.3s' }}>
-                    <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
-                      {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>} {it.title}
-                    </div>
-                    <div className="item-meta" style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.6 }}>
-                      {/* AUTORE CLICCABILE */}
-                      <div 
-                        onClick={() => { setQInput(it.creator); window.scrollTo({ top: 0, behavior: 'smooth' }); }} 
-                        title="Filtra per questo autore (anche archiviati)"
-                        style={{
-                          fontWeight: 500, 
-                          marginBottom: 4, 
-                          cursor: 'pointer', 
-                          textDecoration: 'underline', 
-                          textDecorationColor: 'rgba(0,0,0,0.1)', 
-                          textUnderlineOffset: '3px'
-                        }}
-                      >
-                        {TYPE_ICONS[it.kind]} {it.creator}
-                      </div>
-                      
-                      <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center', marginTop:4}}>
-                        {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
-                        {it.genre && showGenreInput(it.kind) && <span style={{fontSize:'0.85em', opacity:0.8}}>• {canonGenere(it.genre)}</span>}
-                        {it.year && <span style={{fontSize:'0.85em', opacity:0.8}}>• {it.year}</span>}
-                        {Array.isArray(it.sourcesArr) && it.sourcesArr.length > 0 && (
-                          <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9 }}>
-                            {it.sourcesArr.map(s => {
-                                // FIX: Normalizza l'etichetta visuale
-                                const label = "Wishlist"; 
-                                // Mostra l'icona se è presente nella lista (vecchia o nuova)
-                                return <span key={s} title={label}>🛒</span>;
-                            })}
-                          </span>
-                        )}
-                      </div>
-                      {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
-                    </div>
-                  </div>
-                  
-                  {/* ZONA 2: AZIONI (SPOSTATE A SINISTRA per evitare il FAB) */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
-                    {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>{getLinkEmoji(it.video_url)}</a> )}
-                    {it.note && (
-                      <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', lineHeight: 1}}>📝</button>
-                    )}
-                    {(!it.finished_at && it.status !== 'archived') && (
-                      <button className="ghost" onClick={() => toggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{it.is_next ? "🚫" : "📌"}</button>
-                    )}
-                    
-                    {/* FIX: Controlla 'Wishlist' (che parseSources ha già normalizzato) */}
-                    {(it.sourcesArr || []).includes('Wishlist') && (
-                      <button className="ghost" onClick={() => markAsPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8', border: `1px solid #bee3f8`, borderRadius: '8px'}}>🛒</button>
-                    )}
-
-                    {(it.finished_at || it.status === "archived") ? (
-                      <>
-                        <button className="ghost" onClick={() => reExperience(it)} title="Rileggi/Riguarda (Crea nuova copia)" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>🔄</button>
-                        <button className="ghost" onClick={() => unarchive(it)} title="Ripristina (Modifica questo elemento)" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>↩️</button>
-                      </>
-                    ) : (
-                      <button className="ghost" onClick={() => openArchiveModal(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
-                    )}
-                    <button className="ghost" onClick={() => openEditModal(it)} title="Modifica" style={{ padding: '8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>✏️</button>
-                  </div>
-                </div>
+              {items.slice(0, visibleCount).map(it => (
+                <LibraryItem 
+                  key={it.id} 
+                  it={it}
+                  onToggleFocus={toggleFocus}
+                  onMarkPurchased={markAsPurchased}
+                  onArchive={openArchiveModal}
+                  onEdit={openEditModal}
+                  onReExperience={reExperience}
+                  onUnarchive={unarchive}
+                  onFilterAuthor={handleFilterAuthor}
+                />
               ))}
-              {items.length===0 && <p style={{opacity:.8, textAlign:'center'}}>Nessun elemento trovato.</p>}
+              {items.length === 0 && <p style={{opacity:.8, textAlign:'center'}}>Nessun elemento trovato.</p>}
+              {items.length > visibleCount && (
+                <div style={{textAlign: 'center', padding: 20, color: '#718096', fontStyle:'italic'}}>
+                  Scorri per caricare altri elementi...
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -844,10 +916,10 @@ export default function App(){
             {/* TOGGLE PRINCIPALE (A Piastrelle) */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
               <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
-                 📅 Periodo
+                  📅 Periodo
               </div>
               <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
-                 📈 Totale
+                  📈 Totale
               </div>
             </div>
 
@@ -894,16 +966,16 @@ export default function App(){
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20}}>
                    {stats.byType.map(x=> (
                      <div key={x.t} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border: `1px solid ${BORDER_COLOR}`, borderRadius:12}}>
-                        <span>{TYPE_ICONS[x.t]} {x.t.charAt(0).toUpperCase() + x.t.slice(1)}</span>
-                        <strong>{x.n}</strong>
+                       <span>{TYPE_ICONS[x.t]} {x.t.charAt(0).toUpperCase() + x.t.slice(1)}</span>
+                       <strong>{x.n}</strong>
                      </div>
                    ))}
                 </div>
 
                 <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Altro</h4>
                 <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border:'1px solid #bee3f8', backgroundColor:'#ebf8ff', borderRadius:12, color:'#2b6cb0'}}>
-                    <span>🛒 Wishlist (Wishlist)</span>
-                    <strong>{stats.bySource[0]?.n || 0}</strong>
+                   <span>🛒 Wishlist (Wishlist)</span>
+                   <strong>{stats.bySource[0]?.n || 0}</strong>
                 </div>
               </div>
             )}
