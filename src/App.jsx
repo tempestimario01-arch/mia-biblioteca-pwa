@@ -218,7 +218,11 @@ export default function App(){
   const [genreFilter,setGenreFilter] = useState("");
   const [moodFilter, setMoodFilter] = useState("");
   const [sourceFilter,setSourceFilter] = useState(""); 
+  
+  // NOVITÀ: Filtro Lettera Avanzato
   const [letterFilter, setLetterFilter] = useState("");
+  const [letterMode, setLetterMode] = useState("author"); // "author" oppure "title"
+
   const [yearFilter, setYearFilter] = useState(""); 
 
   // Filtri Nascosti
@@ -312,7 +316,12 @@ export default function App(){
     if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
     else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
     
-    if (letterFilter) { query = query.ilike('author', `${letterFilter}%`); }
+    // NUOVA LOGICA: Filtra per autore OPPURE per titolo in base allo switch
+    if (letterFilter) { 
+      const columnToSearch = letterMode === 'title' ? 'title' : 'author';
+      query = query.ilike(columnToSearch, `${letterFilter}%`); 
+    }
+
     if (yearFilter) { query = query.eq('year', Number(yearFilter)); }
 
     if (completionYearFilter && completionMonthFilter) {
@@ -342,7 +351,7 @@ export default function App(){
       setItems(adapted);
     }
     setLoading(false);
-  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
+  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, letterMode, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -402,7 +411,7 @@ export default function App(){
   // RESET INFINITE SCROLL ON FILTER CHANGE
   useEffect(() => {
     setVisibleCount(50);
-  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
+  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, letterMode, yearFilter, completionMonthFilter, completionYearFilter]);
 
   // INFINITE SCROLL LISTENER
   useEffect(() => {
@@ -541,7 +550,7 @@ export default function App(){
     if (!showGenreInput(newKind)) setGenre(""); 
   }, []);
   const clearAllFilters = useCallback(() => {
-    setQ(""); setQInput(""); setTypeFilter(""); setGenreFilter(""); setMoodFilter(""); setSourceFilter(""); setLetterFilter(""); setYearFilter(""); 
+    setQ(""); setQInput(""); setTypeFilter(""); setGenreFilter(""); setMoodFilter(""); setSourceFilter(""); setLetterFilter(""); setYearFilter(""); setLetterMode("author");
     setCompletionMonthFilter(""); setCompletionYearFilter(""); setSuggestion(null); setStatusFilter("active"); 
   }, []);
   const openEditModal = useCallback((it) => {
@@ -578,7 +587,7 @@ export default function App(){
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
     else setTypeFilter(''); 
-    setStatusFilter('archived'); // FIX: Imposta "Archivio" invece che svuotare tutto
+    setStatusFilter('archived'); 
     setCompletionYearFilter(String(statYear)); 
     setCompletionMonthFilter(String(statMonth)); 
     setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter('');
@@ -681,7 +690,14 @@ export default function App(){
             {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
-            {letterFilter && (<button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Autore: {letterFilter}... <span>✖</span></button>)}
+            
+            {/* TAG LETTERA MODIFICATO CON INDICAZIONE TIPO */}
+            {letterFilter && (
+                <button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>
+                    {letterMode === 'title' ? 'Titolo' : 'Autore'}: {letterFilter}... <span>✖</span>
+                </button>
+            )}
+
             {(completionYearFilter) && (<button className="ghost" onClick={()=>{setCompletionYearFilter(''); setCompletionMonthFilter(''); setStatusFilter('active');}} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#fbb6ce', color:'#822727', display:'flex', alignItems:'center', gap:4}}>📅 {completionMonthFilter ? `${completionMonthFilter}/` : ''}{completionYearFilter} <span>✖</span></button>)}
           </div>
 
@@ -898,10 +914,22 @@ export default function App(){
                   {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border: `1px dashed ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
                 </div>
               </div>
+              
+              {/* ZONA INDICE A-Z POTENZIATA */}
               <div>
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}><label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Autori A-Z</label>{letterFilter && <button className="ghost" onClick={()=>setLetterFilter("")} style={{fontSize:'0.8em', color:'#e53e3e', padding:'2px 6px'}}>Cancella filtro</button>}</div>
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
+                  <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                    <span style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>INDICE:</span>
+                    <div style={{display:'flex', backgroundColor:'#edf2f7', borderRadius:8, padding:2}}>
+                       <button onClick={()=>setLetterMode('author')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='author' ? 'white' : 'transparent', color: letterMode==='author' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='author' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='author'?'bold':'normal', cursor:'pointer'}}>Autore</button>
+                       <button onClick={()=>setLetterMode('title')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='title' ? 'white' : 'transparent', color: letterMode==='title' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='title' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='title'?'bold':'normal', cursor:'pointer'}}>Titolo</button>
+                    </div>
+                  </div>
+                  {letterFilter && <button className="ghost" onClick={()=>setLetterFilter("")} style={{fontSize:'0.8em', color:'#e53e3e', padding:'2px 6px'}}>Cancella</button>}
+                </div>
                 <div style={{display:'flex', flexWrap:"wrap", gap:6, justifyContent:'center'}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'8px 12px', borderRadius:8, fontSize:'0.9em', border: `1px solid ${BORDER_COLOR}`, backgroundColor: letterFilter === L ? '#e2e8f0' : 'transparent', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>))}</div>
               </div>
+
             </div>
             <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
             <div style={{display:'flex', flexDirection:'column', gap:16}}>
