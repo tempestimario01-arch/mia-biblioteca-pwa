@@ -104,6 +104,7 @@ const ToastContainer = ({ toasts }) => {
 // LIBRARY ITEM (Card ottimizzata con React.memo)
 const LibraryItem = memo(({ 
   it, 
+  isArchiveView, // NUOVA PROP: Indica se siamo nella vista "Solo Archivio"
   onToggleFocus, 
   onMarkPurchased, 
   onArchive, 
@@ -114,6 +115,9 @@ const LibraryItem = memo(({
 }) => {
   const isArchived = it.status === 'archived';
   const hasWishlist = (it.sourcesArr || []).includes('Wishlist');
+
+  // LOGICA VISIVA: Se è archiviato E NON siamo nella vista specifica archivio -> sbiadisci
+  const opacityValue = (isArchived && !isArchiveView) ? 0.6 : 1;
 
   return (
     <div className="card" style={{ 
@@ -127,7 +131,7 @@ const LibraryItem = memo(({
       transform: 'translateZ(0)' // GPU acceleration hint
     }}>
       {/* ZONA 1: INFO */}
-      <div style={{ opacity: isArchived ? 0.6 : 1, transition: 'opacity 0.3s' }}>
+      <div style={{ opacity: opacityValue, transition: 'opacity 0.3s' }}>
         <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
           {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>} {it.title}
         </div>
@@ -806,6 +810,7 @@ export default function App(){
                 <LibraryItem 
                   key={it.id} 
                   it={it}
+                  isArchiveView={statusFilter === 'archived'} // Passa true se stiamo guardando solo l'archivio
                   onToggleFocus={toggleFocus}
                   onMarkPurchased={markAsPurchased}
                   onArchive={openArchiveModal}
