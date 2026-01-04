@@ -104,7 +104,7 @@ const ToastContainer = ({ toasts }) => {
 // LIBRARY ITEM (Card ottimizzata con React.memo)
 const LibraryItem = memo(({ 
   it, 
-  isArchiveView, // NUOVA PROP: Indica se siamo nella vista "Solo Archivio"
+  isArchiveView, 
   onToggleFocus, 
   onMarkPurchased, 
   onArchive, 
@@ -578,7 +578,9 @@ export default function App(){
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
     else setTypeFilter(''); 
-    setStatusFilter(''); setCompletionYearFilter(String(statYear)); setCompletionMonthFilter(String(statMonth)); 
+    setStatusFilter('archived'); // FIX: Imposta "Archivio" invece che svuotare tutto
+    setCompletionYearFilter(String(statYear)); 
+    setCompletionMonthFilter(String(statMonth)); 
     setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter('');
     setStatsModalOpen(false);
   }, [statYear, statMonth]); 
@@ -667,7 +669,7 @@ export default function App(){
       </section>
 
       {/* ===== ETICHETTE FILTRI ATTIVI (Split Layout) ===== */}
-      {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter) && (
+      {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter || completionYearFilter) && (
         <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'12px', gap:12}}>
           
           {/* COLONNA SINISTRA (Tag Flessibili) */}
@@ -680,6 +682,7 @@ export default function App(){
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
             {letterFilter && (<button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Autore: {letterFilter}... <span>✖</span></button>)}
+            {(completionYearFilter) && (<button className="ghost" onClick={()=>{setCompletionYearFilter(''); setCompletionMonthFilter(''); setStatusFilter('active');}} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#fbb6ce', color:'#822727', display:'flex', alignItems:'center', gap:4}}>📅 {completionMonthFilter ? `${completionMonthFilter}/` : ''}{completionYearFilter} <span>✖</span></button>)}
           </div>
 
           {/* COLONNA DESTRA (Bottone Pulisci Fisso) */}
