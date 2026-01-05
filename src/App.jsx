@@ -734,10 +734,29 @@ export default function App(){
               <div style={{display:'flex', flexDirection:'column'}}>
                 {pinnedItems.map((p, idx) => (
                   <div key={p.id} style={{padding: '10px 0', borderBottom: idx === pinnedItems.length-1 ? 'none' : '1px solid #c6f6d5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
+                    
+                    {/* INFO PRINCIPALI */}
                     <div style={{flex: 1}}>
                       <div style={{fontWeight:'600', fontSize:'1rem', color:'#2f855a'}}>{TYPE_ICONS[p.kind]} {p.title}</div>
-                      <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>{p.creator}</div>
+                      <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749', marginBottom: 4}}>{p.creator}</div>
+                      
+                      {/* --- QUI ABBIAMO AGGIUNTO L'UMORE --- */}
+                      {p.mood && (
+                        <span style={{ 
+                          fontSize: '0.75em', 
+                          padding: '2px 8px', 
+                          borderRadius: 10, 
+                          backgroundColor: 'rgba(255,255,255,0.7)', // Bianco leggermente trasparente
+                          color: '#22543d', 
+                          border: '1px solid #9ae6b4',
+                          fontWeight: 500
+                        }}>
+                          {p.mood}
+                        </span>
+                      )}
                     </div>
+
+                    {/* AZIONI */}
                     <div style={{display:'flex', alignItems:'center', gap: 8}}>
                         <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
                         {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{getLinkEmoji(p.video_url)}</a>)}
