@@ -115,8 +115,6 @@ const LibraryItem = memo(({
 }) => {
   const isArchived = it.status === 'archived';
   const hasWishlist = (it.sourcesArr || []).includes('Wishlist');
-
-  // LOGICA VISIVA: Se è archiviato E NON siamo nella vista specifica archivio -> sbiadisci
   const opacityValue = (isArchived && !isArchiveView) ? 0.6 : 1;
 
   return (
@@ -130,13 +128,11 @@ const LibraryItem = memo(({
       boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       transform: 'translateZ(0)' 
     }}>
-      {/* ZONA 1: INFO */}
       <div style={{ opacity: opacityValue, transition: 'opacity 0.3s' }}>
         <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
           {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>} {it.title}
         </div>
         <div className="item-meta" style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.6 }}>
-          {/* AUTORE CLICCABILE */}
           <div 
             onClick={() => onFilterAuthor(it.creator)} 
             title="Filtra per questo autore"
@@ -162,7 +158,6 @@ const LibraryItem = memo(({
         </div>
       </div>
       
-      {/* ZONA 2: AZIONI */}
       <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
         {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>{getLinkEmoji(it.video_url)}</a> )}
         {it.note && (
@@ -203,14 +198,19 @@ export default function App(){
   const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
   const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
 
+  // NUOVO: Modalità di Visualizzazione (Solo per il Piano di Lettura)
+  // 'ALL' = Vedi tutto (Default)
+  // 'FOCUS' = Solo cose impegnative
+  // 'RELAX' = Solo cose leggere
+  // 'AUDIO' = Solo cose audio
+  const [viewMode, setViewMode] = useState('ALL'); 
+
   // Stats
-  const [stats, setStats] = useState({
-    total: 0, active: 0, archived: 0, byType: [], bySource: []
-  });
+  const [stats, setStats] = useState({ total: 0, active: 0, archived: 0, byType: [], bySource: [] });
   const [periodStats, setPeriodStats] = useState({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 });
   const [periodLoading, setPeriodLoading] = useState(false);
 
-  // Filtri Principali
+  // Filtri Principali (Database)
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState(""); 
   const [statusFilter, setStatusFilter] = useState("active"); 
@@ -219,13 +219,9 @@ export default function App(){
   const [moodFilter, setMoodFilter] = useState("");
   const [sourceFilter,setSourceFilter] = useState(""); 
   
-  // Filtro Lettera Avanzato
   const [letterFilter, setLetterFilter] = useState("");
-  const [letterMode, setLetterMode] = useState("author"); // "author" oppure "title"
-
+  const [letterMode, setLetterMode] = useState("author"); 
   const [yearFilter, setYearFilter] = useState(""); 
-
-  // Filtri Nascosti
   const [completionMonthFilter, setCompletionMonthFilter] = useState("");
   const [completionYearFilter, setCompletionYearFilter] = useState("");
 
@@ -236,8 +232,6 @@ export default function App(){
   const [statsModalOpen, setStatsModalOpen] = useState(false); 
   const [statsView, setStatsView] = useState('periodo'); 
   const [editState, setEditState] = useState(null);
-  
-  // Clean Up
   const [cleanupItem, setCleanupItem] = useState(null);
 
   // Form Aggiunta
@@ -250,8 +244,6 @@ export default function App(){
   const [year,setYear] = useState("");
   const [note, setNote] = useState(""); 
   const [isNext, setIsNext] = useState(false);
-  
-  // Aggiunta Avanzata
   const [isInstantArchive, setIsInstantArchive] = useState(false);
   const [instantDate, setInstantDate] = useState("");
   const [isToBuy, setIsToBuy] = useState(false); 
@@ -261,8 +253,6 @@ export default function App(){
   const [randGenre,setRandGenre] = useState("");
   const [randMood, setRandMood] = useState(""); 
   const [suggestion, setSuggestion] = useState(null); 
-
-  // Memory Lane
   const [memoryItem, setMemoryItem] = useState(null);
 
   // Input Stats Periodo
@@ -281,14 +271,8 @@ export default function App(){
 
 
   /* --- 3. FUNZIONI ASINCRONE --- */
-
   const fetchPinnedItems = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('items')
-      .select('*, note') 
-      .eq('is_next', true)
-      .neq('status', 'archived'); 
-    
+    const { data, error } = await supabase.from('items').select('*, note').eq('is_next', true).neq('status', 'archived'); 
     if (!error && data) {
       const adapted = data.map(row => ({
         ...row,
@@ -301,11 +285,7 @@ export default function App(){
   }, []);
 
   const fetchItems = useCallback(async () => {
-    let query = supabase
-      .from("items")
-      .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on")
-      .order("created_at", { ascending:false })
-      .limit(500); 
+    let query = supabase.from("items").select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on").order("created_at", { ascending:false }).limit(500); 
 
     if (q) { query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`); }
     if (statusFilter) { query = query.eq('status', statusFilter); }
@@ -316,12 +296,10 @@ export default function App(){
     if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
     else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
     
-    // Filtro Lettera Avanzato
     if (letterFilter) { 
       const columnToSearch = letterMode === 'title' ? 'title' : 'author';
       query = query.ilike(columnToSearch, `${letterFilter}%`); 
     }
-
     if (yearFilter) { query = query.eq('year', Number(yearFilter)); }
 
     if (completionYearFilter && completionMonthFilter) {
@@ -357,31 +335,20 @@ export default function App(){
     try {
       const { count: totalCount } = await supabase.from("items").select('*', { count: 'exact', head: true });
       const { count: archivedCount } = await supabase.from("items").select('*', { count: 'exact', head: true }).or("ended_on.not.is.null, status.eq.archived");
-      
       const typePromises = TYPES.map(t => supabase.from("items").select('*', { count: 'exact', head: true }).eq('type', t));
       const typeResults = await Promise.all(typePromises);
       const byType = typeResults.map((res, idx) => ({ t: TYPES[idx], n: res.count || 0 }));
-
       const { count: toBuyCount } = await supabase.from("items").select('*', { count: 'exact', head: true }).or('source.ilike.%Wishlist%,source.ilike.%da comprare%');
       const bySource = [{ s: 'Wishlist', n: toBuyCount || 0 }];
-
-      setStats({
-        total: totalCount ?? 0,
-        archived: archivedCount ?? 0,
-        active: (totalCount ?? 0) - (archivedCount ?? 0),
-        byType: byType,
-        bySource: bySource
-      });
+      setStats({ total: totalCount ?? 0, archived: archivedCount ?? 0, active: (totalCount ?? 0) - (archivedCount ?? 0), byType: byType, bySource: bySource });
     } catch (error) { console.error(error); }
   }, []); 
 
   const fetchPeriodStats = useCallback(async () => {
     if (!statYear) return;
     setPeriodLoading(true);
-    
     const y = Number(statYear); 
     let startDate, endDate;
-
     if (statMonth) {
       const m = Number(statMonth);
       startDate = `${y}-${String(m).padStart(2, '0')}-01`;
@@ -392,12 +359,8 @@ export default function App(){
       startDate = `${y}-01-01`;
       endDate = `${y + 1}-01-01`;
     }
-
     const { data, error } = await supabase.from('items').select('type').gte('ended_on', startDate).lt('ended_on', endDate);
-    
-    if (error) { 
-      setPeriodStats({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 }); 
-    } 
+    if (error) { setPeriodStats({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 }); } 
     else {
       const counts = { total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 };
       (data || []).forEach(item => { counts.total++; const t = normType(item.type); if (counts[t] !== undefined) counts[t]++; });
@@ -407,35 +370,9 @@ export default function App(){
   }, [statYear, statMonth]); 
 
   /* --- 4. HANDLERS --- */
-  
-  // RESET INFINITE SCROLL ON FILTER CHANGE
-  useEffect(() => {
-    setVisibleCount(50);
-  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, letterMode, yearFilter, completionMonthFilter, completionYearFilter]);
-
-  // INFINITE SCROLL LISTENER
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-        setVisibleCount(prev => prev + 50);
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const val = qInput.trim();
-      setQ(val);
-      if (val.length > 0) {
-        setStatusFilter("");
-      } else {
-        setStatusFilter("active");
-      }
-    }, 250);
-    return () => clearTimeout(t);
-  }, [qInput]);
+  useEffect(() => { setVisibleCount(50); }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, letterMode, yearFilter, completionMonthFilter, completionYearFilter]);
+  useEffect(() => { const handleScroll = () => { if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) setVisibleCount(prev => prev + 50); }; window.addEventListener('scroll', handleScroll); return () => window.removeEventListener('scroll', handleScroll); }, []);
+  useEffect(() => { const t = setTimeout(() => { const val = qInput.trim(); setQ(val); if (val.length > 0) setStatusFilter(""); else setStatusFilter("active"); }, 250); return () => clearTimeout(t); }, [qInput]);
 
   const isSearchActive = useMemo(() => {
     const isStatusChanged = statusFilter !== 'active';
@@ -445,202 +382,70 @@ export default function App(){
   }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const addItem = useCallback(async (e) => {
-    e.preventDefault();
-    if(!title.trim()) return;
+    e.preventDefault(); if(!title.trim()) return;
     const finalStatus = isInstantArchive ? "archived" : "active";
     const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
     const finalIsNext = isInstantArchive ? false : isNext;
     const finalSource = isToBuy ? "Wishlist" : "";
-
-    const payload = {
-      title, author: creator, type: kind, status: finalStatus,
-      genre: showGenreInput(kind) ? canonGenere(genre) : null, 
-      year: year ? Number(year) : null,
-      source: finalSource, 
-      mood: mood || null, video_url: videoUrl || null, 
-      note: note || null, 
-      is_next: finalIsNext, ended_on: finalEndedOn
-    };
+    const payload = { title, author: creator, type: kind, status: finalStatus, genre: showGenreInput(kind) ? canonGenere(genre) : null, year: year ? Number(year) : null, source: finalSource, mood: mood || null, video_url: videoUrl || null, note: note || null, is_next: finalIsNext, ended_on: finalEndedOn };
     const { error } = await supabase.from("items").insert(payload);
-    if(!error){
-      setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
-      setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); 
-      setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false); 
-      setAddModalOpen(false); 
-      showToast("Elemento aggiunto con successo!", "success");
-      if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
-    } else { showToast("Errore salvataggio: " + (error?.message), "error"); }
+    if(!error){ setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false); setAddModalOpen(false); showToast("Elemento aggiunto con successo!", "success"); if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems(); } else { showToast("Errore salvataggio: " + (error?.message), "error"); }
   }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
     const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
-    if (!error) { 
-      setItems(prev => prev.map(x => x.id === it.id ? {...x, is_next: newVal} : x));
-      fetchPinnedItems(); 
-      showToast(newVal ? "Aggiunto ai Focus 📌" : "Focus rimosso");
-    }
+    if (!error) { setItems(prev => prev.map(x => x.id === it.id ? {...x, is_next: newVal} : x)); fetchPinnedItems(); showToast(newVal ? "Aggiunto ai Focus 📌" : "Focus rimosso"); }
   }, [fetchPinnedItems, showToast]);
 
   const markAsPurchased = useCallback(async (it) => {
-    const srcs = new Set([...(it.sourcesArr||[])]);
-    srcs.delete("Wishlist"); 
-    srcs.delete("da comprare"); 
+    const srcs = new Set([...(it.sourcesArr||[])]); srcs.delete("Wishlist"); srcs.delete("da comprare"); 
     const newSourceStr = joinSources(Array.from(srcs));
     const { error } = await supabase.from("items").update({ source: newSourceStr }).eq("id", it.id);
-    if (!error) { 
-        setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x));
-        fetchStats(); 
-        showToast("Rimosso dalla Wishlist 🛒", "success");
-    }
+    if (!error) { setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x)); fetchStats(); showToast("Rimosso dalla Wishlist 🛒", "success"); }
   }, [fetchStats, showToast]);
 
-  const openArchiveModal = useCallback((it) => {
-    setArchModal({
-      id: it.id, title: it.title, kind: it.kind,
-      sourcesArr: it.sourcesArr || [], source: "", 
-      dateISO: new Date().toISOString().slice(0,10),
-    });
-  }, []);
+  const openArchiveModal = useCallback((it) => { setArchModal({ id: it.id, title: it.title, kind: it.kind, sourcesArr: it.sourcesArr || [], source: "", dateISO: new Date().toISOString().slice(0,10), }); }, []);
+  const saveArchiveFromModal = useCallback(async (m) => { await supabase.from("items").update({ status: "archived", ended_on: m.dateISO, source: joinSources(m.sourcesArr), is_next: false }).eq("id", m.id); setArchModal(null); showToast("Archiviato con successo! 📦", "success"); if(isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems(); if(statsModalOpen) fetchPeriodStats(); }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems, showToast]);
+  const unarchive = useCallback(async (it) => { await supabase.from("items").update({ status: "active", ended_on: null }).eq("id", it.id); showToast("Elemento ripristinato! ↩️", "success"); if(isSearchActive) fetchItems(); fetchStats(); if(statsModalOpen) fetchPeriodStats(); }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, showToast]);
   
-  const saveArchiveFromModal = useCallback(async (m) => {
-    await supabase.from("items").update({ status: "archived", ended_on: m.dateISO, source: joinSources(m.sourcesArr), is_next: false }).eq("id", m.id);
-    setArchModal(null);
-    showToast("Archiviato con successo! 📦", "success");
-    if(isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
-    if(statsModalOpen) fetchPeriodStats(); 
-  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems, showToast]);
-  
-  const unarchive = useCallback(async (it) => {
-    await supabase.from("items").update({ status: "active", ended_on: null }).eq("id", it.id);
-    showToast("Elemento ripristinato! ↩️", "success");
-    if(isSearchActive) fetchItems(); fetchStats();
-    if(statsModalOpen) fetchPeriodStats();
-  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, showToast]);
-
   const reExperience = useCallback(async (it) => {
     if(!window.confirm(`Vuoi iniziare a rileggere/riguardare "${it.title}"? \n\nVerrà creata una copia nel tuo Piano di Lettura.`)) return;
-    const payload = {
-      title: it.title, author: it.creator, type: it.kind, genre: it.genre, mood: it.mood, year: it.year, video_url: it.video_url, note: it.note, 
-      source: joinSources(it.sourcesArr), status: "active", is_next: true, created_at: new Date().toISOString(), ended_on: null
-    };
+    const payload = { title: it.title, author: it.creator, type: it.kind, genre: it.genre, mood: it.mood, year: it.year, video_url: it.video_url, note: it.note, source: joinSources(it.sourcesArr), status: "active", is_next: true, created_at: new Date().toISOString(), ended_on: null };
     const { error } = await supabase.from("items").insert(payload);
-    if (!error) {
-      if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
-      showToast("Nuova copia creata! Buon viaggio 🔄", "success");
-    } else { showToast("Errore: " + error.message, "error"); }
+    if (!error) { if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems(); showToast("Nuova copia creata! Buon viaggio 🔄", "success"); } else { showToast("Errore: " + error.message, "error"); }
   }, [isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
   const handleSuggest = useCallback(async () => {
-    setSuggestion(null); 
-    const conflict = pinnedItems.find(p => p.kind === randKind);
-    if (conflict) { showToast(`Hai già "${conflict.title}" in focus per ${randKind}!`, "error"); return; }
+    setSuggestion(null); const conflict = pinnedItems.find(p => p.kind === randKind); if (conflict) { showToast(`Hai già "${conflict.title}" in focus per ${randKind}!`, "error"); return; }
     const gCanon = canonGenere(randGenre);
-    const { data, error } = await supabase.rpc('get_random_suggestion', {
-      p_kind: randKind, p_genre: showGenreInput(randKind) ? (gCanon || null) : null, p_mood: randMood || null 
-    });
+    const { data, error } = await supabase.rpc('get_random_suggestion', { p_kind: randKind, p_genre: showGenreInput(randKind) ? (gCanon || null) : null, p_mood: randMood || null });
     if (error || !data || data.length === 0) { showToast("Nessun elemento trovato nei dadi.", "error"); return; }
-    const raw = data[0];
-    setSuggestion({ ...raw, kind: normType(raw.type), author: raw.author || raw.creator });
+    const raw = data[0]; setSuggestion({ ...raw, kind: normType(raw.type), author: raw.author || raw.creator });
   }, [pinnedItems, randKind, randGenre, randMood, showToast]); 
 
-  
-  const handleAddKindChange = useCallback((e) => {
-    const newKind = e.target.value; setKind(newKind);
-    if (!showGenreInput(newKind)) setGenre(""); 
-  }, []);
-  const clearAllFilters = useCallback(() => {
-    setQ(""); setQInput(""); setTypeFilter(""); setGenreFilter(""); setMoodFilter(""); setSourceFilter(""); setLetterFilter(""); setYearFilter(""); setLetterMode("author");
-    setCompletionMonthFilter(""); setCompletionYearFilter(""); setSuggestion(null); setStatusFilter("active"); 
-  }, []);
-  const openEditModal = useCallback((it) => {
-    setEditState({
-      id: it.id, title: it.title, creator: it.creator, type: it.kind,       
-      genre: it.genre || '', year: it.year || '', mood: it.mood || '', 
-      video_url: it.video_url || '', note: it.note || '', 
-      is_next: it.is_next || false, source: joinSources(it.sourcesArr)
-    });
-  }, []);
+  const handleAddKindChange = useCallback((e) => { const newKind = e.target.value; setKind(newKind); if (!showGenreInput(newKind)) setGenre(""); }, []);
+  const clearAllFilters = useCallback(() => { setQ(""); setQInput(""); setTypeFilter(""); setGenreFilter(""); setMoodFilter(""); setSourceFilter(""); setLetterFilter(""); setYearFilter(""); setLetterMode("author"); setCompletionMonthFilter(""); setCompletionYearFilter(""); setSuggestion(null); setStatusFilter("active"); }, []);
+  const openEditModal = useCallback((it) => { setEditState({ id: it.id, title: it.title, creator: it.creator, type: it.kind, genre: it.genre || '', year: it.year || '', mood: it.mood || '', video_url: it.video_url || '', note: it.note || '', is_next: it.is_next || false, source: joinSources(it.sourcesArr) }); }, []);
   
   const handleUpdateItem = useCallback(async (e) => {
-    e.preventDefault();
-    if (!editState || !editState.title.trim()) return;
-    const payload = {
-      title: editState.title, author: editState.creator, type: editState.type,
-      genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
-      year: editState.year ? Number(editState.year) : null, mood: editState.mood || null, 
-      video_url: editState.video_url || null, note: editState.note || null,
-      is_next: editState.is_next, source: editState.source 
-    };
+    e.preventDefault(); if (!editState || !editState.title.trim()) return;
+    const payload = { title: editState.title, author: editState.creator, type: editState.type, genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null, year: editState.year ? Number(editState.year) : null, mood: editState.mood || null, video_url: editState.video_url || null, note: editState.note || null, is_next: editState.is_next, source: editState.source };
     const { error } = await supabase.from("items").update(payload).eq('id', editState.id);
-    if (!error) {
-      setItems(prevItems => prevItems.map(it => {
-        if (it.id === editState.id) {
-          return { ...it, ...payload, creator: payload.author, kind: payload.type, sourcesArr: parseSources(payload.source) };
-        } return it;
-      }));
-      setEditState(null); fetchPinnedItems(); 
-      showToast("Modifiche salvate! 💾", "success");
-    } else { showToast("Errore aggiornamento: " + error.message, "error"); }
+    if (!error) { setItems(prevItems => prevItems.map(it => { if (it.id === editState.id) { return { ...it, ...payload, creator: payload.author, kind: payload.type, sourcesArr: parseSources(payload.source) }; } return it; })); setEditState(null); fetchPinnedItems(); showToast("Modifiche salvate! 💾", "success"); } else { showToast("Errore aggiornamento: " + error.message, "error"); }
   }, [editState, fetchPinnedItems, showToast]);
 
-  const handleStatClick = useCallback((typeClicked) => {
-    if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
-    else setTypeFilter(''); 
-    setStatusFilter('archived'); 
-    setCompletionYearFilter(String(statYear)); 
-    setCompletionMonthFilter(String(statMonth)); 
-    setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter('');
-    setStatsModalOpen(false);
-  }, [statYear, statMonth]); 
-
-  const deleteItem = useCallback(async (itemId) => {
-    await supabase.from('items').delete().eq('id', itemId);
-    setEditState(null); setItems(prev => prev.filter(x => x.id !== itemId)); 
-    fetchStats(); fetchPinnedItems();
-    showToast("Elemento eliminato per sempre.", "success");
-    if (statsModalOpen) fetchPeriodStats();
-  }, [statsModalOpen, fetchStats, fetchPeriodStats, fetchPinnedItems, showToast]);
-
-  const handleCleanupSuggest = useCallback(async () => {
-    const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const isoDate = sixMonthsAgo.toISOString();
-    const { data, error } = await supabase.from('items').select('*').eq('status', 'active').lt('created_at', isoDate); 
-    if (error) { console.error(error); return; }
-    if (data && data.length > 0) {
-       const random = data[Math.floor(Math.random() * data.length)];
-       setCleanupItem({ ...random, kind: normType(random.type) }); 
-       setAdvOpen(false); 
-    } else { showToast("Collezione pulita! Nessun elemento vecchio trovato.", "success"); }
-  }, [showToast]);
-
-  const confirmDeleteCleanup = async () => {
-    if(!cleanupItem) return;
-    await deleteItem(cleanupItem.id);
-    setCleanupItem(null);
-  };
-  
-  // Handler rapido per filtro autore dalla Card
-  const handleFilterAuthor = useCallback((authorName) => {
-    setQInput(authorName); 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  const handleStatClick = useCallback((typeClicked) => { if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked); else setTypeFilter(''); setStatusFilter('archived'); setCompletionYearFilter(String(statYear)); setCompletionMonthFilter(String(statMonth)); setQ(''); setQInput(''); setGenreFilter(''); setMoodFilter(''); setSourceFilter(''); setLetterFilter(''); setYearFilter(''); setStatsModalOpen(false); }, [statYear, statMonth]); 
+  const deleteItem = useCallback(async (itemId) => { await supabase.from('items').delete().eq('id', itemId); setEditState(null); setItems(prev => prev.filter(x => x.id !== itemId)); fetchStats(); fetchPinnedItems(); showToast("Elemento eliminato per sempre.", "success"); if (statsModalOpen) fetchPeriodStats(); }, [statsModalOpen, fetchStats, fetchPeriodStats, fetchPinnedItems, showToast]);
+  const handleCleanupSuggest = useCallback(async () => { const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6); const isoDate = sixMonthsAgo.toISOString(); const { data, error } = await supabase.from('items').select('*').eq('status', 'active').lt('created_at', isoDate); if (error) { console.error(error); return; } if (data && data.length > 0) { const random = data[Math.floor(Math.random() * data.length)]; setCleanupItem({ ...random, kind: normType(random.type) }); setAdvOpen(false); } else { showToast("Collezione pulita! Nessun elemento vecchio trovato.", "success"); } }, [showToast]);
+  const confirmDeleteCleanup = async () => { if(!cleanupItem) return; await deleteItem(cleanupItem.id); setCleanupItem(null); };
+  const handleFilterAuthor = useCallback((authorName) => { setQInput(authorName); window.scrollTo({ top: 0, behavior: 'smooth' }); }, []);
 
   /* --- 5. EFFETTI --- */
   useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); 
   useEffect(() => { if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]);
   useEffect(() => { if (statsModalOpen) { fetchPeriodStats(); } }, [statsModalOpen, statMonth, statYear, fetchPeriodStats]);
-  useEffect(() => {
-    const fetchMemory = async () => {
-      const { data } = await supabase.from('items').select('title, ended_on, author').not('ended_on', 'is', null);
-      if (data && data.length > 0) {
-        const randomIndex = Math.floor(Math.random() * data.length);
-        const randomItem = data[randomIndex];
-        const diffDays = Math.ceil(Math.abs(new Date() - new Date(randomItem.ended_on)) / (1000 * 60 * 60 * 24)); 
-        if (diffDays > 0) setMemoryItem({ ...randomItem, daysAgo: diffDays });
-      }
-    }; fetchMemory();
-  }, []);
+  useEffect(() => { const fetchMemory = async () => { const { data } = await supabase.from('items').select('title, ended_on, author').not('ended_on', 'is', null); if (data && data.length > 0) { const randomIndex = Math.floor(Math.random() * data.length); const randomItem = data[randomIndex]; const diffDays = Math.ceil(Math.abs(new Date() - new Date(randomItem.ended_on)) / (1000 * 60 * 60 * 24)); if (diffDays > 0) setMemoryItem({ ...randomItem, daysAgo: diffDays }); } }; fetchMemory(); }, []);
 
   /* --- 6. RENDER (JSX) --- */
   return (
@@ -649,90 +454,60 @@ export default function App(){
       
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
       
-      {/* ===== Ricerca Zen "Cool Gray" CON TASTO X ===== */}
       <section className="card" style={{marginBottom:0, padding: "6px 12px", display:'flex', alignItems:'center', gap:8, backgroundColor:'#FFF9F0', borderRadius: 12, boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
         <div style={{flex:1, display:'flex', alignItems:'center', gap:8}}>
           <span style={{opacity:0.4, fontSize:'1.1em'}}>🔍</span>
-          <input 
-            style={{width:'100%', border:'none', outline:'none', background:'transparent', fontSize:'1rem', padding:0, margin:0, height: 40}} 
-            placeholder="Cerca..." 
-            value={qInput} 
-            onChange={e=>setQInput(e.target.value)} 
-          />
-          {/* TASTO X */}
-          {qInput && (
-            <button 
-              onClick={() => { setQInput(""); setStatusFilter("active"); }} 
-              style={{background:'transparent', border:'none', fontSize:'1.1em', color:'#718096', cursor:'pointer', padding:'0 8px'}}
-            >
-              ✖
-            </button>
-          )}
+          <input style={{width:'100%', border:'none', outline:'none', background:'transparent', fontSize:'1rem', padding:0, margin:0, height: 40}} placeholder="Cerca..." value={qInput} onChange={e=>setQInput(e.target.value)} />
+          {qInput && (<button onClick={() => { setQInput(""); setStatusFilter("active"); }} style={{background:'transparent', border:'none', fontSize:'1.1em', color:'#718096', cursor:'pointer', padding:'0 8px'}}>✖</button>)}
         </div>
-        
-        {/* Tasto STATISTICHE */}
         <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
-
-        {/* Menu Avanzato */}
         <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
       </section>
 
-      {/* ===== BOTTONI CONTESTO ZEN (Minimal & Discrete) ===== */}
-      {!loading && !q && ( // MOSTRA SOLO SE NON STAI CERCANDO TESTO SPECIFICO
-        <div style={{display:'flex', justifyContent:'center', gap:12, marginBottom:16, marginTop: 4}}>
+      {/* ===== BOTTONI MODALITÀ (Semplici Pillole) ===== */}
+      {!loading && !q && (
+        <div style={{display:'flex', justifyContent:'center', gap:8, marginBottom:16, marginTop: 12}}>
           
-          {/* Tasto DOJO (Focus) */}
           <button 
-            onClick={() => { clearAllFilters(); setMoodFilter('Focus'); }} 
+            onClick={() => setViewMode(prev => prev === 'FOCUS' ? 'ALL' : 'FOCUS')} 
             className="ghost"
             style={{
-              padding:'8px 16px', 
-              borderRadius: 20, 
-              border: `1px solid ${BORDER_COLOR}`, 
-              backgroundColor: moodFilter === 'Focus' ? '#e2e8f0' : 'transparent', 
-              color: moodFilter === 'Focus' ? '#2d3748' : '#718096',
-              fontWeight: moodFilter === 'Focus' ? '600' : '400',
-              fontSize: '0.9rem',
-              display:'flex', alignItems:'center', gap:6,
-              transition: 'all 0.2s'
+              padding:'6px 16px', borderRadius: 20, border: `1px solid ${BORDER_COLOR}`, 
+              backgroundColor: viewMode === 'FOCUS' ? '#2f855a' : 'transparent', 
+              color: viewMode === 'FOCUS' ? 'white' : '#718096',
+              fontWeight: viewMode === 'FOCUS' ? '600' : '400', fontSize: '0.85rem',
+              display:'flex', alignItems:'center', gap:6, transition: 'all 0.2s',
+              boxShadow: viewMode === 'FOCUS' ? '0 2px 4px rgba(47, 133, 90, 0.2)' : 'none'
             }}
           >
-            <span>🖥️</span> Dojo
+            <span>⚡</span> Focus
           </button>
 
-          {/* Tasto RELAX (Divano) */}
           <button 
-            onClick={() => { clearAllFilters(); setMoodFilter('Relax'); }} 
+            onClick={() => setViewMode(prev => prev === 'RELAX' ? 'ALL' : 'RELAX')} 
             className="ghost"
             style={{
-              padding:'8px 16px', 
-              borderRadius: 20, 
-              border: `1px solid ${BORDER_COLOR}`, 
-              backgroundColor: moodFilter === 'Relax' ? '#e2e8f0' : 'transparent',
-              color: moodFilter === 'Relax' ? '#2d3748' : '#718096',
-              fontWeight: moodFilter === 'Relax' ? '600' : '400',
-              fontSize: '0.9rem',
-              display:'flex', alignItems:'center', gap:6,
-              transition: 'all 0.2s'
+              padding:'6px 16px', borderRadius: 20, border: `1px solid ${BORDER_COLOR}`, 
+              backgroundColor: viewMode === 'RELAX' ? '#ed8936' : 'transparent', 
+              color: viewMode === 'RELAX' ? 'white' : '#718096',
+              fontWeight: viewMode === 'RELAX' ? '600' : '400', fontSize: '0.85rem',
+              display:'flex', alignItems:'center', gap:6, transition: 'all 0.2s',
+              boxShadow: viewMode === 'RELAX' ? '0 2px 4px rgba(237, 137, 54, 0.2)' : 'none'
             }}
           >
-            <span>🛋️</span> Relax
+            <span>🍃</span> Chill
           </button>
 
-           {/* Tasto AUDIO (Viaggio) */}
            <button 
-            onClick={() => { clearAllFilters(); setTypeFilter('audiolibro'); }} 
+            onClick={() => setViewMode(prev => prev === 'AUDIO' ? 'ALL' : 'AUDIO')} 
             className="ghost"
             style={{
-              padding:'8px 16px', 
-              borderRadius: 20, 
-              border: `1px solid ${BORDER_COLOR}`, 
-              backgroundColor: typeFilter === 'audiolibro' ? '#e2e8f0' : 'transparent',
-              color: typeFilter === 'audiolibro' ? '#2d3748' : '#718096',
-              fontWeight: typeFilter === 'audiolibro' ? '600' : '400',
-              fontSize: '0.9rem',
-              display:'flex', alignItems:'center', gap:6,
-              transition: 'all 0.2s'
+              padding:'6px 16px', borderRadius: 20, border: `1px solid ${BORDER_COLOR}`, 
+              backgroundColor: viewMode === 'AUDIO' ? '#3182ce' : 'transparent', 
+              color: viewMode === 'AUDIO' ? 'white' : '#718096',
+              fontWeight: viewMode === 'AUDIO' ? '600' : '400', fontSize: '0.85rem',
+              display:'flex', alignItems:'center', gap:6, transition: 'all 0.2s',
+              boxShadow: viewMode === 'AUDIO' ? '0 2px 4px rgba(49, 130, 206, 0.2)' : 'none'
             }}
           >
             <span>🎧</span> Audio
@@ -740,47 +515,39 @@ export default function App(){
         </div>
       )}
 
-      {/* ===== ETICHETTE FILTRI ATTIVI ===== */}
+      {/* ===== ETICHETTE FILTRI ATTIVI (Solo Database) ===== */}
       {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter || completionYearFilter) && (
         <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'12px', gap:12}}>
-          
           <div style={{display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', flex:1}}>
-            <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
+            <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri Attivi:</span>
             {statusFilter !== 'active' && (<button className="ghost" onClick={()=>setStatusFilter('active')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{statusFilter === 'archived' ? '📦 Archivio' : '👁️ Tutto'} <span>✖</span></button>)}
             {typeFilter && (<button className="ghost" onClick={()=>setTypeFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{TYPE_ICONS[typeFilter]} {typeFilter} <span>✖</span></button>)}
             {sourceFilter === 'Wishlist' && (<button className="ghost" onClick={()=>setSourceFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#ebf8ff', color:'#2b6cb0', display:'flex', alignItems:'center', gap:4, border:'1px solid #bee3f8'}}>🛒 Wishlist <span>✖</span></button>)}
             {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
-            
-            {letterFilter && (
-                <button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>
-                    {letterMode === 'title' ? 'Titolo' : 'Autore'}: {letterFilter}... <span>✖</span>
-                </button>
-            )}
-
+            {letterFilter && (<button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{letterMode === 'title' ? 'Titolo' : 'Autore'}: {letterFilter}... <span>✖</span></button>)}
             {(completionYearFilter) && (<button className="ghost" onClick={()=>{setCompletionYearFilter(''); setCompletionMonthFilter(''); setStatusFilter('active');}} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#fbb6ce', color:'#822727', display:'flex', alignItems:'center', gap:4}}>📅 {completionMonthFilter ? `${completionMonthFilter}/` : ''}{completionYearFilter} <span>✖</span></button>)}
           </div>
-
-          <div style={{flexShrink:0}}>
-            <button className="ghost" onClick={clearAllFilters} style={{fontSize:'0.85em', fontWeight:'600', color:'#fd8383ff', padding:'4px 8px', cursor:'pointer', whiteSpace:'nowrap'}}>Pulisci</button>
-          </div>
+          <div style={{flexShrink:0}}><button className="ghost" onClick={clearAllFilters} style={{fontSize:'0.85em', fontWeight:'600', color:'#fd8383ff', padding:'4px 8px', cursor:'pointer', whiteSpace:'nowrap'}}>Pulisci</button></div>
         </div>
       )}
 
-      {/* ===== FOCUS ZEN - PIANO DI LETTURA (VISIBILE ANCHE SE FILTRI!) ===== */}
+      {/* ===== FOCUS ZEN - PIANO DI LETTURA (FILTRATO DAI BOTTONI) ===== */}
       {!q && !loading && pinnedItems.length > 0 && (
         <section className="card" style={{marginTop: 12, marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4', padding:'12px 16px'}}>
           <h3 style={{marginTop:0, marginBottom:8, fontSize:'1em', color:'#22543d', textTransform:'uppercase', letterSpacing:'0.05em', display:'flex', justifyContent:'space-between'}}>
             <span>📌 Piano di Lettura</span>
+            {viewMode !== 'ALL' && <span style={{fontSize:'0.7em', padding:'2px 6px', borderRadius:4, backgroundColor:'white', color:'#22543d', fontWeight:'bold'}}>{viewMode} MODE</span>}
           </h3>
           <div style={{display:'flex', flexDirection:'column'}}>
             {pinnedItems
               .filter(p => {
-                // Logica Zen: Mostra solo ciò che è coerente col contesto attuale
-                if (moodFilter === 'Relax' && p.mood !== 'Relax') return false; 
-                if (moodFilter === 'Focus' && p.mood !== 'Focus' && p.mood !== 'Apprendimento' && p.mood !== 'Impegnativo') return false; 
-                if (typeFilter === 'audiolibro' && p.kind !== 'audiolibro') return false; 
+                // LOGICA VISIVA: Filtra SOLO la visualizzazione qui, non il database
+                if (viewMode === 'ALL') return true;
+                if (viewMode === 'FOCUS') return ['Focus', 'Apprendimento', 'Impegnativo'].includes(p.mood);
+                if (viewMode === 'RELAX') return p.mood === 'Relax';
+                if (viewMode === 'AUDIO') return ['audiolibro', 'album'].includes(p.kind);
                 return true;
               })
               .map((p, idx) => (
@@ -795,27 +562,31 @@ export default function App(){
                 </div>
               </div>
             ))}
-            {/* Messaggio se il filtro nasconde tutto */}
-            {pinnedItems.filter(p => (moodFilter === 'Relax' ? p.mood === 'Relax' : true) && (moodFilter === 'Focus' ? (p.mood === 'Focus' || p.mood === 'Apprendimento' || p.mood === 'Impegnativo') : true) && (typeFilter === 'audiolibro' ? p.kind === 'audiolibro' : true)).length === 0 && (
-                <div style={{fontStyle:'italic', color:'#276749', opacity:0.7, padding:'8px 0'}}>Nessun elemento 'Focus' per questo contesto.</div>
+            {/* Messaggio se la modalità nasconde tutto */}
+            {pinnedItems.filter(p => {
+                if (viewMode === 'ALL') return true;
+                if (viewMode === 'FOCUS') return ['Focus', 'Apprendimento', 'Impegnativo'].includes(p.mood);
+                if (viewMode === 'RELAX') return p.mood === 'Relax';
+                if (viewMode === 'AUDIO') return ['audiolibro', 'album'].includes(p.kind);
+                return true;
+            }).length === 0 && (
+                <div style={{fontStyle:'italic', color:'#276749', opacity:0.7, padding:'8px 0', fontSize:'0.9rem'}}>
+                    {viewMode === 'FOCUS' ? 'Nessun piano di studio attivo.' : (viewMode === 'RELAX' ? 'Niente relax in programma. Aggiungi qualcosa!' : 'Nessun audio in coda.')}
+                </div>
             )}
           </div>
         </section>
       )}
 
-      {/* ===== HOME ZEN (Widget che spariscono se filtri) ===== */}
+      {/* ===== HOME ZEN (Widget Standard) ===== */}
       {!isSearchActive && !loading && (
         <>
-          {/* MEMORY LANE */}
           {memoryItem && (
              <div className="card" style={{marginTop: 12, marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '10px 12px'}}>
-               <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0, textAlign: 'center', fontStyle: 'italic' }}>
-                 🕰️ {memoryItem.daysAgo < 30 ? `${memoryItem.daysAgo} giorni fa` : `${Math.floor(memoryItem.daysAgo / 30)} mesi fa`} finivi <strong>{memoryItem.title}</strong>
-               </p>
+               <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0, textAlign: 'center', fontStyle: 'italic' }}>🕰️ {memoryItem.daysAgo < 30 ? `${memoryItem.daysAgo} giorni fa` : `${Math.floor(memoryItem.daysAgo / 30)} mesi fa`} finivi <strong>{memoryItem.title}</strong></p>
              </div>
           )}
 
-          {/* SUGGERIMENTO ZEN */}
           {suggestion && (
             <section className="card" style={{marginBottom:12, borderLeft: '4px solid #ed8936', backgroundColor: '#fffaf0', padding:'12px 16px'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
@@ -823,86 +594,39 @@ export default function App(){
                   <h3 style={{marginTop:0, marginBottom:4, fontSize:'1em', color:'#c05621'}}>🎲 Perché non provi...</h3>
                   <div style={{fontSize:'1.1em', fontWeight:'bold', marginBottom:2}}>{suggestion.title}</div>
                   <div style={{fontSize:'0.9em', opacity:0.8, marginBottom:8}}>{TYPE_ICONS[suggestion.kind]} {suggestion.author || "Autore sconosciuto"}</div>
-                  <div style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
-                      {suggestion.mood && <span className="badge mood-badge" style={{backgroundColor:'#bee3f8', color:'#2a4365'}}>{suggestion.mood}</span>}
-                      {suggestion.genre && <span className="badge" style={{backgroundColor:'#edf2f7', color:'#4a5568'}}>{suggestion.genre}</span>}
-                  </div>
+                  <div style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>{suggestion.mood && <span className="badge mood-badge" style={{backgroundColor:'#bee3f8', color:'#2a4365'}}>{suggestion.mood}</span>}{suggestion.genre && <span className="badge" style={{backgroundColor:'#edf2f7', color:'#4a5568'}}>{suggestion.genre}</span>}</div>
                 </div>
                 <div style={{display:'flex', flexDirection:'column', gap:8, alignItems:'center'}}>
-                   {suggestion.video_url && (
-                      <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" title="Apri subito" style={{display:'flex', alignItems:'center', justifyContent:'center', width: 40, height: 40, borderRadius: '50%', backgroundColor: '#feebc8', textDecoration:'none', fontSize:'1.4em'}}>{getLinkEmoji(suggestion.video_url)}</a>
-                   )}
-                   {!suggestion.is_next && (
-                     <button className="ghost" onClick={() => { toggleFocus(suggestion); setSuggestion(null); }} title="Aggiungi al Piano di Lettura" style={{display:'flex', alignItems:'center', justifyContent:'center', width: 40, height: 40, borderRadius: '50%', backgroundColor: '#c6f6d5', color: '#2f855a', fontSize:'1.4em', border: '1px solid #9ae6b4', cursor:'pointer'}}>📌</button>
-                   )}
+                   {suggestion.video_url && (<a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" title="Apri subito" style={{display:'flex', alignItems:'center', justifyContent:'center', width: 40, height: 40, borderRadius: '50%', backgroundColor: '#feebc8', textDecoration:'none', fontSize:'1.4em'}}>{getLinkEmoji(suggestion.video_url)}</a>)}
+                   {!suggestion.is_next && (<button className="ghost" onClick={() => { toggleFocus(suggestion); setSuggestion(null); }} title="Aggiungi al Piano di Lettura" style={{display:'flex', alignItems:'center', justifyContent:'center', width: 40, height: 40, borderRadius: '50%', backgroundColor: '#c6f6d5', color: '#2f855a', fontSize:'1.4em', border: '1px solid #9ae6b4', cursor:'pointer'}}>📌</button>)}
                 </div>
               </div>
             </section>
           )}
 
-          {/* CONTROLLI DADO */}
           <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', borderRadius:16, border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)'}}>
             <div style={{display:'flex', alignItems:'center', gap:8}}>
               <div style={{display:'flex', gap:8, flex:1, minWidth:0}}>
-                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
-                   {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
-                </select>
-
-                <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
-                   <option value="">Umore</option>
-                   {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
-                </select>
-
-                {showGenreInput(randKind) && (
-                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
-                      <option value="">Genere</option>
-                      {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
-                  </select>
-                )}
+                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
+                <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}><option value="">Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
+                {showGenreInput(randKind) && (<select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}><option value="">Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>)}
               </div>
-
-              <button 
-                onClick={handleSuggest} 
-                title="Dammi un consiglio!"
-                style={{
-                  width: 48, height: 48, borderRadius: 12, border: '1px solid #ed8936', 
-                  backgroundColor: '#FDF8F2', color: '#ed8936', fontSize: '1.6rem', 
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)', flexShrink: 0
-                }}
-              >
-                🎲
-              </button>
+              <button onClick={handleSuggest} title="Dammi un consiglio!" style={{width: 48, height: 48, borderRadius: 12, border: '1px solid #ed8936', backgroundColor: '#FDF8F2', color: '#ed8936', fontSize: '1.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)', flexShrink: 0}}>🎲</button>
             </div>
           </section>
         </>
       )}
       
-      {/* ===== Lista Risultati (Card Minimal) con Infinite Scroll ===== */}
+      {/* ===== LISTA RISULTATI (NON FILTRATA DAI BOTTONI!) ===== */}
       {isSearchActive && (
         <section className="card" style={{marginTop: 12}}>
           {loading ? <p>Caricamento…</p> : (
             <div className="list" style={{ gap: 16, display: 'flex', flexDirection: 'column' }}>
               {items.slice(0, visibleCount).map(it => (
-                <LibraryItem 
-                  key={it.id} 
-                  it={it}
-                  isArchiveView={statusFilter === 'archived'} 
-                  onToggleFocus={toggleFocus}
-                  onMarkPurchased={markAsPurchased}
-                  onArchive={openArchiveModal}
-                  onEdit={openEditModal}
-                  onReExperience={reExperience}
-                  onUnarchive={unarchive}
-                  onFilterAuthor={handleFilterAuthor}
-                />
+                <LibraryItem key={it.id} it={it} isArchiveView={statusFilter === 'archived'} onToggleFocus={toggleFocus} onMarkPurchased={markAsPurchased} onArchive={openArchiveModal} onEdit={openEditModal} onReExperience={reExperience} onUnarchive={unarchive} onFilterAuthor={handleFilterAuthor} />
               ))}
               {items.length === 0 && <p style={{opacity:.8, textAlign:'center'}}>Nessun elemento trovato.</p>}
-              {items.length > visibleCount && (
-                <div style={{textAlign: 'center', padding: 20, color: '#718096', fontStyle:'italic'}}>
-                  Scorri per caricare altri elementi...
-                </div>
-              )}
+              {items.length > visibleCount && (<div style={{textAlign: 'center', padding: 20, color: '#718096', fontStyle:'italic'}}>Scorri per caricare altri elementi...</div>)}
             </div>
           )}
         </section>
@@ -911,7 +635,7 @@ export default function App(){
       {/* ===== FAB / MODALI ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
       
-      {/* ===== MODALE AGGIUNTA (Beige + Trasparenza) ===== */}
+      {/* ===== MODALE AGGIUNTA ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
           <div className="card" style={{maxWidth:500, width:"94%", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
@@ -946,7 +670,7 @@ export default function App(){
         </div>
       )}
 
-      {/* ===== MODALE FILTRI & STRUMENTI (Beige + Trasparenza) ===== */}
+      {/* ===== MODALE FILTRI & STRUMENTI ===== */}
       {advOpen && (
         <div className="modal-backdrop" onClick={() => setAdvOpen(false)} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)'}}>
           <div className="card" style={{maxWidth:500, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}} onClick={e => e.stopPropagation()}>
@@ -973,7 +697,6 @@ export default function App(){
                 </div>
               </div>
               
-              {/* ZONA INDICE A-Z POTENZIATA */}
               <div>
                 <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
                   <div style={{display:'flex', gap:8, alignItems:'center'}}>
@@ -1001,39 +724,27 @@ export default function App(){
         </div>
       )}
 
-      {/* ===== MODALE STATISTICHE (RIORGANIZZATO & BEIGE) ===== */}
+      {/* ===== MODALE STATISTICHE ===== */}
       {statsModalOpen && (
         <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
           <div className="card" style={{maxWidth:600, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
             <h2 style={{marginTop:0, textAlign:'center', marginBottom:20}}>Statistiche</h2>
-            
-            {/* TOGGLE PRINCIPALE (A Piastrelle) */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
-              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
-                  📅 Periodo
-              </div>
-              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
-                  📈 Totale
-              </div>
+              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>📅 Periodo</div>
+              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>📈 Totale</div>
             </div>
 
             {statsView === 'periodo' && (
               <div style={{animation:'fadeIn 0.3s'}}>
-                {/* Selettori Data */}
                 <div style={{display:'flex', gap: 8, alignItems: 'center', justifyContent:'center', marginBottom:20}}>
                   <input type="number" placeholder="Mese" value={statMonth} onChange={e=>setStatMonth(e.target.value)} style={{width:60, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
                   <input type="number" placeholder="Anno" value={statYear} onChange={e=>setStatYear(e.target.value)} style={{width:80, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
                   <button className="ghost" onClick={() => { setStatMonth(new Date().getMonth() + 1); setStatYear(new Date().getFullYear()); }} style={{fontSize:'0.9em', textDecoration:'underline'}}>Oggi</button>
-                  {periodLoading && <span style={{fontSize:'0.8em', color:'#718096'}}>...</span>}
                 </div>
-                
-                {/* KPI Principale (CLICCABILE) */}
                 <div onClick={() => handleStatClick(null)} style={{textAlign:'center', marginBottom:20, cursor:'pointer', transition:'all 0.2s', padding: 8, borderRadius: 12, ':hover': {backgroundColor:'rgba(0,0,0,0.02)'}}}>
                   <div style={{fontSize:'3em', fontWeight:'bold', color:'#2d3748', lineHeight:1}}>{periodStats.total}</div>
                   <div style={{fontSize:'0.9em', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Elementi completati (Vedi tutti)</div>
                 </div>
-
-                {/* Griglia Dettagli (CLICCABILE) */}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12}}>
                   <div onClick={() => handleStatClick('libro')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>📚</div><div style={{fontWeight:'bold'}}>{periodStats.libro}</div></div>
                   <div onClick={() => handleStatClick('film')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎬</div><div style={{fontWeight:'bold'}}>{periodStats.film}</div></div>
@@ -1047,7 +758,6 @@ export default function App(){
 
             {statsView === 'totale' && (
               <div style={{animation:'fadeIn 0.3s'}}>
-                {/* KPI Totali */}
                 <div style={{display:'flex', justifyContent:'space-between', backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:16, padding:16, marginBottom:20}}>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold'}}>{stats.total}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Totali</div></div>
                    <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
@@ -1055,26 +765,33 @@ export default function App(){
                    <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#d69e2e'}}>{stats.archived}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Archivio</div></div>
                 </div>
-
                 <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Per Tipo</h4>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20}}>
-                   {stats.byType.map(x=> (
-                     <div key={x.t} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border: `1px solid ${BORDER_COLOR}`, borderRadius:12}}>
-                       <span>{TYPE_ICONS[x.t]} {x.t.charAt(0).toUpperCase() + x.t.slice(1)}</span>
-                       <strong>{x.n}</strong>
-                     </div>
-                   ))}
+                   {stats.byType.map(x=> (<div key={x.t} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border: `1px solid ${BORDER_COLOR}`, borderRadius:12}}><span>{TYPE_ICONS[x.t]} {x.t.charAt(0).toUpperCase() + x.t.slice(1)}</span><strong>{x.n}</strong></div>))}
                 </div>
-
                 <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Altro</h4>
-                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border:'1px solid #bee3f8', backgroundColor:'#ebf8ff', borderRadius:12, color:'#2b6cb0'}}>
-                   <span>🛒 Wishlist (Wishlist)</span>
-                   <strong>{stats.bySource[0]?.n || 0}</strong>
-                </div>
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border:'1px solid #bee3f8', backgroundColor:'#ebf8ff', borderRadius:12, color:'#2b6cb0'}}><span>🛒 Wishlist</span><strong>{stats.bySource[0]?.n || 0}</strong></div>
               </div>
             )}
 
             <button onClick={()=>setStatsModalOpen(false)} style={{marginTop:24, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', width:'100%'}}>Chiudi</button>
+          </div>
+        </div>
+      )}
+
+      {archModal && (
+        <div className="modal-backdrop" onClick={() => setArchModal(null)}>
+          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
+            <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
+            <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
+              <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, cursor:'pointer', backgroundColor:'#f7fafc'}}>
+                 <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("Wishlist")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("Wishlist"); else { current.delete("Wishlist"); current.delete("da comprare"); } return {...prev, sourcesArr: Array.from(current)}; }); }} />
+                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist</span>
+              </label>
+              <label style={{fontWeight:'bold', fontSize:'0.9rem', color:'#4a5568', marginTop:8}}>Data fine:</label>
+              <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
+            </div>
+            <div className="row" style={{justifyContent:"flex-end", gap:8, marginTop:12}}><button className="ghost" onClick={()=>setArchModal(null)}>Annulla</button><button onClick={()=>saveArchiveFromModal(archModal)}>Archivia</button></div>
           </div>
         </div>
       )}
@@ -1089,18 +806,8 @@ export default function App(){
               {showGenreInput(editState.type) && (<select value={editState.genre} onChange={e => setEditState(curr => ({...curr, genre: e.target.value}))}><option value="">Genere (facoltativo)</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>)}
               <select value={editState.mood || ""} onChange={e => setEditState(curr => ({...curr, mood: e.target.value}))}><option value="">Umore (opz.)</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/><input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} />
-              {/* AREA NOTE MODIFICA */}
-              <div style={{gridColumn: "1 / -1"}}>
-                <textarea placeholder="Note personali..." value={editState.note || ""} onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
-              </div>
-
-              <div style={{gridColumn: "1 / -1", marginTop: 8}}>
-                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border: parseSources(editState.source).includes('Wishlist') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : '#fff'}}>
-                  <input type="checkbox" checked={parseSources(editState.source).includes('Wishlist')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'Wishlist' && x !== 'da comprare'); if (active) currentArr.push('Wishlist'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} />
-                  <span style={{color:'#4a5568'}}>🛒 Wishlist</span>
-                </label>
-              </div>
-
+              <div style={{gridColumn: "1 / -1"}}> <textarea placeholder="Note personali..." value={editState.note || ""} onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} /> </div>
+              <div style={{gridColumn: "1 / -1", marginTop: 8}}> <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border: parseSources(editState.source).includes('Wishlist') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : '#fff'}}> <input type="checkbox" checked={parseSources(editState.source).includes('Wishlist')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'Wishlist' && x !== 'da comprare'); if (active) currentArr.push('Wishlist'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} /> <span style={{color:'#4a5568'}}>🛒 Wishlist</span> </label> </div>
               <div style={{gridColumn: "1 / -1", display:'flex', alignItems:'center', gap:8}}><input type="checkbox" id="edit_chk_next" checked={editState.is_next} onChange={e => setEditState(curr => ({...curr, is_next: e.target.checked}))} style={{width:'auto'}}/><label htmlFor="edit_chk_next">📌 In Coda (Prossimo)</label></div>
             </form>
             <div className="row" style={{justifyContent:"space-between", marginTop:12}}><button type="button" className="ghost" style={{ color: '#c53030', borderColor: '#c53030' }} onClick={() => { if (window.confirm("Sei sicuro?")) deleteItem(editState.id); }}>Elimina</button><div className="row" style={{gap: 8}}><button className="ghost" type="button" onClick={()=>setEditState(null)}>Annulla</button><button type="submit" form="edit-form">Salva Modifiche</button></div></div>
