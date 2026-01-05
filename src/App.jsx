@@ -37,7 +37,7 @@ function canonGenere(g){
 }
 function normType(v){ return String(v ?? "").trim().toLowerCase(); }
 
-// LOGICA WISHLIST (MANTENUTA)
+// LOGICA WISHLIST
 function parseSources(str){
   if (!str) return [];
   return String(str).toLowerCase().split(/[,;/|+]+/).map(s => {
@@ -80,7 +80,7 @@ function exportItemsToCsv(rows){
    3. COMPONENTI UI ISOLATI (Performance)
    ========================================= */
 
-// TOAST NOTIFICATION COMPONENT
+// TOAST NOTIFICATION
 const ToastContainer = ({ toasts }) => {
   return (
     <div style={{
@@ -101,7 +101,7 @@ const ToastContainer = ({ toasts }) => {
   );
 };
 
-// LIBRARY ITEM (Card ottimizzata con React.memo)
+// LIBRARY ITEM (Card ottimizzata)
 const LibraryItem = memo(({ 
   it, 
   isArchiveView, 
@@ -128,7 +128,7 @@ const LibraryItem = memo(({
       borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', 
       backgroundColor: 'white', 
       boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-      transform: 'translateZ(0)' // GPU acceleration hint
+      transform: 'translateZ(0)' 
     }}>
       {/* ZONA 1: INFO */}
       <div style={{ opacity: opacityValue, transition: 'opacity 0.3s' }}>
@@ -162,7 +162,7 @@ const LibraryItem = memo(({
         </div>
       </div>
       
-      {/* ZONA 2: AZIONI (Allineate a SINISTRA) */}
+      {/* ZONA 2: AZIONI */}
       <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
         {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>{getLinkEmoji(it.video_url)}</a> )}
         {it.note && (
@@ -219,7 +219,7 @@ export default function App(){
   const [moodFilter, setMoodFilter] = useState("");
   const [sourceFilter,setSourceFilter] = useState(""); 
   
-  // NOVITÀ: Filtro Lettera Avanzato
+  // Filtro Lettera Avanzato
   const [letterFilter, setLetterFilter] = useState("");
   const [letterMode, setLetterMode] = useState("author"); // "author" oppure "title"
 
@@ -316,7 +316,7 @@ export default function App(){
     if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
     else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
     
-    // NUOVA LOGICA: Filtra per autore OPPURE per titolo in base allo switch
+    // Filtro Lettera Avanzato
     if (letterFilter) { 
       const columnToSearch = letterMode === 'title' ? 'title' : 'author';
       query = query.ilike(columnToSearch, `${letterFilter}%`); 
@@ -677,11 +677,73 @@ export default function App(){
         <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
       </section>
 
-      {/* ===== ETICHETTE FILTRI ATTIVI (Split Layout) ===== */}
+      {/* ===== BOTTONI CONTESTO ZEN (Minimal & Discrete) ===== */}
+      {!loading && !q && ( // MOSTRA SOLO SE NON STAI CERCANDO TESTO SPECIFICO
+        <div style={{display:'flex', justifyContent:'center', gap:12, marginBottom:16, marginTop: 4}}>
+          
+          {/* Tasto DOJO (Focus) */}
+          <button 
+            onClick={() => { clearAllFilters(); setMoodFilter('Focus'); }} 
+            className="ghost"
+            style={{
+              padding:'8px 16px', 
+              borderRadius: 20, 
+              border: `1px solid ${BORDER_COLOR}`, 
+              backgroundColor: moodFilter === 'Focus' ? '#e2e8f0' : 'transparent', 
+              color: moodFilter === 'Focus' ? '#2d3748' : '#718096',
+              fontWeight: moodFilter === 'Focus' ? '600' : '400',
+              fontSize: '0.9rem',
+              display:'flex', alignItems:'center', gap:6,
+              transition: 'all 0.2s'
+            }}
+          >
+            <span>🖥️</span> Dojo
+          </button>
+
+          {/* Tasto RELAX (Divano) */}
+          <button 
+            onClick={() => { clearAllFilters(); setMoodFilter('Relax'); }} 
+            className="ghost"
+            style={{
+              padding:'8px 16px', 
+              borderRadius: 20, 
+              border: `1px solid ${BORDER_COLOR}`, 
+              backgroundColor: moodFilter === 'Relax' ? '#e2e8f0' : 'transparent',
+              color: moodFilter === 'Relax' ? '#2d3748' : '#718096',
+              fontWeight: moodFilter === 'Relax' ? '600' : '400',
+              fontSize: '0.9rem',
+              display:'flex', alignItems:'center', gap:6,
+              transition: 'all 0.2s'
+            }}
+          >
+            <span>🛋️</span> Relax
+          </button>
+
+           {/* Tasto AUDIO (Viaggio) */}
+           <button 
+            onClick={() => { clearAllFilters(); setTypeFilter('audiolibro'); }} 
+            className="ghost"
+            style={{
+              padding:'8px 16px', 
+              borderRadius: 20, 
+              border: `1px solid ${BORDER_COLOR}`, 
+              backgroundColor: typeFilter === 'audiolibro' ? '#e2e8f0' : 'transparent',
+              color: typeFilter === 'audiolibro' ? '#2d3748' : '#718096',
+              fontWeight: typeFilter === 'audiolibro' ? '600' : '400',
+              fontSize: '0.9rem',
+              display:'flex', alignItems:'center', gap:6,
+              transition: 'all 0.2s'
+            }}
+          >
+            <span>🎧</span> Audio
+          </button>
+        </div>
+      )}
+
+      {/* ===== ETICHETTE FILTRI ATTIVI ===== */}
       {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter || completionYearFilter) && (
         <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'12px', gap:12}}>
           
-          {/* COLONNA SINISTRA (Tag Flessibili) */}
           <div style={{display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', flex:1}}>
             <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
             {statusFilter !== 'active' && (<button className="ghost" onClick={()=>setStatusFilter('active')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{statusFilter === 'archived' ? '📦 Archivio' : '👁️ Tutto'} <span>✖</span></button>)}
@@ -691,7 +753,6 @@ export default function App(){
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
             
-            {/* TAG LETTERA MODIFICATO CON INDICAZIONE TIPO */}
             {letterFilter && (
                 <button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>
                     {letterMode === 'title' ? 'Titolo' : 'Autore'}: {letterFilter}... <span>✖</span>
@@ -701,53 +762,50 @@ export default function App(){
             {(completionYearFilter) && (<button className="ghost" onClick={()=>{setCompletionYearFilter(''); setCompletionMonthFilter(''); setStatusFilter('active');}} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#fbb6ce', color:'#822727', display:'flex', alignItems:'center', gap:4}}>📅 {completionMonthFilter ? `${completionMonthFilter}/` : ''}{completionYearFilter} <span>✖</span></button>)}
           </div>
 
-          {/* COLONNA DESTRA (Bottone Pulisci Fisso) */}
           <div style={{flexShrink:0}}>
-            <button 
-              className="ghost" 
-              onClick={clearAllFilters} 
-              style={{
-                fontSize:'0.85em', 
-                fontWeight:'600', 
-                color:'#fd8383ff', 
-                padding:'4px 8px',
-                cursor:'pointer',
-                whiteSpace:'nowrap'
-              }}
-            >
-              Pulisci
-            </button>
+            <button className="ghost" onClick={clearAllFilters} style={{fontSize:'0.85em', fontWeight:'600', color:'#fd8383ff', padding:'4px 8px', cursor:'pointer', whiteSpace:'nowrap'}}>Pulisci</button>
           </div>
         </div>
       )}
 
-      {/* ===== HOME ZEN (Minimalista) ===== */}
+      {/* ===== FOCUS ZEN - PIANO DI LETTURA (VISIBILE ANCHE SE FILTRI!) ===== */}
+      {!q && !loading && pinnedItems.length > 0 && (
+        <section className="card" style={{marginTop: 12, marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4', padding:'12px 16px'}}>
+          <h3 style={{marginTop:0, marginBottom:8, fontSize:'1em', color:'#22543d', textTransform:'uppercase', letterSpacing:'0.05em', display:'flex', justifyContent:'space-between'}}>
+            <span>📌 Piano di Lettura</span>
+          </h3>
+          <div style={{display:'flex', flexDirection:'column'}}>
+            {pinnedItems
+              .filter(p => {
+                // Logica Zen: Mostra solo ciò che è coerente col contesto attuale
+                if (moodFilter === 'Relax' && p.mood !== 'Relax') return false; 
+                if (moodFilter === 'Focus' && p.mood !== 'Focus' && p.mood !== 'Apprendimento' && p.mood !== 'Impegnativo') return false; 
+                if (typeFilter === 'audiolibro' && p.kind !== 'audiolibro') return false; 
+                return true;
+              })
+              .map((p, idx) => (
+              <div key={p.id} style={{padding: '10px 0', borderBottom: '1px solid #c6f6d5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
+                <div style={{flex: 1}}>
+                  <div style={{fontWeight:'600', fontSize:'1rem', color:'#2f855a'}}>{TYPE_ICONS[p.kind]} {p.title}</div>
+                  <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>{p.creator}</div>
+                </div>
+                <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                    <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
+                    {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{getLinkEmoji(p.video_url)}</a>)}
+                </div>
+              </div>
+            ))}
+            {/* Messaggio se il filtro nasconde tutto */}
+            {pinnedItems.filter(p => (moodFilter === 'Relax' ? p.mood === 'Relax' : true) && (moodFilter === 'Focus' ? (p.mood === 'Focus' || p.mood === 'Apprendimento' || p.mood === 'Impegnativo') : true) && (typeFilter === 'audiolibro' ? p.kind === 'audiolibro' : true)).length === 0 && (
+                <div style={{fontStyle:'italic', color:'#276749', opacity:0.7, padding:'8px 0'}}>Nessun elemento 'Focus' per questo contesto.</div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ===== HOME ZEN (Widget che spariscono se filtri) ===== */}
       {!isSearchActive && !loading && (
         <>
-          {/* FOCUS ZEN - DISCIPLINA */}
-          {pinnedItems.length > 0 && (
-            <section className="card" style={{marginTop: 12, marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4', padding:'12px 16px'}}>
-              <h3 style={{marginTop:0, marginBottom:8, fontSize:'1em', color:'#22543d', textTransform:'uppercase', letterSpacing:'0.05em', display:'flex', justifyContent:'space-between'}}>
-                <span>📌 Piano di Lettura</span>
-                <span style={{fontSize:'0.8em', opacity:0.6, fontWeight:'normal'}}>{pinnedItems.length} in programma</span>
-              </h3>
-              <div style={{display:'flex', flexDirection:'column'}}>
-                {pinnedItems.map((p, idx) => (
-                  <div key={p.id} style={{padding: '10px 0', borderBottom: idx === pinnedItems.length-1 ? 'none' : '1px solid #c6f6d5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
-                    <div style={{flex: 1}}>
-                      <div style={{fontWeight:'600', fontSize:'1rem', color:'#2f855a'}}>{TYPE_ICONS[p.kind]} {p.title}</div>
-                      <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>{p.creator}</div>
-                    </div>
-                    <div style={{display:'flex', alignItems:'center', gap: 8}}>
-                        <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
-                        {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{getLinkEmoji(p.video_url)}</a>)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
           {/* MEMORY LANE */}
           {memoryItem && (
              <div className="card" style={{marginTop: 12, marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '10px 12px'}}>
@@ -829,7 +887,7 @@ export default function App(){
                 <LibraryItem 
                   key={it.id} 
                   it={it}
-                  isArchiveView={statusFilter === 'archived'} // Passa true se stiamo guardando solo l'archivio
+                  isArchiveView={statusFilter === 'archived'} 
                   onToggleFocus={toggleFocus}
                   onMarkPurchased={markAsPurchased}
                   onArchive={openArchiveModal}
@@ -1017,23 +1075,6 @@ export default function App(){
             )}
 
             <button onClick={()=>setStatsModalOpen(false)} style={{marginTop:24, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', width:'100%'}}>Chiudi</button>
-          </div>
-        </div>
-      )}
-
-      {archModal && (
-        <div className="modal-backdrop" onClick={() => setArchModal(null)}>
-          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
-            <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
-              <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, cursor:'pointer', backgroundColor:'#f7fafc'}}>
-                 <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("Wishlist")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("Wishlist"); else { current.delete("Wishlist"); current.delete("da comprare"); } return {...prev, sourcesArr: Array.from(current)}; }); }} />
-                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist</span>
-              </label>
-              <label style={{fontWeight:'bold', fontSize:'0.9rem', color:'#4a5568', marginTop:8}}>Data fine:</label>
-              <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
-            </div>
-            <div className="row" style={{justifyContent:"flex-end", gap:8, marginTop:12}}><button className="ghost" onClick={()=>setArchModal(null)}>Annulla</button><button onClick={()=>saveArchiveFromModal(archModal)}>Archivia</button></div>
           </div>
         </div>
       )}
