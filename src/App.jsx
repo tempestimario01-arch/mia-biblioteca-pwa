@@ -193,6 +193,7 @@ export default function App(){
   const [loading,setLoading] = useState(false); 
   const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
   const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
+  const [planTab, setPlanTab] = useState('active');
 
   // Stats
   const [stats, setStats] = useState({
@@ -462,6 +463,43 @@ export default function App(){
       if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
     } else { showToast("Errore salvataggio: " + (error?.message), "error"); }
   }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
+
+  const toggleQueue = useCallback(async (it) => {
+    const currentSources = it.sourcesArr || [];
+    // 1. Controllo se "Coda" è presente (ignorando maiuscole/minuscole)
+    const isInQueue = currentSources.some(s => s.toLowerCase() === "coda");
+    
+    // 2. Se voglio AGGIUNGERE, controllo il limite massimo (7)
+    if (!isInQueue) {
+      const queueCount = items.filter(x => (x.sourcesArr||[]).some(s => s.toLowerCase() === "coda")).length;
+      if (queueCount >= 7) { 
+        showToast("✋ La Coda è piena (Max 7)! Sfoltisci i piani futuri.", "error"); 
+        return; 
+      }
+    }
+
+    let newSources;
+    // 3. Logica Aggiungi / Rimuovi
+    if (isInQueue) {
+      // Rimuovo filtrando via qualsiasi stringa che assomigli a "coda"
+      newSources = currentSources.filter(s => s.toLowerCase() !== "coda");
+    } else {
+      // Aggiungo la stringa pulita "Coda"
+      newSources = [...currentSources, "Coda"];
+    }
+
+    // 4. Salvataggio su Database
+    const newSourceStr = joinSources(newSources);
+    const { error } = await supabase.from("items").update({ source: newSourceStr }).eq("id", it.id);
+    
+    if (!error) {
+       // Aggiorno la vista locale subito per non dover ricaricare
+       setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x));
+       showToast(isInQueue ? "Rimosso dalla Coda" : "Messo in Coda ⏳", "success");
+    } else {
+       showToast("Errore aggiornamento: " + error.message, "error");
+    }
+  }, [items, showToast]);
 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
