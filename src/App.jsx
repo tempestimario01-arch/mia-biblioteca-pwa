@@ -37,12 +37,13 @@ function canonGenere(g){
 }
 function normType(v){ return String(v ?? "").trim().toLowerCase(); }
 
-// LOGICA WISHLIST (MANTENUTA)
+// LOGICA SORGENTI (Aggiornata per gestire Coda e Case-Insensitive)
 function parseSources(str){
   if (!str) return [];
   return String(str).toLowerCase().split(/[,;/|+]+/).map(s => {
     const clean = s.trim();
     if (clean === "da comprare" || clean === "wishlist") return "Wishlist";
+    if (clean === "coda" || clean === "in coda") return "Coda";
     return clean;
   }).filter(Boolean);
 }
@@ -106,6 +107,7 @@ const LibraryItem = memo(({
   it, 
   isArchiveView, 
   onToggleFocus, 
+  onToggleQueue, // <--- AGGIUNTO
   onMarkPurchased, 
   onArchive, 
   onEdit, 
@@ -115,9 +117,14 @@ const LibraryItem = memo(({
 }) => {
   const isArchived = it.status === 'archived';
   const hasWishlist = (it.sourcesArr || []).includes('Wishlist');
+  // CONTROLLO CODA (Case Insensitive)
+  const isInQueue = (it.sourcesArr || []).some(s => s.toLowerCase() === 'coda');
 
   // LOGICA VISIVA: Se è archiviato E NON siamo nella vista specifica archivio -> sbiadisci
   const opacityValue = (isArchived && !isArchiveView) ? 0.6 : 1;
+  
+  // BORDO: Verde (In Corso), Viola (In Coda), Grigio (Default)
+  const borderStyle = it.is_next ? '4px solid #38a169' : (isInQueue ? '4px solid #805ad5' : '1px solid #e2e8f0');
 
   return (
     <div className="card" style={{ 
@@ -125,7 +132,7 @@ const LibraryItem = memo(({
       display: 'flex', 
       flexDirection: 'column', 
       gap: 12, 
-      borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', 
+      borderLeft: borderStyle, // <--- BORDO AGGIORNATO
       backgroundColor: 'white', 
       boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       transform: 'translateZ(0)' // GPU acceleration hint
@@ -133,7 +140,9 @@ const LibraryItem = memo(({
       {/* ZONA 1: INFO */}
       <div style={{ opacity: opacityValue, transition: 'opacity 0.3s' }}>
         <div className="item-title" style={{ fontSize: '1.1rem', marginBottom: 6, display: 'flex', alignItems: 'center' }}>
-          {it.is_next && <span title="In Coda" style={{ marginRight: 6 }}>📌</span>} {it.title}
+          {it.is_next && <span title="In Corso" style={{ marginRight: 6 }}>🔥</span>} 
+          {!it.is_next && isInQueue && <span title="In Coda" style={{ marginRight: 6 }}>⏳</span>}
+          {it.title}
         </div>
         <div className="item-meta" style={{ fontSize: '0.9rem', color: '#4a5568', lineHeight: 1.6 }}>
           {/* AUTORE CLICCABILE */}
@@ -147,29 +156,41 @@ const LibraryItem = memo(({
           >
             {TYPE_ICONS[it.kind]} {it.creator}
           </div>
-          
+           
           <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center', marginTop:4}}>
             {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
             {it.genre && showGenreInput(it.kind) && <span style={{fontSize:'0.85em', opacity:0.8}}>• {canonGenere(it.genre)}</span>}
             {it.year && <span style={{fontSize:'0.85em', opacity:0.8}}>• {it.year}</span>}
-            {Array.isArray(it.sourcesArr) && it.sourcesArr.length > 0 && (
-              <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9 }}>
-                {it.sourcesArr.map((s, idx) => <span key={idx} title="Wishlist">🛒</span>)}
+            {hasWishlist && (
+              <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9, color:'#2b6cb0', backgroundColor:'#ebf8ff', padding:'0 4px', borderRadius:4 }}>
+                Wishlist
               </span>
             )}
           </div>
           {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
         </div>
       </div>
-      
+       
       {/* ZONA 2: AZIONI (Allineate a SINISTRA) */}
       <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
         {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>{getLinkEmoji(it.video_url)}</a> )}
         {it.note && (
           <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', lineHeight: 1}}>📝</button>
         )}
+        
         {(!it.finished_at && !isArchived) && (
-          <button className="ghost" onClick={() => onToggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{it.is_next ? "🚫" : "📌"}</button>
+          <>
+            <button className="ghost" onClick={() => onToggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: it.is_next ? '1px solid #38a169' : `1px solid ${BORDER_COLOR}`, backgroundColor: it.is_next ? '#f0fff4' : 'transparent', borderRadius: '8px'}}>
+                {it.is_next ? "⏸️" : "🔥"}
+            </button>
+            
+            {/* TASTO CLESSIDRA (NUOVO - SOLO SE NON È GIÀ IN CORSO) */}
+            {!it.is_next && (
+                <button className="ghost" onClick={() => onToggleQueue(it)} title={isInQueue ? "Rimuovi da Coda" : "Metti in Coda"} style={{padding:'8px', fontSize:'1.2em', border: isInQueue ? '1px solid #805ad5' : `1px solid ${BORDER_COLOR}`, backgroundColor: isInQueue ? '#faf5ff' : 'transparent', borderRadius: '8px'}}>
+                    ⏳
+                </button>
+            )}
+          </>
         )}
         
         {hasWishlist && (
@@ -202,6 +223,9 @@ export default function App(){
   const [loading,setLoading] = useState(false); 
   const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
   const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
+
+  // NUOVO: Stato per le TAB (In Corso / In Coda)
+  const [planTab, setPlanTab] = useState('active'); 
 
   // Stats
   const [stats, setStats] = useState({
@@ -472,7 +496,47 @@ export default function App(){
     } else { showToast("Errore salvataggio: " + (error?.message), "error"); }
   }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
+  /* --- NUOVE FUNZIONI: CODA & FOCUS ZEN --- */
+  
+  const toggleQueue = useCallback(async (it) => {
+    const currentSources = it.sourcesArr || [];
+    const isInQueue = currentSources.some(s => s.toLowerCase() === "coda");
+    
+    // Regola Zen: Max 7
+    if (!isInQueue) {
+      const queueCount = items.filter(x => (x.sourcesArr||[]).some(s => s.toLowerCase() === "coda")).length;
+      if (queueCount >= 7) { showToast("✋ Coda piena (Max 7)!", "error"); return; }
+    }
+
+    let newSources;
+    if (isInQueue) {
+      newSources = currentSources.filter(s => s.toLowerCase() !== "coda");
+    } else {
+      newSources = [...currentSources, "Coda"];
+    }
+
+    const newSourceStr = joinSources(newSources);
+    const { error } = await supabase.from("items").update({ source: newSourceStr }).eq("id", it.id);
+    if (!error) {
+       setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x));
+       showToast(isInQueue ? "Rimosso dalla Coda" : "Messo in Coda ⏳", "success");
+    } else {
+       showToast("Errore aggiornamento: " + error.message, "error");
+    }
+  }, [items, showToast]);
+
   const toggleFocus = useCallback(async (it) => {
+    if (!it.is_next) {
+        // Regola Zen: Max 3
+        if (pinnedItems.length >= 3) { showToast("🧠 Sovraccarico! Max 3 in corso.", "error"); return; }
+        const hasRelax = pinnedItems.some(p => p.mood === 'Relax');
+        const hasFocus = pinnedItems.some(p => p.mood === 'Focus');
+        if (it.mood === 'Relax' && hasRelax) { showToast("✋ Hai già un 'Relax' attivo.", "error"); return; }
+        if (it.mood === 'Focus' && hasFocus) { showToast("✋ Hai già un 'Focus' attivo.", "error"); return; }
+    } else {
+        if(!window.confirm(`Vuoi mettere in pausa "${it.title}"?`)) return;
+    }
+
     const newVal = !it.is_next;
     const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
     if (!error) { 
@@ -480,7 +544,7 @@ export default function App(){
       fetchPinnedItems(); 
       showToast(newVal ? "Aggiunto ai Focus 📌" : "Focus rimosso");
     }
-  }, [fetchPinnedItems, showToast]);
+  }, [pinnedItems, fetchPinnedItems, showToast]);
 
   const markAsPurchased = useCallback(async (it) => {
     const srcs = new Set([...(it.sourcesArr||[])]);
@@ -555,7 +619,7 @@ export default function App(){
   }, []);
   const openEditModal = useCallback((it) => {
     setEditState({
-      id: it.id, title: it.title, creator: it.creator, type: it.kind,       
+      id: it.id, title: it.title, creator: it.creator, type: it.kind,        
       genre: it.genre || '', year: it.year || '', mood: it.mood || '', 
       video_url: it.video_url || '', note: it.note || '', 
       is_next: it.is_next || false, source: joinSources(it.sourcesArr)
@@ -659,7 +723,6 @@ export default function App(){
             value={qInput} 
             onChange={e=>setQInput(e.target.value)} 
           />
-          {/* TASTO X */}
           {qInput && (
             <button 
               onClick={() => { setQInput(""); setStatusFilter("active"); }} 
@@ -669,19 +732,13 @@ export default function App(){
             </button>
           )}
         </div>
-        
-        {/* Tasto STATISTICHE */}
         <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
-
-        {/* Menu Avanzato */}
         <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
       </section>
 
-      {/* ===== ETICHETTE FILTRI ATTIVI (Split Layout) ===== */}
+      {/* ===== ETICHETTE FILTRI ATTIVI ===== */}
       {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter || completionYearFilter) && (
         <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'12px', gap:12}}>
-          
-          {/* COLONNA SINISTRA (Tag Flessibili) */}
           <div style={{display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', flex:1}}>
             <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
             {statusFilter !== 'active' && (<button className="ghost" onClick={()=>setStatusFilter('active')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{statusFilter === 'archived' ? '📦 Archivio' : '👁️ Tutto'} <span>✖</span></button>)}
@@ -690,65 +747,67 @@ export default function App(){
             {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
-            
-            {/* TAG LETTERA MODIFICATO CON INDICAZIONE TIPO */}
-            {letterFilter && (
-                <button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>
-                    {letterMode === 'title' ? 'Titolo' : 'Autore'}: {letterFilter}... <span>✖</span>
-                </button>
-            )}
-
+            {letterFilter && ( <button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{letterMode === 'title' ? 'Titolo' : 'Autore'}: {letterFilter}... <span>✖</span></button> )}
             {(completionYearFilter) && (<button className="ghost" onClick={()=>{setCompletionYearFilter(''); setCompletionMonthFilter(''); setStatusFilter('active');}} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#fbb6ce', color:'#822727', display:'flex', alignItems:'center', gap:4}}>📅 {completionMonthFilter ? `${completionMonthFilter}/` : ''}{completionYearFilter} <span>✖</span></button>)}
           </div>
-
-          {/* COLONNA DESTRA (Bottone Pulisci Fisso) */}
           <div style={{flexShrink:0}}>
-            <button 
-              className="ghost" 
-              onClick={clearAllFilters} 
-              style={{
-                fontSize:'0.85em', 
-                fontWeight:'600', 
-                color:'#fd8383ff', 
-                padding:'4px 8px',
-                cursor:'pointer',
-                whiteSpace:'nowrap'
-              }}
-            >
-              Pulisci
-            </button>
+            <button className="ghost" onClick={clearAllFilters} style={{fontSize:'0.85em', fontWeight:'600', color:'#fd8383ff', padding:'4px 8px', cursor:'pointer', whiteSpace:'nowrap'}}>Pulisci</button>
           </div>
         </div>
       )}
 
-      {/* ===== HOME ZEN (Minimalista) ===== */}
+      {/* ===== HOME ZEN (AGGIORNATA CON TABS) ===== */}
       {!isSearchActive && !loading && (
         <>
-          {/* FOCUS ZEN - DISCIPLINA */}
-          {pinnedItems.length > 0 && (
-            <section className="card" style={{marginTop: 12, marginBottom:12, borderLeft:'4px solid #38a169', backgroundColor:'#f0fff4', padding:'12px 16px'}}>
-              <h3 style={{marginTop:0, marginBottom:8, fontSize:'1em', color:'#22543d', textTransform:'uppercase', letterSpacing:'0.05em', display:'flex', justifyContent:'space-between'}}>
-                <span>📌 Piano di Lettura</span>
-                <span style={{fontSize:'0.8em', opacity:0.6, fontWeight:'normal'}}>{pinnedItems.length} in programma</span>
-              </h3>
-              <div style={{display:'flex', flexDirection:'column'}}>
-                {pinnedItems.map((p, idx) => (
-                  <div key={p.id} style={{padding: '10px 0', borderBottom: idx === pinnedItems.length-1 ? 'none' : '1px solid #c6f6d5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
-                    <div style={{flex: 1}}>
-                      <div style={{fontWeight:'600', fontSize:'1rem', color:'#2f855a'}}>{TYPE_ICONS[p.kind]} {p.title}</div>
-                      <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>{p.creator}</div>
+          {/* PIANO DI LETTURA (TABS) */}
+          <section className="card" style={{marginTop: 12, marginBottom:12, borderLeft: planTab === 'active' ? '4px solid #38a169' : '4px solid #805ad5', backgroundColor: planTab === 'active' ? '#f0fff4' : '#faf5ff', padding:'0', overflow:'hidden', transition:'all 0.3s'}}>
+            <div style={{display:'flex', borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
+              <button onClick={() => setPlanTab('active')} style={{flex:1, padding:'12px', border:'none', background: planTab === 'active' ? 'rgba(255,255,255,0.6)' : 'transparent', color: planTab === 'active' ? '#22543d' : '#718096', fontWeight:'bold', cursor:'pointer', borderRight:'1px solid rgba(0,0,0,0.05)'}}>🔥 In Corso ({pinnedItems.length}/3)</button>
+              <button onClick={() => setPlanTab('queue')} style={{flex:1, padding:'12px', border:'none', background: planTab === 'queue' ? 'rgba(255,255,255,0.6)' : 'transparent', color: planTab === 'queue' ? '#553c9a' : '#718096', fontWeight:'bold', cursor:'pointer'}}>⏳ In Coda ({items.filter(i => (i.sourcesArr||[]).some(s => s.toLowerCase() === 'coda')).length})</button>
+            </div>
+            
+            <div style={{padding:'12px 16px', minHeight: 100}}>
+              {planTab === 'active' && (
+                <div style={{animation:'fadeIn 0.3s'}}>
+                  {pinnedItems.length === 0 ? <p style={{textAlign:'center', opacity:0.6, fontStyle:'italic'}}>Nessun progetto attivo.</p> : (
+                    <div style={{display:'flex', flexDirection:'column', gap:12}}>
+                      {pinnedItems.map((p) => (
+                        <div key={p.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor:'rgba(255,255,255,0.5)', padding:8, borderRadius:8}}>
+                          <div style={{flex: 1}}>
+                            <div style={{fontWeight:'600', color:'#2f855a'}}>{TYPE_ICONS[p.kind]} {p.title}</div>
+                            <div style={{fontSize:'0.85em', color:'#276749', opacity:0.9}}>{p.creator}</div>
+                            {p.mood && <span style={{fontSize:'0.7em', padding:'2px 6px', borderRadius:6, backgroundColor:'#fff', border:'1px solid #c6f6d5', color:'#276749', marginTop:2, display:'inline-block'}}>{p.mood}</span>}
+                          </div>
+                          <button className="ghost" onClick={() => openArchiveModal(p)} title="Finito! Archivia" style={{fontSize:'1.2em', padding:'6px', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', backgroundColor:'white'}}>📦</button>
+                        </div>
+                      ))}
                     </div>
-                    <div style={{display:'flex', alignItems:'center', gap: 8}}>
-                        <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
-                        {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{getLinkEmoji(p.video_url)}</a>)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+                  )}
+                  {pinnedItems.length >= 3 && <div style={{marginTop:12, padding:8, backgroundColor:'#fed7d7', color:'#822727', borderRadius:8, fontSize:'0.85em', textAlign:'center'}}>🛑 <strong>Slot pieni (3/3).</strong></div>}
+                </div>
+              )}
+              {planTab === 'queue' && (
+                <div style={{animation:'fadeIn 0.3s'}}>
+                   {items.filter(i => (i.sourcesArr||[]).some(s => s.toLowerCase() === 'coda')).length === 0 ? <p style={{textAlign:'center', opacity:0.6}}>La coda è vuota.</p> : (
+                     items.filter(i => (i.sourcesArr||[]).some(s => s.toLowerCase() === 'coda')).map(w => (
+                       <div key={w.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom:8, paddingBottom:8, borderBottom:'1px dashed rgba(0,0,0,0.1)'}}>
+                          <div style={{flex:1}}>
+                            <div style={{color:'#44337a', fontWeight:'600'}}>{TYPE_ICONS[w.kind]} {w.title}</div>
+                            <div style={{fontSize:'0.85em', color:'#553c9a', opacity:0.8}}>{w.creator}</div>
+                            {w.mood && <span style={{fontSize:'0.7em', marginLeft:6, opacity:0.7, border:'1px solid #d6bc9b', borderRadius:4, padding:'0 4px', backgroundColor:'white'}}>{w.mood}</span>}
+                          </div>
+                          <div style={{display:'flex', gap:4}}>
+                            <button className="ghost" onClick={() => toggleFocus(w)} style={{fontSize:'1.1em', padding:'4px 8px', borderRadius:'6px', backgroundColor:'white', border:'1px solid #bee3f8', cursor:'pointer'}}>🔥</button>
+                            <button className="ghost" onClick={() => toggleQueue(w)} style={{fontSize:'1.1em', padding:'4px 8px', borderRadius:'6px', backgroundColor:'white', border:'1px solid #e2e8f0', color:'#e53e3e', cursor:'pointer'}}>✖</button>
+                          </div>
+                       </div>
+                     ))
+                   )}
+                </div>
+              )}
+            </div>
+          </section>
 
-          {/* MEMORY LANE */}
           {memoryItem && (
              <div className="card" style={{marginTop: 12, marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '10px 12px'}}>
                <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0, textAlign: 'center', fontStyle: 'italic' }}>
@@ -757,7 +816,6 @@ export default function App(){
              </div>
           )}
 
-          {/* SUGGERIMENTO ZEN */}
           {suggestion && (
             <section className="card" style={{marginBottom:12, borderLeft: '4px solid #ed8936', backgroundColor: '#fffaf0', padding:'12px 16px'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
@@ -782,19 +840,16 @@ export default function App(){
             </section>
           )}
 
-          {/* CONTROLLI DADO */}
           <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', borderRadius:16, border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)'}}>
             <div style={{display:'flex', alignItems:'center', gap:8}}>
               <div style={{display:'flex', gap:8, flex:1, minWidth:0}}>
                 <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
                    {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
                 </select>
-
                 <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
                    <option value="">Umore</option>
                    {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
                 </select>
-
                 {showGenreInput(randKind) && (
                   <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
                       <option value="">Genere</option>
@@ -802,19 +857,7 @@ export default function App(){
                   </select>
                 )}
               </div>
-
-              <button 
-                onClick={handleSuggest} 
-                title="Dammi un consiglio!"
-                style={{
-                  width: 48, height: 48, borderRadius: 12, border: '1px solid #ed8936', 
-                  backgroundColor: '#FDF8F2', color: '#ed8936', fontSize: '1.6rem', 
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)', flexShrink: 0
-                }}
-              >
-                🎲
-              </button>
+              <button onClick={handleSuggest} title="Dammi un consiglio!" style={{width: 48, height: 48, borderRadius: 12, border: '1px solid #ed8936', backgroundColor: '#FDF8F2', color: '#ed8936', fontSize: '1.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)', flexShrink: 0}}>🎲</button>
             </div>
           </section>
         </>
@@ -829,8 +872,9 @@ export default function App(){
                 <LibraryItem 
                   key={it.id} 
                   it={it}
-                  isArchiveView={statusFilter === 'archived'} // Passa true se stiamo guardando solo l'archivio
+                  isArchiveView={statusFilter === 'archived'} 
                   onToggleFocus={toggleFocus}
+                  onToggleQueue={toggleQueue} // PROP AGGIUNTA
                   onMarkPurchased={markAsPurchased}
                   onArchive={openArchiveModal}
                   onEdit={openEditModal}
@@ -840,11 +884,7 @@ export default function App(){
                 />
               ))}
               {items.length === 0 && <p style={{opacity:.8, textAlign:'center'}}>Nessun elemento trovato.</p>}
-              {items.length > visibleCount && (
-                <div style={{textAlign: 'center', padding: 20, color: '#718096', fontStyle:'italic'}}>
-                  Scorri per caricare altri elementi...
-                </div>
-              )}
+              {items.length > visibleCount && <div style={{textAlign: 'center', padding: 20, color: '#718096', fontStyle:'italic'}}>Scorri per caricare altri elementi...</div>}
             </div>
           )}
         </section>
@@ -853,7 +893,7 @@ export default function App(){
       {/* ===== FAB / MODALI ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
       
-      {/* ===== MODALE AGGIUNTA (Beige + Trasparenza) ===== */}
+      {/* MODALE AGGIUNTA */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
           <div className="card" style={{maxWidth:500, width:"94%", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
@@ -869,7 +909,6 @@ export default function App(){
               </div>
               <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
               <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
-              
               <div style={{marginTop:8}}>
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
@@ -888,7 +927,7 @@ export default function App(){
         </div>
       )}
 
-      {/* ===== MODALE FILTRI & STRUMENTI (Beige + Trasparenza) ===== */}
+      {/* MODALE FILTRI */}
       {advOpen && (
         <div className="modal-backdrop" onClick={() => setAdvOpen(false)} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)'}}>
           <div className="card" style={{maxWidth:500, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}} onClick={e => e.stopPropagation()}>
@@ -914,68 +953,39 @@ export default function App(){
                   {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border: `1px dashed ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
                 </div>
               </div>
-              
-              {/* ZONA INDICE A-Z POTENZIATA */}
-              <div>
-                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
-                  <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                    <span style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>INDICE:</span>
-                    <div style={{display:'flex', backgroundColor:'#edf2f7', borderRadius:8, padding:2}}>
-                       <button onClick={()=>setLetterMode('author')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='author' ? 'white' : 'transparent', color: letterMode==='author' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='author' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='author'?'bold':'normal', cursor:'pointer'}}>Autore</button>
-                       <button onClick={()=>setLetterMode('title')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='title' ? 'white' : 'transparent', color: letterMode==='title' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='title' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='title'?'bold':'normal', cursor:'pointer'}}>Titolo</button>
-                    </div>
-                  </div>
-                  {letterFilter && <button className="ghost" onClick={()=>setLetterFilter("")} style={{fontSize:'0.8em', color:'#e53e3e', padding:'2px 6px'}}>Cancella</button>}
+              <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
+              <div style={{display:'flex', flexDirection:'column', gap:16}}>
+                <div style={{display:'flex', gap:12}}>
+                   <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
+                   <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
                 </div>
-                <div style={{display:'flex', flexWrap:"wrap", gap:6, justifyContent:'center'}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'8px 12px', borderRadius:8, fontSize:'0.9em', border: `1px solid ${BORDER_COLOR}`, backgroundColor: letterFilter === L ? '#e2e8f0' : 'transparent', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>))}</div>
+                <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}>Chiudi Pannello</button>
               </div>
-
-            </div>
-            <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
-            <div style={{display:'flex', flexDirection:'column', gap:16}}>
-              <div style={{display:'flex', gap:12}}>
-                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
-                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
-              </div>
-              <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}>Chiudi Pannello</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ===== MODALE STATISTICHE (RIORGANIZZATO & BEIGE) ===== */}
+      {/* MODALE STATISTICHE */}
       {statsModalOpen && (
         <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
           <div className="card" style={{maxWidth:600, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
             <h2 style={{marginTop:0, textAlign:'center', marginBottom:20}}>Statistiche</h2>
-            
-            {/* TOGGLE PRINCIPALE (A Piastrelle) */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
-              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
-                  📅 Periodo
-              </div>
-              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
-                  📈 Totale
-              </div>
+              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>📅 Periodo</div>
+              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>📈 Totale</div>
             </div>
-
             {statsView === 'periodo' && (
               <div style={{animation:'fadeIn 0.3s'}}>
-                {/* Selettori Data */}
                 <div style={{display:'flex', gap: 8, alignItems: 'center', justifyContent:'center', marginBottom:20}}>
                   <input type="number" placeholder="Mese" value={statMonth} onChange={e=>setStatMonth(e.target.value)} style={{width:60, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
                   <input type="number" placeholder="Anno" value={statYear} onChange={e=>setStatYear(e.target.value)} style={{width:80, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
                   <button className="ghost" onClick={() => { setStatMonth(new Date().getMonth() + 1); setStatYear(new Date().getFullYear()); }} style={{fontSize:'0.9em', textDecoration:'underline'}}>Oggi</button>
-                  {periodLoading && <span style={{fontSize:'0.8em', color:'#718096'}}>...</span>}
                 </div>
-                
-                {/* KPI Principale (CLICCABILE) */}
                 <div onClick={() => handleStatClick(null)} style={{textAlign:'center', marginBottom:20, cursor:'pointer', transition:'all 0.2s', padding: 8, borderRadius: 12, ':hover': {backgroundColor:'rgba(0,0,0,0.02)'}}}>
                   <div style={{fontSize:'3em', fontWeight:'bold', color:'#2d3748', lineHeight:1}}>{periodStats.total}</div>
-                  <div style={{fontSize:'0.9em', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Elementi completati (Vedi tutti)</div>
+                  <div style={{fontSize:'0.9em', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Elementi completati</div>
                 </div>
-
-                {/* Griglia Dettagli (CLICCABILE) */}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12}}>
                   <div onClick={() => handleStatClick('libro')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>📚</div><div style={{fontWeight:'bold'}}>{periodStats.libro}</div></div>
                   <div onClick={() => handleStatClick('film')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎬</div><div style={{fontWeight:'bold'}}>{periodStats.film}</div></div>
@@ -986,49 +996,29 @@ export default function App(){
                 </div>
               </div>
             )}
-
             {statsView === 'totale' && (
               <div style={{animation:'fadeIn 0.3s'}}>
-                {/* KPI Totali */}
                 <div style={{display:'flex', justifyContent:'space-between', backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:16, padding:16, marginBottom:20}}>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold'}}>{stats.total}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Totali</div></div>
-                   <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#38a169'}}>{stats.active}</div><div style={{fontSize:'0.8em', color:'#718096'}}>In Corso</div></div>
-                   <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#d69e2e'}}>{stats.archived}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Archivio</div></div>
-                </div>
-
-                <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Per Tipo</h4>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20}}>
-                   {stats.byType.map(x=> (
-                     <div key={x.t} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border: `1px solid ${BORDER_COLOR}`, borderRadius:12}}>
-                       <span>{TYPE_ICONS[x.t]} {x.t.charAt(0).toUpperCase() + x.t.slice(1)}</span>
-                       <strong>{x.n}</strong>
-                     </div>
-                   ))}
-                </div>
-
-                <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Altro</h4>
-                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border:'1px solid #bee3f8', backgroundColor:'#ebf8ff', borderRadius:12, color:'#2b6cb0'}}>
-                   <span>🛒 Wishlist (Wishlist)</span>
-                   <strong>{stats.bySource[0]?.n || 0}</strong>
                 </div>
               </div>
             )}
-
             <button onClick={()=>setStatsModalOpen(false)} style={{marginTop:24, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', width:'100%'}}>Chiudi</button>
           </div>
         </div>
       )}
 
+      {/* MODALE ARCHIVIA */}
       {archModal && (
         <div className="modal-backdrop" onClick={() => setArchModal(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
             <h2 style={{marginTop:0}}>Archivia — {archModal.title}</h2>
             <div style={{display:'flex', flexDirection:'column', gap:12, margin:'16px 0'}}>
               <label style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, cursor:'pointer', backgroundColor:'#f7fafc'}}>
-                 <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("Wishlist")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("Wishlist"); else { current.delete("Wishlist"); current.delete("da comprare"); } return {...prev, sourcesArr: Array.from(current)}; }); }} />
-                 <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist</span>
+                  <input type="checkbox" checked={(archModal.sourcesArr||[]).includes("Wishlist")} onChange={e => { const isChecked = e.target.checked; setArchModal(prev => { const current = new Set(prev.sourcesArr || []); if(isChecked) current.add("Wishlist"); else { current.delete("Wishlist"); current.delete("da comprare"); } return {...prev, sourcesArr: Array.from(current)}; }); }} />
+                  <span style={{color:'#4a5568'}}>🛒 Mi è piaciuto! Metti in Wishlist</span>
               </label>
               <label style={{fontWeight:'bold', fontSize:'0.9rem', color:'#4a5568', marginTop:8}}>Data fine:</label>
               <input type="date" value={archModal.dateISO} onChange={e=>setArchModal(m=>({...m, dateISO:e.target.value}))} />
@@ -1037,6 +1027,8 @@ export default function App(){
           </div>
         </div>
       )}
+
+      {/* MODALE MODIFICA (COMPLETO) */}
       {editState && (
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
@@ -1048,18 +1040,15 @@ export default function App(){
               {showGenreInput(editState.type) && (<select value={editState.genre} onChange={e => setEditState(curr => ({...curr, genre: e.target.value}))}><option value="">Genere (facoltativo)</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>)}
               <select value={editState.mood || ""} onChange={e => setEditState(curr => ({...curr, mood: e.target.value}))}><option value="">Umore (opz.)</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/><input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} />
-              {/* AREA NOTE MODIFICA */}
               <div style={{gridColumn: "1 / -1"}}>
                 <textarea placeholder="Note personali..." value={editState.note || ""} onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
               </div>
-
               <div style={{gridColumn: "1 / -1", marginTop: 8}}>
                 <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border: parseSources(editState.source).includes('Wishlist') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : '#fff'}}>
                   <input type="checkbox" checked={parseSources(editState.source).includes('Wishlist')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'Wishlist' && x !== 'da comprare'); if (active) currentArr.push('Wishlist'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} />
                   <span style={{color:'#4a5568'}}>🛒 Wishlist</span>
                 </label>
               </div>
-
               <div style={{gridColumn: "1 / -1", display:'flex', alignItems:'center', gap:8}}><input type="checkbox" id="edit_chk_next" checked={editState.is_next} onChange={e => setEditState(curr => ({...curr, is_next: e.target.checked}))} style={{width:'auto'}}/><label htmlFor="edit_chk_next">📌 In Coda (Prossimo)</label></div>
             </form>
             <div className="row" style={{justifyContent:"space-between", marginTop:12}}><button type="button" className="ghost" style={{ color: '#c53030', borderColor: '#c53030' }} onClick={() => { if (window.confirm("Sei sicuro?")) deleteItem(editState.id); }}>Elimina</button><div className="row" style={{gap: 8}}><button className="ghost" type="button" onClick={()=>setEditState(null)}>Annulla</button><button type="submit" form="edit-form">Salva Modifiche</button></div></div>
