@@ -800,13 +800,19 @@ export default function App(){
                     </div>
                   </div>
 
-                  {/* PARTE DESTRA: Bottone Azione */}
-                  <div style={{marginLeft: 8}}>
-                     {/* Se è In Corso mostriamo "Archivia", se è In Coda mostriamo "Inizia" */}
+                  {/* PARTE DESTRA: Bottoni Azione */}
+                  <div style={{marginLeft: 8, display:'flex', gap:6}}> 
+                     {/* CASO 1: È VERDE (In Corso) -> Mostra solo Archivia */}
                      {p.is_next ? (
                         <button className="ghost" onClick={() => openArchiveModal(p)} title="Finito! Archivia" style={{fontSize:'1.2em', padding:'6px', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', backgroundColor:'white'}}>📦</button>
                      ) : (
-                        <button className="ghost" onClick={() => toggleFocus(p)} title="Inizia a leggere" style={{fontSize:'1.2em', padding:'6px', border: `1px solid #d6bc9b`, borderRadius: '8px', backgroundColor:'white'}}>🚀</button>
+                        /* CASO 2: È VIOLA (In Coda) -> Mostra Inizia E Rimuovi */
+                        <>
+                          <button className="ghost" onClick={() => toggleFocus(p)} title="Inizia a leggere" style={{fontSize:'1.2em', padding:'6px', border: `1px solid #d6bc9b`, borderRadius: '8px', backgroundColor:'white'}}>🚀</button>
+                          
+                          {/* ECCO IL TASTO MANCANTE: Rimuovi dalla Coda */}
+                          <button className="ghost" onClick={() => toggleQueue(p)} title="Togli dalla Coda" style={{fontSize:'1.2em', padding:'6px', border: `1px solid #fc8181`, color:'#c53030', borderRadius: '8px', backgroundColor:'white'}}>✖</button>
+                        </>
                      )}
                   </div>
                 </div>
