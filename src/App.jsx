@@ -283,18 +283,19 @@ export default function App(){
   /* --- 3. FUNZIONI ASINCRONE --- */
 
   const fetchPinnedItems = useCallback(async () => {
-    // MODIFICA: Ora scarichiamo SIA "is_next" (In Corso) SIA quelli con "Coda" nel source
-    const { data, error } = await supabase.from('items')
-      .select('*, note')
-      .neq('status', 'archived')
-      .or('is_next.eq.true,source.ilike.%Coda%'); 
+    const { data, error } = await supabase
+      .from('items')
+      .select('*, note') 
+      .eq('is_next', true)
+      .neq('status', 'archived'); 
     
     if (!error && data) {
       const adapted = data.map(row => ({
-        ...row, kind: normType(row.type), creator: row.author, sourcesArr: parseSources(row.source)
+        ...row,
+        kind: normType(row.type), 
+        creator: row.author, 
+        sourcesArr: parseSources(row.source) 
       }));
-      // ORDINA: Mettiamo i verdi (is_next) in cima, i viola (coda) sotto
-      adapted.sort((a, b) => (b.is_next === a.is_next) ? 0 : b.is_next ? 1 : -1);
       setPinnedItems(adapted);
     }
   }, []);
@@ -471,53 +472,16 @@ export default function App(){
     } else { showToast("Errore salvataggio: " + (error?.message), "error"); }
   }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
- // 1. GESTIONE CODA (MAX 3)
-  const toggleQueue = useCallback(async (it) => {
-    const currentSources = it.sourcesArr || [];
-    const isInQueue = currentSources.some(s => s.toLowerCase() === "coda");
-    
-    // Se stiamo aggiungendo, controlliamo il limite
-    if (!isInQueue) {
-      const queueCount = pinnedItems.filter(p => !p.is_next).length; // Conta solo quelli in coda
-      if (queueCount >= 3) { showToast("✋ Coda piena! Max 3 elementi.", "error"); return; }
-    }
-
-    // ... Logica standard di salvataggio ...
-    let newSources = isInQueue ? currentSources.filter(s => s.toLowerCase() !== "coda") : [...currentSources, "Coda"];
-    const newSourceStr = joinSources(newSources);
-    const { error } = await supabase.from("items").update({ source: newSourceStr }).eq("id", it.id);
-    
-    if (!error) {
-       setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x));
-       fetchPinnedItems(); // Ricarica la lista in alto
-       showToast(isInQueue ? "Rimosso dalla Coda" : "Messo in Coda ⏳", "success");
-    }
-  }, [pinnedItems, fetchPinnedItems, showToast]);
-
-  // 2. GESTIONE IN CORSO (MAX 3 + APPRENDIMENTO)
   const toggleFocus = useCallback(async (it) => {
-    if (!it.is_next) {
-      const activeCount = pinnedItems.filter(p => p.is_next).length;
-      if (activeCount >= 3) { showToast("🧠 Stop! Max 3 progetti attivi.", "error"); return; }
-      
-      // Controllo opzionale "Libro Pesante"
-      if (["Apprendimento", "Impegnativo"].includes(it.mood)) {
-         if (pinnedItems.some(p => p.is_next && ["Apprendimento", "Impegnativo"].includes(p.mood))) {
-            showToast("✋ Hai già uno studio attivo. Finiscilo prima!", "error"); return;
-         }
-      }
-    } else {
-        if(!window.confirm(`Vuoi mettere in pausa "${it.title}"?`)) return;
-    }
-
     const newVal = !it.is_next;
     const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
     if (!error) { 
       setItems(prev => prev.map(x => x.id === it.id ? {...x, is_next: newVal} : x));
       fetchPinnedItems(); 
-      showToast(newVal ? "Iniziato! 🔥" : "Messo in Pausa");
+      showToast(newVal ? "Aggiunto ai Focus 📌" : "Focus rimosso");
     }
-  }, [pinnedItems, fetchPinnedItems, showToast]);
+  }, [fetchPinnedItems, showToast]);
+
   const markAsPurchased = useCallback(async (it) => {
     const srcs = new Set([...(it.sourcesArr||[])]);
     srcs.delete("Wishlist"); 
@@ -768,55 +732,18 @@ export default function App(){
                 <span style={{fontSize:'0.8em', opacity:0.6, fontWeight:'normal'}}>{pinnedItems.length} in programma</span>
               </h3>
               <div style={{display:'flex', flexDirection:'column'}}>
-                {pinnedItems.map((p) => (
-                <div key={p.id} style={{
-                    // --- STILE BASE (Layout) ---
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    padding: '10px 12px', 
-                    borderRadius: 8,
-                    marginBottom: 8, // Un po' di spazio tra gli elementi
-                    
-                    // --- MODIFICA ZEN (Colori Dinamici) ---
-                    // Se è "is_next" (In Corso) usa VERDE, altrimenti VIOLA (Coda)
-                    backgroundColor: p.is_next ? '#f0fff4' : '#faf5ff',
-                    borderLeft: p.is_next ? '4px solid #38a169' : '4px solid #805ad5',
-                    border: p.is_next ? '1px solid #c6f6d5' : '1px dashed #e9d8fd',
-                    borderLeftWidth: 4 // Forza il bordo sinistro colorato
-                }}>
-                  
-                  {/* PARTE SINISTRA: Titolo e Info */}
-                  <div style={{flex: 1}}>
-                    <div style={{fontWeight:'600', fontSize:'1rem', color: p.is_next ? '#2f855a' : '#553c9a', display:'flex', alignItems:'center', gap:6}}>
-                       {/* Icona che cambia: Fuoco o Clessidra */}
-                       <span>{p.is_next ? '🔥' : '⏳'}</span> 
-                       {TYPE_ICONS[p.kind]} {p.title}
+                {pinnedItems.map((p, idx) => (
+                  <div key={p.id} style={{padding: '10px 0', borderBottom: idx === pinnedItems.length-1 ? 'none' : '1px solid #c6f6d5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12}}>
+                    <div style={{flex: 1}}>
+                      <div style={{fontWeight:'600', fontSize:'1rem', color:'#2f855a'}}>{TYPE_ICONS[p.kind]} {p.title}</div>
+                      <div style={{fontSize:'0.85em', opacity:0.8, color:'#276749'}}>{p.creator}</div>
                     </div>
-                    <div style={{fontSize:'0.85em', opacity:0.9, color: p.is_next ? '#276749' : '#6b46c1', marginTop:4, marginLeft: 26}}>
-                       {p.creator}
-                       {/* Se vuoi mostrare il mood */}
-                       {p.mood && <span style={{marginLeft:8, opacity:0.7, fontSize:'0.9em'}}>— {p.mood}</span>}
+                    <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                        <button className="ghost" onClick={() => openArchiveModal(p)} title="Obiettivo Raggiunto! Archivia" style={{fontSize:'1.3em', padding:'6px', cursor:'pointer', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
+                        {p.video_url && (<a href={p.video_url} target="_blank" rel="noopener noreferrer" title="Inizia ora" className="ghost button" style={{fontSize:'1.3em', textDecoration:'none', padding:'6px', display:'flex', alignItems:'center', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{getLinkEmoji(p.video_url)}</a>)}
                     </div>
                   </div>
-
-                  {/* PARTE DESTRA: Bottoni Azione */}
-                  <div style={{marginLeft: 8, display:'flex', gap:6}}> 
-                     {/* CASO 1: È VERDE (In Corso) -> Mostra solo Archivia */}
-                     {p.is_next ? (
-                        <button className="ghost" onClick={() => openArchiveModal(p)} title="Finito! Archivia" style={{fontSize:'1.2em', padding:'6px', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', backgroundColor:'white'}}>📦</button>
-                     ) : (
-                        /* CASO 2: È VIOLA (In Coda) -> Mostra Inizia E Rimuovi */
-                        <>
-                          <button className="ghost" onClick={() => toggleFocus(p)} title="Inizia a leggere" style={{fontSize:'1.2em', padding:'6px', border: `1px solid #d6bc9b`, borderRadius: '8px', backgroundColor:'white'}}>🚀</button>
-                          
-                          {/* ECCO IL TASTO MANCANTE: Rimuovi dalla Coda */}
-                          <button className="ghost" onClick={() => toggleQueue(p)} title="Togli dalla Coda" style={{fontSize:'1.2em', padding:'6px', border: `1px solid #fc8181`, color:'#c53030', borderRadius: '8px', backgroundColor:'white'}}>✖</button>
-                        </>
-                     )}
-                  </div>
-                </div>
-              ))}
+                ))}
               </div>
             </section>
           )}
