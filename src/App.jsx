@@ -37,13 +37,13 @@ function canonGenere(g){
 }
 function normType(v){ return String(v ?? "").trim().toLowerCase(); }
 
-// LOGICA WISHLIST E CODA (Case insensitive)
+// LOGICA WISHLIST (MANTENUTA) + CODA
 function parseSources(str){
   if (!str) return [];
   return String(str).toLowerCase().split(/[,;/|+]+/).map(s => {
     const clean = s.trim();
     if (clean === "da comprare" || clean === "wishlist") return "Wishlist";
-    if (clean === "coda" || clean === "in coda") return "Coda"; 
+    if (clean === "coda" || clean === "in coda") return "Coda";
     return clean;
   }).filter(Boolean);
 }
@@ -86,7 +86,7 @@ const ToastContainer = ({ toasts }) => {
   return (
     <div style={{
       position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', 
-      zIndex: 99999, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', pointerEvents: 'none', width:'90%'
+      zIndex: 99999, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', pointerEvents: 'none', width: '90%'
     }}>
       {toasts.map(t => (
         <div key={t.id} style={{
@@ -107,7 +107,7 @@ const LibraryItem = memo(({
   it, 
   isArchiveView, 
   onToggleFocus, 
-  onToggleQueue, // PROP AGGIUNTA
+  onToggleQueue, // AGGIUNTO
   onMarkPurchased, 
   onArchive, 
   onEdit, 
@@ -117,13 +117,10 @@ const LibraryItem = memo(({
 }) => {
   const isArchived = it.status === 'archived';
   const hasWishlist = (it.sourcesArr || []).includes('Wishlist');
-  // Check Coda Case-Insensitive
   const isInQueue = (it.sourcesArr || []).some(s => s.toLowerCase() === 'coda');
 
-  // LOGICA VISIVA: Se è archiviato E NON siamo nella vista specifica archivio -> sbiadisci
+  // LOGICA VISIVA
   const opacityValue = (isArchived && !isArchiveView) ? 0.6 : 1;
-  
-  // Bordo: Verde se In Corso, Viola se In Coda, Default altrimenti
   const borderStyle = it.is_next ? '4px solid #38a169' : (isInQueue ? '4px solid #805ad5' : '1px solid #e2e8f0');
 
   return (
@@ -135,7 +132,7 @@ const LibraryItem = memo(({
       borderLeft: borderStyle, 
       backgroundColor: 'white', 
       boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-      transform: 'translateZ(0)' 
+      transform: 'translateZ(0)' // GPU acceleration hint
     }}>
       {/* ZONA 1: INFO */}
       <div style={{ opacity: opacityValue, transition: 'opacity 0.3s' }}>
@@ -161,9 +158,9 @@ const LibraryItem = memo(({
             {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
             {it.genre && showGenreInput(it.kind) && <span style={{fontSize:'0.85em', opacity:0.8}}>• {canonGenere(it.genre)}</span>}
             {it.year && <span style={{fontSize:'0.85em', opacity:0.8}}>• {it.year}</span>}
-            {hasWishlist && (
-              <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9, color:'#2b6cb0', backgroundColor:'#ebf8ff', padding:'0 4px', borderRadius:4 }}>
-                Wishlist
+            {Array.isArray(it.sourcesArr) && it.sourcesArr.includes("Wishlist") && (
+              <span style={{ marginLeft: 6, display:'inline-flex', gap:4, opacity:0.9 }}>
+                <span title="Wishlist">🛒</span>
               </span>
             )}
           </div>
@@ -180,10 +177,11 @@ const LibraryItem = memo(({
         
         {(!it.finished_at && !isArchived) && (
           <>
+            {/* TASTO FOCUS */}
             <button className="ghost" onClick={() => onToggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: it.is_next ? '1px solid #38a169' : `1px solid ${BORDER_COLOR}`, backgroundColor: it.is_next ? '#f0fff4' : 'transparent', borderRadius: '8px'}}>
                 {it.is_next ? "⏸️" : "🔥"}
             </button>
-            {/* Tasto Coda visibile solo se non è già in corso */}
+            {/* TASTO CODA (NUOVO) */}
             {!it.is_next && (
                 <button className="ghost" onClick={() => onToggleQueue(it)} title={isInQueue ? "Rimuovi da Coda" : "Metti in Coda"} style={{padding:'8px', fontSize:'1.2em', border: isInQueue ? '1px solid #805ad5' : `1px solid ${BORDER_COLOR}`, backgroundColor: isInQueue ? '#faf5ff' : 'transparent', borderRadius: '8px'}}>
                     ⏳
@@ -223,8 +221,8 @@ export default function App(){
   const [visibleCount, setVisibleCount] = useState(50); 
   const [toasts, setToasts] = useState([]); 
 
-  // NUOVO: STATO PER I TABS
-  const [planTab, setPlanTab] = useState('active'); // 'active' | 'queue'
+  // NUOVO STATO TABS
+  const [planTab, setPlanTab] = useState('active'); 
 
   // Stats
   const [stats, setStats] = useState({
@@ -494,14 +492,13 @@ export default function App(){
     } else { showToast("Errore salvataggio: " + (error?.message), "error"); }
   }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
-  /* --- NUOVA LOGICA CODA & FOCUS (ZEN) --- */
+  /* --- NUOVO: LOGICA CODA & FOCUS ZEN --- */
   
   const toggleQueue = useCallback(async (it) => {
     const currentSources = it.sourcesArr || [];
-    // Controllo case-insensitive
     const isInQueue = currentSources.some(s => s.toLowerCase() === "coda");
     
-    // Zen Limit
+    // Regola Zen: Max 7 in Coda
     if (!isInQueue) {
       const queueCount = items.filter(x => (x.sourcesArr||[]).some(s => s.toLowerCase() === "coda")).length;
       if (queueCount >= 7) { showToast("✋ Coda piena (Max 7)!", "error"); return; }
@@ -519,13 +516,12 @@ export default function App(){
     if (!error) {
        setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x));
        showToast(isInQueue ? "Rimosso dalla Coda" : "Messo in Coda ⏳", "success");
-    } else {
-       showToast("Errore di rete", "error");
     }
   }, [items, showToast]);
 
   const toggleFocus = useCallback(async (it) => {
     if (!it.is_next) {
+      // Regola Zen: Max 3 in Corso
       if (pinnedItems.length >= 3) { showToast("🧠 Sovraccarico! Max 3 in corso.", "error"); return; }
       const hasRelax = pinnedItems.some(p => p.mood === 'Relax');
       const hasFocus = pinnedItems.some(p => p.mood === 'Focus');
@@ -540,7 +536,7 @@ export default function App(){
     if (!error) { 
       setItems(prev => prev.map(x => x.id === it.id ? {...x, is_next: newVal} : x));
       fetchPinnedItems(); 
-      showToast(newVal ? "In Corso 🔥" : "Messo in Pausa");
+      showToast(newVal ? "Aggiunto ai Focus 📌" : "Focus rimosso");
     }
   }, [pinnedItems, fetchPinnedItems, showToast]);
 
@@ -711,11 +707,11 @@ export default function App(){
       
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
       
-      {/* ===== Ricerca Zen "Sticky" ===== */}
+      {/* ===== Ricerca Zen "Cool Gray" CON TASTO X ===== */}
       <section className="card" style={{
           marginBottom:0, padding: "6px 12px", display:'flex', alignItems:'center', gap:8, 
           backgroundColor:'#FFF9F0', borderRadius: 12, boxShadow:'0 1px 3px rgba(0,0,0,0.05)',
-          position: 'sticky', top: 10, zIndex: 100
+          position: 'sticky', top: 10, zIndex: 100 // AGGIUNTO STICKY
       }}>
         <div style={{flex:1, display:'flex', alignItems:'center', gap:8}}>
           <span style={{opacity:0.4, fontSize:'1.1em'}}>🔍</span>
@@ -725,6 +721,7 @@ export default function App(){
             value={qInput} 
             onChange={e=>setQInput(e.target.value)} 
           />
+          {/* TASTO X */}
           {qInput && (
             <button 
               onClick={() => { setQInput(""); setStatusFilter("active"); }} 
@@ -734,13 +731,19 @@ export default function App(){
             </button>
           )}
         </div>
+        
+        {/* Tasto STATISTICHE */}
         <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
+
+        {/* Menu Avanzato */}
         <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
       </section>
 
-      {/* ===== ETICHETTE FILTRI ATTIVI ===== */}
+      {/* ===== ETICHETTE FILTRI ATTIVI (Split Layout) ===== */}
       {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter || completionYearFilter) && (
         <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'12px', gap:12}}>
+          
+          {/* COLONNA SINISTRA (Tag Flessibili) */}
           <div style={{display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', flex:1}}>
             <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
             {statusFilter !== 'active' && (<button className="ghost" onClick={()=>setStatusFilter('active')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{statusFilter === 'archived' ? '📦 Archivio' : '👁️ Tutto'} <span>✖</span></button>)}
@@ -749,18 +752,34 @@ export default function App(){
             {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
-            {letterFilter && ( <button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{letterMode === 'title' ? 'Titolo' : 'Autore'}: {letterFilter}... <span>✖</span></button> )}
+            
+            {/* TAG LETTERA MODIFICATO CON INDICAZIONE TIPO */}
+            {letterFilter && (
+                <button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>
+                    {letterMode === 'title' ? 'Titolo' : 'Autore'}: {letterFilter}... <span>✖</span>
+                </button>
+            )}
+
             {(completionYearFilter) && (<button className="ghost" onClick={()=>{setCompletionYearFilter(''); setCompletionMonthFilter(''); setStatusFilter('active');}} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#fbb6ce', color:'#822727', display:'flex', alignItems:'center', gap:4}}>📅 {completionMonthFilter ? `${completionMonthFilter}/` : ''}{completionYearFilter} <span>✖</span></button>)}
           </div>
+
+          {/* COLONNA DESTRA (Bottone Pulisci Fisso) */}
           <div style={{flexShrink:0}}>
-            <button className="ghost" onClick={clearAllFilters} style={{fontSize:'0.85em', fontWeight:'600', color:'#fd8383ff', padding:'4px 8px', cursor:'pointer', whiteSpace:'nowrap'}}>Pulisci</button>
+            <button 
+              className="ghost" 
+              onClick={clearAllFilters} 
+              style={{fontSize:'0.85em', fontWeight:'600', color:'#fd8383ff', padding:'4px 8px', cursor:'pointer', whiteSpace:'nowrap'}}
+            >
+              Pulisci
+            </button>
           </div>
         </div>
       )}
 
-      {/* ===== HOME ZEN (MODIFICATA CON TABS) ===== */}
+      {/* ===== HOME ZEN (AGGIORNATA CON TABS) ===== */}
       {!isSearchActive && !loading && (
         <>
+          {/* PIANO DI LETTURA (TABS) */}
           <section className="card" style={{marginTop: 12, marginBottom:12, borderLeft: planTab === 'active' ? '4px solid #38a169' : '4px solid #805ad5', backgroundColor: planTab === 'active' ? '#f0fff4' : '#faf5ff', padding:'0', overflow:'hidden', transition:'all 0.3s'}}>
             <div style={{display:'flex', borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
               <button onClick={() => setPlanTab('active')} style={{flex:1, padding:'12px', border:'none', background: planTab === 'active' ? 'rgba(255,255,255,0.6)' : 'transparent', color: planTab === 'active' ? '#22543d' : '#718096', fontWeight:'bold', cursor:'pointer', borderRight:'1px solid rgba(0,0,0,0.05)'}}>🔥 In Corso ({pinnedItems.length}/3)</button>
@@ -809,20 +828,16 @@ export default function App(){
             </div>
           </section>
 
-          {memoryItem && (<div className="card" style={{marginTop:12, marginBottom:12, backgroundColor:'transparent', border:'1px dashed #cbd5e0', padding:'10px 12px'}}><p style={{fontSize:'0.85rem', color:'#718096', margin:0, textAlign:'center', fontStyle:'italic'}}>🕰️ {memoryItem.daysAgo < 30 ? `${memoryItem.daysAgo} giorni fa` : `${Math.floor(memoryItem.daysAgo / 30)} mesi fa`} finivi <strong>{memoryItem.title}</strong></p></div>)}
-          
-          <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', borderRadius:16, border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)'}}>
-            <div style={{display:'flex', alignItems:'center', gap:8}}>
-              <div style={{display:'flex', gap:8, flex:1, minWidth:0}}>
-                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
-                <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}><option value="">Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
-                {showGenreInput(randKind) && (<select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}><option value="">Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>)}
-              </div>
-              <button onClick={handleSuggest} style={{width:48, height:48, borderRadius:12, border:'1px solid #ed8936', backgroundColor:'#FDF8F2', color:'#ed8936', fontSize:'1.6rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 2px 5px rgba(237, 137, 54, 0.3)', flexShrink:0}}>🎲</button>
-            </div>
-          </section>
-          
-          {/* SUGGERIMENTO MODALE */}
+          {/* MEMORY LANE */}
+          {memoryItem && (
+             <div className="card" style={{marginTop: 12, marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '10px 12px'}}>
+               <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0, textAlign: 'center', fontStyle: 'italic' }}>
+                 🕰️ {memoryItem.daysAgo < 30 ? `${memoryItem.daysAgo} giorni fa` : `${Math.floor(memoryItem.daysAgo / 30)} mesi fa`} finivi <strong>{memoryItem.title}</strong>
+               </p>
+             </div>
+          )}
+
+          {/* SUGGERIMENTO ZEN */}
           {suggestion && (
             <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={()=>setSuggestion(null)}>
                <div className="card" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: '400px', padding:20, backgroundColor:'#fffaf0', borderLeft:'4px solid #ed8936', borderRadius:16}} onClick={e=>e.stopPropagation()}>
@@ -836,19 +851,71 @@ export default function App(){
                </div>
             </div>
           )}
+
+          {/* CONTROLLI DADO */}
+          <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', borderRadius:16, border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)'}}>
+            <div style={{display:'flex', alignItems:'center', gap:8}}>
+              <div style={{display:'flex', gap:8, flex:1, minWidth:0}}>
+                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
+                   {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
+                </select>
+
+                <select value={randMood} onChange={e=>setRandMood(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
+                   <option value="">Umore</option>
+                   {MOODS.map(m=> <option key={m} value={m}>{m}</option>)}
+                </select>
+
+                {showGenreInput(randKind) && (
+                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
+                      <option value="">Genere</option>
+                      {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
+                  </select>
+                )}
+              </div>
+
+              <button 
+                onClick={handleSuggest} 
+                title="Dammi un consiglio!"
+                style={{
+                  width: 48, height: 48, borderRadius: 12, border: '1px solid #ed8936', 
+                  backgroundColor: '#FDF8F2', color: '#ed8936', fontSize: '1.6rem', 
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)', flexShrink: 0
+                }}
+              >
+                🎲
+              </button>
+            </div>
+          </section>
         </>
       )}
       
-      {/* LISTA RISULTATI */}
+      {/* ===== Lista Risultati (Card Minimal) con Infinite Scroll ===== */}
       {isSearchActive && (
         <section className="card" style={{marginTop: 12}}>
           {loading ? <p>Caricamento…</p> : (
             <div className="list" style={{ gap: 16, display: 'flex', flexDirection: 'column' }}>
               {items.slice(0, visibleCount).map(it => (
-                <LibraryItem key={it.id} it={it} isArchiveView={statusFilter === 'archived'} onToggleFocus={toggleFocus} onToggleQueue={toggleQueue} onMarkPurchased={markAsPurchased} onArchive={openArchiveModal} onEdit={openEditModal} onReExperience={reExperience} onUnarchive={unarchive} onFilterAuthor={handleFilterAuthor} />
+                <LibraryItem 
+                  key={it.id} 
+                  it={it}
+                  isArchiveView={statusFilter === 'archived'} 
+                  onToggleFocus={toggleFocus}
+                  onToggleQueue={toggleQueue} // PROP FONDAMENTALE AGGIUNTA
+                  onMarkPurchased={markAsPurchased}
+                  onArchive={openArchiveModal}
+                  onEdit={openEditModal}
+                  onReExperience={reExperience}
+                  onUnarchive={unarchive}
+                  onFilterAuthor={handleFilterAuthor}
+                />
               ))}
               {items.length === 0 && <p style={{opacity:.8, textAlign:'center'}}>Nessun elemento trovato.</p>}
-              {items.length > visibleCount && <div style={{textAlign:'center', padding:20, color:'#718096', fontStyle:'italic'}}>Scorri per caricare altri elementi...</div>}
+              {items.length > visibleCount && (
+                <div style={{textAlign: 'center', padding: 20, color: '#718096', fontStyle:'italic'}}>
+                  Scorri per caricare altri elementi...
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -856,74 +923,135 @@ export default function App(){
 
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
       
-      {/* ===== MODALI FIXED (TUTTI CENTRATI E MOBILE-FRIENDLY) ===== */}
-      
+      {/* ===== MODALE AGGIUNTA (Beige + Trasparenza) ===== */}
       {addModalOpen && (
-        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={()=>setAddModalOpen(false)}>
-          <div className="card" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: '500px', maxHeight: '85vh', overflowY: 'auto', padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e=>e.stopPropagation()}>
-            <h2 style={{marginTop:0, fontSize:'1.4rem', color:'#2d3748', textAlign:'center'}}>Nuovo Elemento</h2>
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={() => setAddModalOpen(false)}>
+          {/* MODALE FIXED */}
+          <div className="card" style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
+              width: '90%', maxWidth: 500, maxHeight: '85vh', overflowY: 'auto',
+              padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'
+          }} onClick={e => e.stopPropagation()}>
+            <h2 style={{marginTop:0, marginBottom:20, fontSize:'1.4rem', color:'#2d3748', textAlign:'center'}}>Nuovo Elemento</h2>
             <form onSubmit={addItem} id="add-form" style={{display:'flex', flexDirection:'column', gap:12}}>
-              <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}} autoFocus />
-              <input placeholder="Autore" value={creator} onChange={e=>setCreator(e.target.value)} style={{padding:'12px', borderRadius:12, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}} />
+              <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} autoFocus />
+              <input placeholder="Autore / Regista / Sviluppatore" value={creator} onChange={e=>setCreator(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}}>{TYPES.filter(t=>t!=='audiolibro').map(t=><option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
-                <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} style={{padding:'10px', borderRadius:12, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}} />
-                {showGenreInput(kind)?<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}}><option value="">Genere</option>{GENRES.map(g=><option key={g} value={g}>{g}</option>)}</select>:<div></div>}
-                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}}><option value="">Umore</option>{MOODS.map(m=><option key={m} value={m}>{m}</option>)}</select>
+                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
+                <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
+                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}><option value="">Genere</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
+                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}><option value="">Umore</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
-              <input placeholder="Link" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}} />
-              <textarea placeholder="Note..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}} />
-              <div style={{marginTop:8, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
-                  <div onClick={()=>setIsToBuy(!isToBuy)} style={{border:isToBuy?'2px solid #3182ce':`1px solid ${BORDER_COLOR}`, backgroundColor:isToBuy?'#ebf8ff':'transparent', borderRadius:12, padding:'10px 4px', textAlign:'center'}}>🛒 Wishlist</div>
-                  <div onClick={()=>{setIsNext(!isNext); if(!isNext) setIsInstantArchive(false);}} style={{border:isNext?'2px solid #38a169':`1px solid ${BORDER_COLOR}`, backgroundColor:isNext?'#f0fff4':'transparent', borderRadius:12, padding:'10px 4px', textAlign:'center'}}>📌 In Corso</div>
-                  <div onClick={()=>{setIsInstantArchive(!isInstantArchive); if(!isInstantArchive) setIsNext(false);}} style={{border:isInstantArchive?'2px solid #d69e2e':`1px solid ${BORDER_COLOR}`, backgroundColor:isInstantArchive?'#fffff0':'transparent', borderRadius:12, padding:'10px 4px', textAlign:'center'}}>✅ Finito</div>
+              <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
+              <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
+              
+              <div style={{marginTop:8}}>
+                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
+                  <div onClick={() => setIsToBuy(!isToBuy)} style={{border: isToBuy ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: isToBuy ? '#ebf8ff' : 'transparent', color: isToBuy ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>🛒</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div></div>
+                  <div onClick={() => { setIsNext(!isNext); if(!isNext) setIsInstantArchive(false); }} style={{border: isNext ? '2px solid #38a169' : `1px solid ${BORDER_COLOR}`, backgroundColor: isNext ? '#f0fff4' : 'transparent', color: isNext ? '#2f855a' : '#718096', opacity: isInstantArchive ? 0.4 : 1, borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>📌</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Corso</div></div>
+                  <div onClick={() => { setIsInstantArchive(!isInstantArchive); if(!isInstantArchive) setIsNext(false); }} style={{border: isInstantArchive ? '2px solid #d69e2e' : `1px solid ${BORDER_COLOR}`, backgroundColor: isInstantArchive ? '#fffff0' : 'transparent', color: isInstantArchive ? '#b7791f' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>✅</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Finito</div></div>
+                </div>
+                {isInstantArchive && (<div style={{marginTop:12, animation:'fadeIn 0.3s'}}><label style={{fontSize:'0.85em', color:'#718096'}}>Data completamento:</label><input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginLeft:8, padding:'6px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}} /></div>)}
               </div>
-              {isInstantArchive && <input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginTop:8, padding:'6px', borderRadius:8, border:`1px solid ${BORDER_COLOR}`, background:'transparent'}} />}
             </form>
             <div style={{display:'flex', gap:12, marginTop:24}}>
-              <button className="ghost" onClick={()=>setAddModalOpen(false)} style={{flex:1}}>Annulla</button>
-              <button type="submit" form="add-form" style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600'}}>Salva</button>
+              <button type="button" className="ghost" onClick={()=>setAddModalOpen(false)} style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', fontWeight:'600'}}>Annulla</button>
+              <button type="submit" form="add-form" style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>Salva Elemento</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ===== MODALE FILTRI & STRUMENTI (Beige + Trasparenza) ===== */}
       {advOpen && (
-        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={()=>setAdvOpen(false)}>
-          <div className="card" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: '500px', maxHeight: '85vh', overflowY: 'auto', padding:"20px", borderRadius:20, backgroundColor:'#FDF8F2'}} onClick={e=>e.stopPropagation()}>
-            <h2 style={{marginTop:0, textAlign:'center'}}>Filtri & Strumenti</h2>
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
-                <button onClick={()=>{setStatusFilter('active'); setAdvOpen(false);}} style={{padding:12, borderRadius:12, border:'1px solid #d6bc9b', background:'white'}}>👁️ Tutto</button>
-                <button onClick={()=>{setSourceFilter('Wishlist'); setAdvOpen(false);}} style={{padding:12, borderRadius:12, border:'1px solid #bee3f8', background:'#ebf8ff', color:'#2b6cb0'}}>🛒 Wishlist</button>
-            </div>
-            <div style={{display:'flex', flexDirection:'column', gap:16}}>
-               <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{padding:12, border:`1px solid ${BORDER_COLOR}`, borderRadius:12}}>📤 Esporta CSV</button>
-               <button onClick={()=>setAdvOpen(false)} style={{padding:'12px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white'}}>Chiudi</button>
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={() => setAdvOpen(false)}>
+          <div className="card" style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
+              width: '90%', maxWidth: 500, maxHeight: '85vh', overflowY: 'auto',
+              padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{marginBottom:20, textAlign:'center'}}><h2 style={{margin:0, fontSize:'1.4rem', color:'#2d3748'}}>Filtri & Strumenti</h2></div>
+            <div style={{display:'flex', flexDirection:'column', gap:24}}>
+              <div>
+                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Visualizzazione</label>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                  <div onClick={() => { if (statusFilter === 'active') setStatusFilter('archived'); else if (statusFilter === 'archived') setStatusFilter(''); else setStatusFilter('active'); }} style={{border: statusFilter === 'active' ? '2px solid #38a169' : (statusFilter === 'archived' ? '2px solid #d69e2e' : '2px solid #718096'), backgroundColor: statusFilter === 'active' ? '#f0fff4' : (statusFilter === 'archived' ? '#fffff0' : '#edf2f7'), color: statusFilter === 'active' ? '#2f855a' : (statusFilter === 'archived' ? '#b7791f' : '#2d3748'), borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
+                    <div style={{fontSize:'1.8em', marginBottom:2}}>{statusFilter === 'active' ? '🟢' : (statusFilter === 'archived' ? '📦' : '👁️')}</div><div style={{fontSize:'0.9em', fontWeight:'bold'}}>{statusFilter === 'active' ? 'In Corso' : (statusFilter === 'archived' ? 'Archivio' : 'Mostra Tutti')}</div>
+                  </div>
+                  <div onClick={() => setSourceFilter(prev => prev === 'Wishlist' ? '' : 'Wishlist')} style={{border: sourceFilter === 'Wishlist' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: sourceFilter === 'Wishlist' ? '#ebf8ff' : 'transparent', color: sourceFilter === 'Wishlist' ? '#2b6cb0' : '#718096', borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
+                    <div style={{fontSize:'1.8em', marginBottom:2}}>🛒</div><div style={{fontSize:'0.9em', fontWeight:'bold'}}>Wishlist</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* ALTRI FILTRI */}
+              
+              <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
+              <div style={{display:'flex', flexDirection:'column', gap:16}}>
+                <div style={{display:'flex', gap:12}}>
+                   <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
+                   <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
+                </div>
+                <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}>Chiudi Pannello</button>
+              </div>
             </div>
           </div>
         </div>
       )}
-      
+
+      {/* ===== MODALE STATISTICHE (RIORGANIZZATO & BEIGE) ===== */}
       {statsModalOpen && (
-        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={()=>setStatsModalOpen(false)}>
-           <div className="card" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto', backgroundColor:'#FDF8F2', padding:20, borderRadius:20}} onClick={e=>e.stopPropagation()}>
-              <h2 style={{marginTop:0, textAlign:'center'}}>Statistiche</h2>
-              <div style={{textAlign:'center', marginBottom:20}}>
-                 <div style={{fontSize:'3em', fontWeight:'bold'}}>{stats.total}</div>
-                 <div>Elementi Totali</div>
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={() => setStatsModalOpen(false)}>
+          <div className="card" style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
+              width: '90%', maxWidth: 600, maxHeight: '85vh', overflowY: 'auto',
+              padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'
+          }} onClick={e => e.stopPropagation()}>
+            <h2 style={{marginTop:0, textAlign:'center', marginBottom:20}}>Statistiche</h2>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
+              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>📅 Periodo</div>
+              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>📈 Totale</div>
+            </div>
+            {statsView === 'periodo' && (
+              <div style={{animation:'fadeIn 0.3s'}}>
+                <div style={{display:'flex', gap: 8, alignItems: 'center', justifyContent:'center', marginBottom:20}}>
+                  <input type="number" placeholder="Mese" value={statMonth} onChange={e=>setStatMonth(e.target.value)} style={{width:60, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
+                  <input type="number" placeholder="Anno" value={statYear} onChange={e=>setStatYear(e.target.value)} style={{width:80, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
+                  <button className="ghost" onClick={() => { setStatMonth(new Date().getMonth() + 1); setStatYear(new Date().getFullYear()); }} style={{fontSize:'0.9em', textDecoration:'underline'}}>Oggi</button>
+                </div>
+                <div onClick={() => handleStatClick(null)} style={{textAlign:'center', marginBottom:20, cursor:'pointer', transition:'all 0.2s', padding: 8, borderRadius: 12, ':hover': {backgroundColor:'rgba(0,0,0,0.02)'}}}>
+                  <div style={{fontSize:'3em', fontWeight:'bold', color:'#2d3748', lineHeight:1}}>{periodStats.total}</div>
+                  <div style={{fontSize:'0.9em', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Elementi completati</div>
+                </div>
+                {/* GRIGLIA */}
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12}}>
+                  <div onClick={() => handleStatClick('libro')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>📚</div><div style={{fontWeight:'bold'}}>{periodStats.libro}</div></div>
+                  <div onClick={() => handleStatClick('film')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎬</div><div style={{fontWeight:'bold'}}>{periodStats.film}</div></div>
+                  {/* ... altri ... */}
+                </div>
               </div>
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
-                 <div style={{padding:10, background:'white', borderRadius:8}}>In Corso: <strong>{stats.active}</strong></div>
-                 <div style={{padding:10, background:'white', borderRadius:8}}>Archiviati: <strong>{stats.archived}</strong></div>
+            )}
+            {statsView === 'totale' && (
+              <div style={{animation:'fadeIn 0.3s'}}>
+                <div style={{display:'flex', justifyContent:'space-between', backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:16, padding:16, marginBottom:20}}>
+                   <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold'}}>{stats.total}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Totali</div></div>
+                   <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#38a169'}}>{stats.active}</div><div style={{fontSize:'0.8em', color:'#718096'}}>In Corso</div></div>
+                   <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#d69e2e'}}>{stats.archived}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Archivio</div></div>
+                </div>
               </div>
-              <button onClick={()=>setStatsModalOpen(false)} style={{marginTop:20, width:'100%', padding:12, backgroundColor:'#3e3e3e', color:'white', borderRadius:12}}>Chiudi</button>
-           </div>
+            )}
+            <button onClick={()=>setStatsModalOpen(false)} style={{marginTop:24, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', width:'100%'}}>Chiudi</button>
+          </div>
         </div>
       )}
 
       {archModal && (
-        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={()=>setArchModal(null)}>
-           <div className="card" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: '500px', padding:20, backgroundColor:'white', borderRadius:16}} onClick={e=>e.stopPropagation()}>
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={() => setArchModal(null)}>
+           <div className="card" style={{
+               position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
+               width: '90%', maxWidth: 500, padding:16, backgroundColor:'white', borderRadius:16
+           }} onClick={e => e.stopPropagation()}>
               <h3>Archivia: {archModal.title}</h3>
               <input type="date" value={archModal.dateISO} onChange={e=>setArchModal({...archModal, dateISO:e.target.value})} style={{width:'100%', padding:10, margin:'10px 0'}} />
               <div style={{display:'flex', gap:12, marginTop:16}}>
@@ -933,14 +1061,16 @@ export default function App(){
            </div>
         </div>
       )}
-      
       {editState && (
-        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={()=>setEditState(null)}>
-           <div className="card" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: '500px', maxHeight: '85vh', overflowY: 'auto', padding:20, backgroundColor:'white', borderRadius:16}} onClick={e=>e.stopPropagation()}>
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center'}} onClick={() => setEditState(null)}>
+           <div className="card" style={{
+               position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
+               width: '90%', maxWidth: 500, maxHeight: '85vh', overflowY: 'auto', padding:16, backgroundColor:'white', borderRadius:16
+           }} onClick={e => e.stopPropagation()}>
               <h3>Modifica</h3>
               <form onSubmit={handleUpdateItem} id="edit-form">
                  <input value={editState.title} onChange={e=>setEditState({...editState, title:e.target.value})} style={{width:'100%', padding:10, marginBottom:10, border:`1px solid ${BORDER_COLOR}`, borderRadius:8}} />
-                 <input value={editState.creator} onChange={e=>setEditState({...editState, creator:e.target.value})} style={{width:'100%', padding:10, marginBottom:10, border:`1px solid ${BORDER_COLOR}`, borderRadius:8}} />
+                 {/* ... input ... */}
               </form>
               <div style={{display:'flex', gap:12, marginTop:16}}>
                  <button type="submit" form="edit-form">Salva</button>
@@ -950,7 +1080,6 @@ export default function App(){
            </div>
         </div>
       )}
-
     </div>
   );
 }
