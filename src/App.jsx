@@ -502,27 +502,27 @@ export default function App(){
   }, [items, showToast]);
 
   const toggleFocus = useCallback(async (it) => {
-    const newVal = !it.is_next;
-    const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
-    if (!error) { 
-      setItems(prev => prev.map(x => x.id === it.id ? {...x, is_next: newVal} : x));
-      fetchPinnedItems(); 
-      showToast(newVal ? "Aggiunto ai Focus 📌" : "Focus rimosso");
-    }
-  }, [fetchPinnedItems, showToast]);
+  if (!it.is_next) {
+    // Regole Zen
+    if (pinnedItems.length >= 3) { showToast("🧠 Sovraccarico! Max 3.", "error"); return; }
+    const hasRelax = pinnedItems.some(p => p.mood === 'Relax');
+    const hasFocus = pinnedItems.some(p => p.mood === 'Focus');
+    if (it.mood === 'Relax' && hasRelax) { showToast("✋ Hai già un 'Relax'.", "error"); return; }
+    if (it.mood === 'Focus' && hasFocus) { showToast("✋ Hai già un 'Focus'.", "error"); return; }
+  }
+  
+  // Conferma se stai smettendo
+  if (it.is_next && !window.confirm(`Metti in pausa "${it.title}"?`)) return;
 
-  const markAsPurchased = useCallback(async (it) => {
-    const srcs = new Set([...(it.sourcesArr||[])]);
-    srcs.delete("Wishlist"); 
-    srcs.delete("da comprare"); 
-    const newSourceStr = joinSources(Array.from(srcs));
-    const { error } = await supabase.from("items").update({ source: newSourceStr }).eq("id", it.id);
-    if (!error) { 
-        setItems(prev => prev.map(x => x.id === it.id ? {...x, sourcesArr: parseSources(newSourceStr)} : x));
-        fetchStats(); 
-        showToast("Rimosso dalla Wishlist 🛒", "success");
-    }
-  }, [fetchStats, showToast]);
+  const newVal = !it.is_next;
+  const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
+  if (!error) { 
+    setItems(prev => prev.map(x => x.id === it.id ? {...x, is_next: newVal} : x));
+    // Richiama fetchPinnedItems per aggiornare subito i contatori
+    fetchPinnedItems(); 
+    showToast(newVal ? "Iniziato! 🔥" : "In Pausa");
+  }
+}, [pinnedItems, fetchPinnedItems, showToast]);
 
   const openArchiveModal = useCallback((it) => {
     setArchModal({
