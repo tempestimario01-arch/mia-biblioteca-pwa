@@ -283,7 +283,7 @@ export default function App(){
   const [items,setItems] = useState([]);
   const [pinnedItems, setPinnedItems] = useState([]); 
   const [loading,setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState([]); 
+  const [suggestions, setSuggestions] = useState([]); // <--- QUESTO È L'UNICO E IL SOLO
   const [isSaving, setIsSaving] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
   const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
@@ -392,15 +392,24 @@ export default function App(){
       .order("created_at", { ascending:false })
       .limit(500); 
 
-    // LOGICA RICERCA INTELLIGENTE
+    // LOGICA RICERCA POTENZIATA (Multi-Tag + Testo Misto)
     if (q) {
-      // Se la ricerca inizia con un Hashtag (#)...
-      if (q.startsWith('#')) {
-         // ...cerca ANCHE nelle note (così trovi i tuoi tag)
-         query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%,note.ilike.%${q}%`);
-      } else {
-         // ...altrimenti cerca SOLO in Titolo e Autore (ricerca pulita)
-        query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`);}}
+      // 1. Estrai tutti i tag (parole che iniziano con #)
+      const tagsFound = q.match(/#[a-z0-9_àèìòù]+/gi) || [];
+      
+      // 2. Pulisci la ricerca togliendo i tag per lasciare solo il testo
+      const cleanText = q.replace(/#[a-z0-9_àèìòù]+/gi, '').trim();
+
+      // 3. APPLICA I FILTRI TAG (Logica AND: deve averli TUTTI)
+      tagsFound.forEach(tag => {
+         query = query.ilike('note', `%${tag}%`);
+      });
+
+      // 4. APPLICA IL FILTRO TESTUALE (Se c'è testo)
+      if (cleanText) {
+         query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`);
+      }
+    }
     if (statusFilter) { query = query.eq('status', statusFilter); }
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
@@ -517,18 +526,19 @@ export default function App(){
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const val = qInput.trim();
-      setQ(val);
-      if (val.length > 0) {
-        setStatusFilter("");
-      } else {
-        setStatusFilter("active");
-      }
-    }, 250);
-    return () => clearTimeout(t);
-  }, [qInput]);
+  // AGGIUNTO IL COMMENTO PERCHÈ QUESTO BLOCCO È STATO INTEGRATO NELLA LOGICA DI RICERCA
+  // useEffect(() => {
+  //   const t = setTimeout(() => {
+  //     const val = qInput.trim();
+  //     setQ(val);
+  //     if (val.length > 0) {
+  //       setStatusFilter("");
+  //     } else {
+  //       setStatusFilter("active");
+  //     }
+  //   }, 250);
+  //   return () => clearTimeout(t);
+  // }, [qInput]);
 
   const isSearchActive = useMemo(() => {
     const isStatusChanged = statusFilter !== 'active';
@@ -685,7 +695,7 @@ export default function App(){
   }, []);
   const openEditModal = useCallback((it) => {
     setEditState({
-      id: it.id, title: it.title, creator: it.creator, type: it.kind,       
+      id: it.id, title: it.title, creator: it.creator, type: it.kind,        
       genre: it.genre || '', year: it.year || '', mood: it.mood || '', 
       video_url: it.video_url || '', note: it.note || '', 
       is_next: it.is_next || false, source: joinSources(it.sourcesArr)
@@ -817,6 +827,8 @@ export default function App(){
   useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); 
   useEffect(() => { if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]);
   useEffect(() => { if (statsModalOpen) { fetchPeriodStats(); } }, [statsModalOpen, statMonth, statYear, fetchPeriodStats]);
+  
+  // Memory Lane
   useEffect(() => {
     const fetchMemory = async () => {
       const { data } = await supabase.from('items').select('title, ended_on, author').not('ended_on', 'is', null);
@@ -828,33 +840,65 @@ export default function App(){
       }
     }; fetchMemory();
   }, []);
-  /* --- LOGICA SUGGERIMENTI ZEN --- */
+
+  /* --- AUTOCOMPLETE GHOST (Versatile & Ordinato) --- */
   useEffect(() => {
     const val = qInput ? qInput.trim() : "";
+    
+    // Serve almeno 2 caratteri
     if (val.length < 2) {
-      setSuggestions([]); // Pulisci se scrivi poco
+      setSuggestions([]); 
       return;
     }
 
     const fetchSuggestions = async () => {
       let query = supabase
         .from('items')
-        .select('id, title, author, type, note') 
-        .limit(5); // Solo 5 pillole per non affollare
+        .select('title, author, note') 
+        .limit(50); // Scarica un campione ampio per trovare concetti unici
 
-      if (val.startsWith('#')) {
-        query = query.ilike('note', `%${val}%`);
+      const isHashtag = val.startsWith('#');
+      const searchStr = val.toLowerCase();
+
+      if (isHashtag) {
+        query = query.ilike('note', `%${val}%`); // Cerca solo nelle note
       } else {
         query = query.or(`title.ilike.%${val}%,author.ilike.%${val}%`);
       }
 
       const { data, error } = await query;
+
       if (!error && data) {
-        setSuggestions(data.map(row => ({
-          id: row.id,
-          mainText: row.title,
-          kind: normType(row.type)
-        })));
+        const uniqueSet = new Set();
+
+        data.forEach(row => {
+          if (isHashtag) {
+            // ESTRAZIONE TAG
+            if (row.note) {
+               const tags = row.note.match(/#[a-z0-9_àèìòù]+/gi); 
+               if (tags) {
+                 tags.forEach(t => {
+                   if (t.toLowerCase().includes(searchStr)) uniqueSet.add(t);
+                 });
+               }
+            }
+          } else {
+            // ESTRAZIONE AUTORE E TITOLO
+            if (row.author && row.author.toLowerCase().includes(searchStr)) uniqueSet.add(row.author);
+            if (row.title && row.title.toLowerCase().includes(searchStr)) uniqueSet.add(row.title);
+          }
+        });
+
+        // ORDINAMENTO SMART: Prima chi inizia con la parola, poi per lunghezza
+        const sorted = Array.from(uniqueSet).sort((a, b) => {
+            const aStarts = a.toLowerCase().startsWith(searchStr);
+            const bStarts = b.toLowerCase().startsWith(searchStr);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return a.length - b.length;
+        }).slice(0, 6); // Max 6 risultati per pulizia
+
+        setSuggestions(sorted);
       }
     };
 
@@ -870,20 +914,20 @@ export default function App(){
       
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
       
-      {/* ===== BARRA DI RICERCA ZEN CON CHIPS INTEGRATE ===== */}
+      {/* ===== BARRA DI RICERCA ZEN (GHOST MODE) ===== */}
       <section className="card" style={{
           marginBottom: 0, 
           padding: "8px 12px", 
           display:'flex', 
-          flexDirection: 'column', // <--- CAMBIAMENTO: Disposizione a colonna
-          gap: suggestions.length > 0 ? 8 : 0, // Spazio dinamico solo se ci sono chips
+          flexDirection: 'column', 
+          gap: suggestions.length > 0 ? 4 : 0, 
           backgroundColor:'#FFF9F0', 
           borderRadius: 16, 
           boxShadow:'0 1px 3px rgba(0,0,0,0.05)',
-          transition: 'all 0.3s ease' // Animazione fluida quando si apre
+          transition: 'all 0.3s ease'
       }}>
         
-        {/* RIGA SUPERIORE: INPUT E TASTI */}
+        {/* INPUT E TASTI */}
         <div style={{display:'flex', alignItems:'center', gap:8, width:'100%'}}>
           <span style={{opacity:0.4, fontSize:'1.1em'}}>🔍</span>
           <input 
@@ -891,63 +935,72 @@ export default function App(){
             placeholder="Cerca..." 
             value={qInput} 
             onChange={e=>setQInput(e.target.value)} 
+            // TASTO INVIO PER CERCARE
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                    setQ(qInput.trim()); 
+                    setSuggestions([]); 
+                    setStatusFilter(""); 
+                    e.target.blur();
+                }
+            }}
           />
           
           {qInput && (
             <button 
-              onClick={() => { setQInput(""); setStatusFilter("active"); setSuggestions([]); }} 
+              onClick={() => { setQInput(""); setQ(""); setStatusFilter("active"); setSuggestions([]); }} 
               style={{background:'transparent', border:'none', fontSize:'1.1em', color:'#718096', cursor:'pointer', padding:'0 8px'}}
             >
               ✖
             </button>
           )}
 
-          <div style={{height: 20, width: 1, backgroundColor: '#e2e8f0', margin: '0 4px'}}></div> {/* Separatore Sottile */}
+          <div style={{height: 20, width: 1, backgroundColor: '#e2e8f0', margin: '0 4px'}}></div>
 
           <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
           <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
         </div>
 
-        {/* RIGA INFERIORE: CHIPS SCORREVOLI (Appaiono solo se serve) */}
+        {/* SUGGERIMENTI GHOST TEXT (Testo fluttuante) */}
         {suggestions.length > 0 && (
           <div style={{
             display: 'flex',
-            gap: 8,
-            overflowX: 'auto', // Scorrimento orizzontale
-            paddingBottom: 4, // Spazio per non tagliare ombre o bordi
-            scrollbarWidth: 'none', // Nascondi scrollbar (Firefox)
-            msOverflowStyle: 'none', // Nascondi scrollbar (IE/Edge)
-            animation: 'fadeIn 0.3s'
+            gap: 16, 
+            overflowX: 'auto',
+            paddingTop: 4, 
+            paddingBottom: 8,
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            animation: 'fadeIn 0.4s'
           }}>
-            {/* Nascondi scrollbar (Chrome/Safari) */}
             <style>{`div::-webkit-scrollbar { display: none; }`}</style>
             
-            {suggestions.map(s => (
+            {suggestions.map((text, idx) => (
               <button
-                key={s.id}
+                key={idx}
                 onClick={() => {
-                   setQInput(s.mainText); 
-                   setSuggestions([]); // Chiude i suggerimenti dopo il click
+                   setQInput(text);      
+                   setQ(text);           
+                   setSuggestions([]);   
+                   setStatusFilter(""); 
                 }}
                 style={{
-                  flexShrink: 0, 
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '4px 10px',
-                  borderRadius: 12, 
-                  // STILE MINIMALE:
-                  border: `1px solid rgba(214, 188, 155, 0.5)`, // Bordo color oro/sabbia leggero
-                  backgroundColor: 'rgba(255, 255, 255, 0.5)', // Semitrasparente
-                  color: '#4a5568',
-                  fontSize: '0.85rem',
+                  flexShrink: 0,
+                  background: 'transparent',
+                  border: 'none',       // NESSUN BORDO
+                  padding: '2px 0',     // NIENTE SFONDO
+                  fontSize: '1rem',
+                  fontFamily: 'inherit',
+                  fontStyle: 'italic',  // CORSIVO
+                  color: '#a0aec0',     // GRIGIO FANTASMA
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap'
+                  transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center', gap: 4
                 }}
+                onMouseOver={(e) => e.currentTarget.style.color = '#2d3748'} // Diventa scuro al passaggio
+                onMouseOut={(e) => e.currentTarget.style.color = '#a0aec0'}
               >
-                <span style={{fontSize:'1em'}}>{TYPE_ICONS[s.kind]}</span>
-                {/* Tronca il testo se troppo lungo per mantenere eleganza */}
-                <span style={{fontWeight: 500, maxWidth: 200, overflow:'hidden', textOverflow:'ellipsis'}}>
-                  {s.mainText}
-                </span>
+                <span style={{opacity:0.5, fontSize:'0.8em'}}>↳</span> {text}
               </button>
             ))}
           </div>
@@ -1199,8 +1252,8 @@ export default function App(){
                   <div style={{display:'flex', gap:8, alignItems:'center'}}>
                     <span style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>INDICE:</span>
                     <div style={{display:'flex', backgroundColor:'#edf2f7', borderRadius:8, padding:2}}>
-                       <button onClick={()=>setLetterMode('author')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='author' ? 'white' : 'transparent', color: letterMode==='author' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='author' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='author'?'bold':'normal', cursor:'pointer'}}>Autore</button>
-                       <button onClick={()=>setLetterMode('title')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='title' ? 'white' : 'transparent', color: letterMode==='title' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='title' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='title'?'bold':'normal', cursor:'pointer'}}>Titolo</button>
+                        <button onClick={()=>setLetterMode('author')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='author' ? 'white' : 'transparent', color: letterMode==='author' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='author' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='author'?'bold':'normal', cursor:'pointer'}}>Autore</button>
+                        <button onClick={()=>setLetterMode('title')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='title' ? 'white' : 'transparent', color: letterMode==='title' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='title' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='title'?'bold':'normal', cursor:'pointer'}}>Titolo</button>
                     </div>
                   </div>
                   {letterFilter && <button className="ghost" onClick={()=>setLetterFilter("")} style={{fontSize:'0.8em', color:'#e53e3e', padding:'2px 6px'}}>Cancella</button>}
@@ -1212,8 +1265,8 @@ export default function App(){
             <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
             <div style={{display:'flex', flexDirection:'column', gap:16}}>
               <div style={{display:'flex', gap:12}}>
-                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
-                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
+                  <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
+                  <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
               </div>
               <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}>Chiudi Pannello</button>
             </div>
@@ -1532,8 +1585,8 @@ export default function App(){
 
               {/* SEZIONE STATO */}
               <div style={{marginTop:8}}>
-                 <div style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', textTransform:'uppercase', letterSpacing:'0.05em', textAlign:'center', marginBottom:8}}>IMPOSTA STATO:</div>
-                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                  <div style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', textTransform:'uppercase', letterSpacing:'0.05em', textAlign:'center', marginBottom:8}}>IMPOSTA STATO:</div>
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                     <div 
                         onClick={() => { 
                             const currentArr = parseSources(editState.source);
