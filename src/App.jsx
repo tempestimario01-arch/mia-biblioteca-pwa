@@ -101,6 +101,39 @@ const ToastContainer = ({ toasts }) => {
   );
 };
 
+// La barra sottile e minimalista
+const ZenBar = ({ active }) => {
+  if (!active) return null;
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '3px', // Sottilissima
+      backgroundColor: 'transparent', // Sfondo invisibile
+      zIndex: 99999, // Sopra a tutto, anche ai modali
+      pointerEvents: 'none'
+    }}>
+      <div style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#d6bc9b', // COLORE SABBIA/ORO DEL TUO TEMA
+        animation: 'zenFlow 1.5s infinite ease-in-out',
+        transformOrigin: '0% 50%'
+      }} />
+      <style>{`
+        @keyframes zenFlow {
+          0% { transform: translateX(-100%); }
+          50% { transform: translateX(-20%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
 // LIBRARY ITEM (Card ottimizzata con React.memo)
 const LibraryItem = memo(({ 
   it, 
@@ -200,6 +233,7 @@ export default function App(){
   const [items,setItems] = useState([]);
   const [pinnedItems, setPinnedItems] = useState([]); 
   const [loading,setLoading] = useState(false); 
+  const [isSaving, setIsSaving] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
   const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
 
@@ -453,32 +487,52 @@ export default function App(){
   }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
   const addItem = useCallback(async (e) => {
-    e.preventDefault();
-    if(!title.trim()) return;
-    const finalStatus = isInstantArchive ? "archived" : "active";
-    const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
-    const finalIsNext = isInstantArchive ? false : isNext;
-    const finalSource = isToBuy ? "Wishlist" : "";
+  e.preventDefault();
+  if(!title.trim()) return;
 
-    const payload = {
-      title, author: creator, type: kind, status: finalStatus,
-      genre: showGenreInput(kind) ? canonGenere(genre) : null, 
-      year: year ? Number(year) : null,
-      source: finalSource, 
-      mood: mood || null, video_url: videoUrl || null, 
-      note: note || null, 
-      is_next: finalIsNext, ended_on: finalEndedOn
-    };
-    const { error } = await supabase.from("items").insert(payload);
-    if(!error){
-      setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
-      setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); 
-      setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false); 
-      setAddModalOpen(false); 
-      showToast("Elemento aggiunto con successo!", "success");
-      if (isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
-    } else { showToast("Errore salvataggio: " + (error?.message), "error"); }
-  }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
+  // 1. Snapshot dei dati attuali
+  const finalStatus = isInstantArchive ? "archived" : "active";
+  const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
+  const finalIsNext = isInstantArchive ? false : isNext;
+  const finalSource = isToBuy ? "Wishlist" : "";
+  
+  const payload = {
+    title, author: creator, type: kind, status: finalStatus,
+    genre: showGenreInput(kind) ? canonGenere(genre) : null, 
+    year: year ? Number(year) : null,
+    source: finalSource, 
+    mood: mood || null, video_url: videoUrl || null, 
+    note: note || null, 
+    is_next: finalIsNext, ended_on: finalEndedOn
+  };
+
+  // 2. CHIUSURA ISTANTANEA & RESET FORM
+  setAddModalOpen(false);
+  setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
+  setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); 
+  setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false);
+
+  // 3. ATTIVAZIONE ZEN BAR
+  setIsSaving(true);
+
+  // 4. CHIAMATA SUPABASE
+  const { error } = await supabase.from("items").insert(payload);
+
+  // 5. FINE
+  setIsSaving(false);
+
+  if(!error){
+    showToast("Elemento aggiunto con successo!", "success");
+    if (isSearchActive) fetchItems(); 
+    fetchStats(); 
+    fetchPinnedItems();
+  } else { 
+    showToast("Errore salvataggio: " + (error?.message), "error"); 
+    // Nota: I dati del form sono persi perché l'abbiamo resettato. 
+    // Se vuoi essere ultra-sicuro, resetta il form SOLO se !error, 
+    // ma per un'app personale questo va benissimo.
+  }
+}, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
@@ -512,13 +566,30 @@ export default function App(){
   }, []);
   
   const saveArchiveFromModal = useCallback(async (m) => {
-    await supabase.from("items").update({ status: "archived", ended_on: m.dateISO, source: joinSources(m.sourcesArr), is_next: false }).eq("id", m.id);
-    setArchModal(null);
+  // 1. CHIUDI SUBITO
+  setArchModal(null);
+  
+  // 2. ZEN BAR ON
+  setIsSaving(true);
+
+  // 3. AGGIORNA
+  const { error } = await supabase.from("items")
+    .update({ status: "archived", ended_on: m.dateISO, source: joinSources(m.sourcesArr), is_next: false })
+    .eq("id", m.id);
+
+  // 4. ZEN BAR OFF
+  setIsSaving(false);
+
+  if (!error) {
     showToast("Archiviato con successo! 📦", "success");
+    // Aggiornamento ottimistico o fetch
     if(isSearchActive) fetchItems(); fetchStats(); fetchPinnedItems();
     if(statsModalOpen) fetchPeriodStats(); 
-  }, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems, showToast]);
-  
+  } else {
+    showToast("Errore: " + error.message, "error");
+  }
+}, [isSearchActive, statsModalOpen, fetchItems, fetchStats, fetchPeriodStats, fetchPinnedItems, showToast]);
+
   const unarchive = useCallback(async (it) => {
     await supabase.from("items").update({ status: "active", ended_on: null }).eq("id", it.id);
     showToast("Elemento ripristinato! ↩️", "success");
@@ -571,26 +642,47 @@ export default function App(){
   }, []);
   
   const handleUpdateItem = useCallback(async (e) => {
-    e.preventDefault();
-    if (!editState || !editState.title.trim()) return;
-    const payload = {
-      title: editState.title, author: editState.creator, type: editState.type,
-      genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
-      year: editState.year ? Number(editState.year) : null, mood: editState.mood || null, 
-      video_url: editState.video_url || null, note: editState.note || null,
-      is_next: editState.is_next, source: editState.source 
-    };
-    const { error } = await supabase.from("items").update(payload).eq('id', editState.id);
-    if (!error) {
-      setItems(prevItems => prevItems.map(it => {
-        if (it.id === editState.id) {
-          return { ...it, ...payload, creator: payload.author, kind: payload.type, sourcesArr: parseSources(payload.source) };
-        } return it;
-      }));
-      setEditState(null); fetchPinnedItems(); 
-      showToast("Modifiche salvate! 💾", "success");
-    } else { showToast("Errore aggiornamento: " + error.message, "error"); }
-  }, [editState, fetchPinnedItems, showToast]);
+  e.preventDefault();
+  if (!editState || !editState.title.trim()) return;
+
+  // 1. PREPARIAMO I DATI
+  const payload = {
+    title: editState.title, author: editState.creator, type: editState.type,
+    genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
+    year: editState.year ? Number(editState.year) : null, mood: editState.mood || null, 
+    video_url: editState.video_url || null, note: editState.note || null,
+    is_next: editState.is_next, source: editState.source 
+  };
+  
+  const idToUpdate = editState.id; // Salviamo l'ID perché stiamo per chiudere il modale
+
+  // 2. CHIUDIAMO SUBITO IL MODALE (Percezione istantanea)
+  setEditState(null); 
+  
+  // 3. ATTIVIAMO LA ZEN BAR (Il feedback "sto pensando")
+  setIsSaving(true);
+
+  // 4. ESEGUIAMO IL SALVATAGGIO REALE (In background)
+  const { error } = await supabase.from("items").update(payload).eq('id', idToUpdate);
+
+  // 5. FINITO: SPEGNI BARRA E MOSTRA TOAST
+  setIsSaving(false);
+
+  if (!error) {
+    // Aggiorniamo la lista locale
+    setItems(prevItems => prevItems.map(it => {
+      if (it.id === idToUpdate) {
+        return { ...it, ...payload, creator: payload.author, kind: payload.type, sourcesArr: parseSources(payload.source) };
+      } return it;
+    }));
+    fetchPinnedItems(); 
+    showToast("Modifiche salvate! 💾", "success"); // <-- Il toast arriva qui
+  } else { 
+    // Se c'è un errore, dobbiamo riaprire il modale o avvisare
+    showToast("Errore aggiornamento: " + error.message, "error"); 
+    // Opzionale: potresti riaprire il modale qui se vuoi
+  }
+}, [editState, fetchPinnedItems, showToast]);
 
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
@@ -635,31 +727,31 @@ export default function App(){
   // Funzione "Sì, lo tengo" (Spolvera)
   // Aggiorna la data di creazione ad OGGI, riportandolo in cima alla lista.
   const confirmKeep = useCallback(async () => {
-    if(!cleanupItem) return;
-    
-    const now = new Date().toISOString();
-    
-    // Aggiorniamo Supabase
-    const { error } = await supabase
-      .from('items')
-      .update({ created_at: now }) 
-      .eq('id', cleanupItem.id);
+  if(!cleanupItem) return;
+  const id = cleanupItem.id;
 
-    if (!error) {
-      // Aggiorniamo lo stato locale:
-      // 1. Aggiorniamo la data dell'elemento
-      // 2. Riordiniamo la lista per portarlo in cima (visto che è "nuovo")
-      setItems(prev => {
-        const updatedList = prev.map(x => x.id === cleanupItem.id ? {...x, created_at: now} : x);
-        return updatedList.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      });
-      
-      setCleanupItem(null); // Chiude la modale
-      showToast("Elemento spolverato! È tornato in cima alla pila ✨", "success");
-    } else {
-      showToast("Errore: " + error.message, "error");
-    }
-  }, [cleanupItem, showToast]);
+  // 1. VIA LA MODALE
+  setCleanupItem(null);
+  
+  // 2. BARRA
+  setIsSaving(true);
+  
+  const now = new Date().toISOString();
+  const { error } = await supabase.from('items').update({ created_at: now }).eq('id', id);
+
+  setIsSaving(false);
+
+  if (!error) {
+    // Aggiornamento lista locale...
+    setItems(prev => {
+      const updatedList = prev.map(x => x.id === id ? {...x, created_at: now} : x);
+      return updatedList.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    });
+    showToast("Elemento spolverato e riconfermato! ✨", "success");
+  } else {
+    showToast("Errore: " + error.message, "error");
+  }
+}, [cleanupItem, showToast]);
 
   // (Opzionale) Modifica confirmDeleteCleanup per chiudere la modale se non l'hai già fatto
   // Assicurati che la tua 'confirmDeleteCleanup' esistente chiami setCleanupItem(null) alla fine.
@@ -689,6 +781,7 @@ export default function App(){
   /* --- 6. RENDER (JSX) --- */
   return (
     <div className="app">
+      <ZenBar active={isSaving} /> 
       <ToastContainer toasts={toasts} />
       
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
