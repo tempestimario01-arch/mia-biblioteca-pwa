@@ -628,6 +628,42 @@ export default function App(){
     setCleanupItem(null);
   };
   
+  /* =========================================
+     NUOVA LOGICA: RITUALE DELLA POLVERE
+     ========================================= */
+
+  // Funzione "Sì, lo tengo" (Spolvera)
+  // Aggiorna la data di creazione ad OGGI, riportandolo in cima alla lista.
+  const confirmKeep = useCallback(async () => {
+    if(!cleanupItem) return;
+    
+    const now = new Date().toISOString();
+    
+    // Aggiorniamo Supabase
+    const { error } = await supabase
+      .from('items')
+      .update({ created_at: now }) 
+      .eq('id', cleanupItem.id);
+
+    if (!error) {
+      // Aggiorniamo lo stato locale:
+      // 1. Aggiorniamo la data dell'elemento
+      // 2. Riordiniamo la lista per portarlo in cima (visto che è "nuovo")
+      setItems(prev => {
+        const updatedList = prev.map(x => x.id === cleanupItem.id ? {...x, created_at: now} : x);
+        return updatedList.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      });
+      
+      setCleanupItem(null); // Chiude la modale
+      showToast("Elemento spolverato! È tornato in cima alla pila ✨", "success");
+    } else {
+      showToast("Errore: " + error.message, "error");
+    }
+  }, [cleanupItem, showToast]);
+
+  // (Opzionale) Modifica confirmDeleteCleanup per chiudere la modale se non l'hai già fatto
+  // Assicurati che la tua 'confirmDeleteCleanup' esistente chiami setCleanupItem(null) alla fine.
+
   // Handler rapido per filtro autore dalla Card
   const handleFilterAuthor = useCallback((authorName) => {
     setQInput(authorName); 
@@ -1045,6 +1081,110 @@ export default function App(){
           </div>
         </div>
       )}
+
+      {/* ===== MODALE PULIZIA ZEN (RITUALE DELLA POLVERE) ===== */}
+      {cleanupItem && (
+        <div className="modal-backdrop" onClick={() => setCleanupItem(null)}>
+          <div 
+            className="card" 
+            style={{
+              maxWidth: 400, 
+              width: "90%", 
+              padding: 24, 
+              textAlign: 'center', 
+              backgroundColor: '#FFF9F0', 
+              borderRadius: 20,
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }} 
+            onClick={e => e.stopPropagation()}
+          >
+            
+            <div style={{fontSize:'3rem', marginBottom:10, filter: 'grayscale(0.5)'}}>💨</div>
+            
+            <h3 style={{marginTop:0, marginBottom: 12, color:'#2d3748', fontSize:'1.4rem'}}>
+              C'è un po' di polvere...
+            </h3>
+            
+            <p style={{color:'#718096', lineHeight:1.6, marginBottom: 20, fontSize: '0.95rem'}}>
+              Hai aggiunto questo elemento molto tempo fa e non l'hai ancora finito. Ha ancora valore per te?
+            </p>
+
+            {/* CARD DELL'ELEMENTO CONTESTUALE */}
+            <div style={{
+               backgroundColor: 'white',
+               border: `1px solid #d6bc9b`, 
+               borderRadius: 12, 
+               padding: '16px', 
+               marginBottom: 24,
+               display: 'flex',
+               flexDirection: 'column',
+               gap: 4,
+               boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+            }}>
+               <div style={{fontWeight: 'bold', fontSize: '1.1rem', color: '#2d3748'}}>
+                 {TYPE_ICONS[cleanupItem.kind]} {cleanupItem.title}
+               </div>
+               <div style={{fontSize: '0.9rem', color: '#718096'}}>
+                 {cleanupItem.creator} • {cleanupItem.year || 'Anno N/A'}
+               </div>
+               {cleanupItem.note && (
+                 <div style={{fontSize: '0.85rem', color: '#a0aec0', fontStyle: 'italic', marginTop: 4}}>
+                   "{cleanupItem.note}"
+                 </div>
+               )}
+            </div>
+
+            {/* AZIONI ZEN */}
+            <div style={{display:'flex', gap:12}}>
+              {/* OPZIONE 1: BUTTARE */}
+              <button 
+                className="ghost"
+                onClick={confirmDeleteCleanup} 
+                style={{
+                  flex:1, 
+                  padding:'12px', 
+                  border:'1px solid #feb2b2', 
+                  backgroundColor: '#fff5f5',
+                  color:'#c53030', 
+                  borderRadius:12,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                No, elimina 🗑️
+              </button>
+
+              {/* OPZIONE 2: TENERE (Riconferma) */}
+              <button 
+                onClick={confirmKeep} 
+                style={{
+                  flex:1, 
+                  padding:'12px', 
+                  backgroundColor:'#38a169', 
+                  color:'white', 
+                  borderRadius:12, 
+                  border:'none', 
+                  fontWeight: 600,
+                  boxShadow:'0 4px 6px rgba(56, 161, 105, 0.3)',
+                  cursor: 'pointer'
+                }}
+              >
+                Sì, lo tengo ✨
+              </button>
+            </div>
+
+            <button 
+              className="ghost" 
+              onClick={()=>setCleanupItem(null)} 
+              style={{marginTop:16, fontSize:'0.9em', textDecoration:'underline', color:'#a0aec0', background: 'transparent', border: 'none', cursor: 'pointer'}}
+            >
+              Non ora (lascia lì)
+            </button>
+
+          </div>
+        </div>
+      )}
+
       {editState && (
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
