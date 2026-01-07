@@ -307,7 +307,15 @@ export default function App(){
       .order("created_at", { ascending:false })
       .limit(500); 
 
-    if (q) { query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`); }
+    // LOGICA RICERCA INTELLIGENTE
+    if (q) {
+      // Se la ricerca inizia con un Hashtag (#)...
+      if (q.startsWith('#')) {
+         // ...cerca ANCHE nelle note (così trovi i tuoi tag)
+         query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%,note.ilike.%${q}%`);
+      } else {
+         // ...altrimenti cerca SOLO in Titolo e Autore (ricerca pulita)
+        query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%`);}}
     if (statusFilter) { query = query.eq('status', statusFilter); }
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
