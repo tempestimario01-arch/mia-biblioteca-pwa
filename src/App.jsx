@@ -134,7 +134,7 @@ const ZenBar = ({ active }) => {
   );
 };
 
-// LIBRARY ITEM (Card ottimizzata con React.memo)
+// LIBRARY ITEM (Card ottimizzata con Note a Comparsa)
 const LibraryItem = memo(({ 
   it, 
   isArchiveView, 
@@ -149,35 +149,25 @@ const LibraryItem = memo(({
   const isArchived = it.status === 'archived';
   const hasWishlist = (it.sourcesArr || []).includes('Wishlist');
 
-  // LOGICA VISIVA: Se è archiviato E NON siamo nella vista specifica archivio -> sbiadisci
+  // 1. NUOVO STATO LOCALE PER LA NOTA
+  const [showNote, setShowNote] = useState(false);
+
+  // LOGICA VISIVA
   const opacityValue = (isArchived && !isArchiveView) ? 0.6 : 1;
 
-  // STILE UNIFICATO PER I BOTTONI (Risolve problema dimensioni e colore)
+  // STILE UNIFICATO PER I BOTTONI
   const btnStyle = {
-    width: '40px',          // Larghezza fissa
-    height: '40px',         // Altezza fissa
-    padding: 0,             // Niente padding, usiamo flex per centrare
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontSize: '1.2em',
-    border: `1px solid ${BORDER_COLOR}`,
-    borderRadius: '8px',
-    backgroundColor: 'transparent',
-    cursor: 'pointer',
-    color: '#2d3748',       // Colore scuro standard (no blu)
-    textDecoration: 'none'  // Per il link <a>
+    width: '40px', height: '40px', padding: 0, 
+    display: 'flex', justifyContent: 'center', alignItems: 'center',
+    fontSize: '1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px',
+    backgroundColor: 'transparent', cursor: 'pointer', color: '#2d3748', textDecoration: 'none'
   };
 
   return (
     <div className="card" style={{ 
-      padding: 16, 
-      display: 'flex', 
-      flexDirection: 'column', 
-      gap: 12, 
+      padding: 16, display: 'flex', flexDirection: 'column', gap: 12, 
       borderLeft: it.is_next ? '4px solid #38a169' : '1px solid #e2e8f0', 
-      backgroundColor: 'white', 
-      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       transform: 'translateZ(0)' // GPU acceleration hint
     }}>
       {/* ZONA 1: INFO */}
@@ -212,7 +202,7 @@ const LibraryItem = memo(({
         </div>
       </div>
       
-      {/* ZONA 2: AZIONI (Allineate a SINISTRA) */}
+      {/* ZONA 2: AZIONI */}
       <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
         
         {it.video_url && ( 
@@ -221,8 +211,18 @@ const LibraryItem = memo(({
             </a> 
         )}
 
+        {/* 2. BOTTONE NOTA CHE ATTIVA IL TOGGLE */}
         {it.note && (
-          <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={btnStyle}>
+          <button 
+            className="ghost" 
+            onClick={() => setShowNote(!showNote)} 
+            title={showNote ? "Nascondi nota" : "Leggi nota personale"} 
+            style={{
+                ...btnStyle, 
+                backgroundColor: showNote ? '#FFF9F0' : 'transparent', // Feedback visivo se attivo
+                borderColor: showNote ? '#d6bc9b' : BORDER_COLOR
+            }}
+          >
             📝
           </button>
         )}
@@ -233,7 +233,6 @@ const LibraryItem = memo(({
           </button>
         )}
         
-        {/* MODIFICA QUI: Rimosso stile blu, ora usa btnStyle standard */}
         {hasWishlist && (
           <button className="ghost" onClick={() => onMarkPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={btnStyle}>
             🛒
@@ -251,6 +250,25 @@ const LibraryItem = memo(({
         
         <button className="ghost" onClick={() => onEdit(it)} title="Modifica" style={btnStyle}>✏️</button>
       </div>
+
+      {/* 3. VISUALIZZAZIONE NOTA (Stile Zen Corretto) */}
+      {showNote && (
+        <div style={{ 
+            marginTop: 12, 
+            padding: '12px 16px', 
+            backgroundColor: '#FDF8F2', // <--- LO STESSO COLORE DEL MODALE
+            borderLeft: `3px solid ${BORDER_COLOR}`, 
+            borderRadius: '0 8px 8px 0',
+            color: '#4a5568', 
+            fontSize: '0.95rem', 
+            lineHeight: 1.5,
+            fontStyle: 'italic',
+            animation: 'fadeIn 0.3s'
+        }}>
+          "{it.note}"
+        </div>
+      )}
+
     </div>
   );
 });
@@ -1314,33 +1332,34 @@ export default function App(){
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" onClick={e => e.stopPropagation()} 
                style={{
-                 maxWidth: 500, // Coerente con AddModal
-                 width: "94%", 
+                 maxWidth: 450,  // Leggermente più stretto per eleganza
+                 width: "90%",   // Lascia più margine ai lati su mobile
                  maxHeight: "90vh", 
                  overflowY: "auto", 
-                 padding: "24px", 
+                 padding: "20px", // Meno padding per dare spazio al contenuto
                  borderRadius: 20, 
-                 backgroundColor: '#FDF8F2', // SFONDO BEIGE ZEN
-                 boxShadow: '0 10px 25px rgba(0,0,0,0.1)', // Ombra morbida
-                 border: '1px solid #fff' // Un tocco di luce sul bordo
+                 backgroundColor: '#FDF8F2', 
+                 boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                 border: '1px solid #fff'
                }}>
             
-            {/* HEADER ZEN */}
-            <div style={{textAlign:'center', marginBottom: 20}}>
-              <h2 style={{margin:0, color:'#2d3748', fontSize:'1.4rem'}}>Modifica Elemento</h2>
+            {/* HEADER */}
+            <div style={{textAlign:'center', marginBottom: 16}}>
+              <h2 style={{margin:0, color:'#2d3748', fontSize:'1.3rem'}}>Modifica Elemento</h2>
               <div style={{width: 40, height: 3, backgroundColor: '#d6bc9b', margin: '8px auto', borderRadius: 2}}></div>
             </div>
 
-            <form onSubmit={handleUpdateItem} id="edit-form" style={{display:'flex', flexDirection:'column', gap:16}}>
+            <form onSubmit={handleUpdateItem} id="edit-form" style={{display:'flex', flexDirection:'column', gap:12}}>
               
-              {/* TITOLO E AUTORE (Input trasparenti e puliti) */}
+              {/* TITOLO E AUTORE */}
               <div style={{display:'flex', flexDirection:'column', gap:12}}>
                 <input 
                   placeholder="Titolo" 
                   value={editState.title} 
                   onChange={e => setEditState(curr => ({...curr, title: e.target.value}))} 
                   style={{
-                    fontSize:'1.2rem', fontWeight:'bold', padding:'12px', borderRadius:12, 
+                    width: '100%', boxSizing: 'border-box', // <--- FONDAMENTALE PER NON SBARELLARE
+                    fontSize:'1.1rem', fontWeight:'bold', padding:'12px', borderRadius:12, 
                     border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748', textAlign:'center'
                   }}
                 />
@@ -1349,15 +1368,16 @@ export default function App(){
                   value={editState.creator} 
                   onChange={e => setEditState(curr => ({...curr, creator: e.target.value}))} 
                   style={{
+                    width: '100%', boxSizing: 'border-box',
                     fontSize:'1rem', padding:'10px', borderRadius:12, 
                     border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', textAlign:'center'
                   }}
                 />
               </div>
 
-              {/* GRIGLIA DETTAGLI */}
+              {/* GRIGLIA DETTAGLI (Ordinata) */}
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType})); }} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}>
+                <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType})); }} style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}>
                     {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                 </select>
                 
@@ -1366,17 +1386,17 @@ export default function App(){
                   placeholder="Anno" 
                   value={editState.year} 
                   onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}
-                  style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}
+                  style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}
                 />
 
                 {showGenreInput(editState.type) ? (
-                  <select value={editState.genre} onChange={e => setEditState(curr => ({...curr, genre: e.target.value}))} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>
+                  <select value={editState.genre} onChange={e => setEditState(curr => ({...curr, genre: e.target.value}))} style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>
                     <option value="">Genere...</option>
                     {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 ) : <div/>}
 
-                <select value={editState.mood || ""} onChange={e => setEditState(curr => ({...curr, mood: e.target.value}))} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>
+                <select value={editState.mood || ""} onChange={e => setEditState(curr => ({...curr, mood: e.target.value}))} style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>
                     <option value="">Umore...</option>
                     {MOODS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
@@ -1386,20 +1406,21 @@ export default function App(){
                   placeholder="Link (URL video, wiki, ecc)..." 
                   value={editState.video_url || ""} 
                   onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} 
-                  style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em'}}
+                  style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em'}}
               />
               <textarea 
                   placeholder="Note personali..." 
                   value={editState.note || ""} 
                   onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} 
-                  rows={4} 
-                  style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} 
+                  rows={3} 
+                  style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, fontSize:'0.95em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} 
               />
 
-              {/* STATI (Toggle "Soft") */}
-              <label style={{fontSize:'0.8em', fontWeight:'bold', color:'#718096', marginBottom:-8, textAlign:'center', textTransform:'uppercase', letterSpacing:'0.05em'}}>Stato</label>
+              {/* STATO (Più compatto) */}
+              <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:12, marginTop:4}}>
+                 <span style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', textTransform:'uppercase', letterSpacing:'0.05em'}}>STATO:</span>
+              </div>
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                 {/* Toggle Wishlist */}
                  <div 
                     onClick={() => { 
                         const currentArr = parseSources(editState.source);
@@ -1408,44 +1429,43 @@ export default function App(){
                         setEditState(curr => ({...curr, source: joinSources(newArr)})); 
                     }} 
                     style={{
-                        padding: '12px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
+                        padding: '10px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
                         border: parseSources(editState.source).includes('Wishlist') ? '1px solid #3182ce' : `1px solid ${BORDER_COLOR}`,
-                        backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : 'transparent', // Blu pastello se attivo
+                        backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : 'transparent',
                         color: parseSources(editState.source).includes('Wishlist') ? '#2b6cb0' : '#718096',
                         opacity: parseSources(editState.source).includes('Wishlist') ? 1 : 0.7
                     }}
                  >
-                    <div style={{fontSize:'1.4rem'}}>🛒</div>
-                    <div style={{fontSize:'0.8em', fontWeight:'bold'}}>Wishlist</div>
+                    <div style={{fontSize:'1.2rem'}}>🛒</div>
+                    <div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div>
                  </div>
 
-                 {/* Toggle In Coda */}
                  <div 
                     onClick={() => setEditState(curr => ({...curr, is_next: !curr.is_next}))} 
                     style={{
-                        padding: '12px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
+                        padding: '10px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
                         border: editState.is_next ? '1px solid #38a169' : `1px solid ${BORDER_COLOR}`,
-                        backgroundColor: editState.is_next ? '#f0fff4' : 'transparent', // Verde pastello se attivo
+                        backgroundColor: editState.is_next ? '#f0fff4' : 'transparent',
                         color: editState.is_next ? '#2f855a' : '#718096',
                         opacity: editState.is_next ? 1 : 0.7
                     }}
                  >
-                    <div style={{fontSize:'1.4rem'}}>📌</div>
-                    <div style={{fontSize:'0.8em', fontWeight:'bold'}}>In Coda</div>
+                    <div style={{fontSize:'1.2rem'}}>📌</div>
+                    <div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Coda</div>
                  </div>
               </div>
 
             </form>
 
-            {/* ACTION BAR */}
-            <div style={{marginTop:24, paddingTop: 20, borderTop:`1px dashed ${BORDER_COLOR}`, display:'flex', gap:12}}>
+            {/* ACTION BAR PULITA */}
+            <div style={{marginTop:20, paddingTop: 16, borderTop:`1px dashed ${BORDER_COLOR}`, display:'flex', gap:12}}>
                 <button 
                     type="button" 
                     className="ghost"
                     onClick={() => { if (window.confirm("Eliminare definitivamente?")) deleteItem(editState.id); }}
                     style={{
-                        flex: 1, padding:'14px', borderRadius:12, border: '1px solid #feb2b2', 
-                        backgroundColor: '#fff5f5', color:'#c53030', fontWeight:'600'
+                        flex: 1, padding:'12px', borderRadius:12, border: '1px solid #feb2b2', 
+                        backgroundColor: '#fff5f5', color:'#c53030', fontWeight:'600', fontSize: '0.9em'
                     }}
                 >
                     Elimina
@@ -1454,15 +1474,17 @@ export default function App(){
                 <button 
                     type="submit" form="edit-form" 
                     style={{
-                        flex: 2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', // Grigio scuro coerente con AddModal
+                        flex: 2, padding:'12px', borderRadius:12, backgroundColor:'#3e3e3e',
                         color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'
                     }}
                 >
                     Salva Modifiche
                 </button>
             </div>
+            
+            {/* ANNULLA minimalista (solo testo) */}
              <div style={{textAlign:'center', marginTop:12}}>
-                 <button className="ghost" onClick={()=>setEditState(null)} style={{fontSize:'0.9em', color:'#718096', textDecoration:'underline'}}>Annulla</button>
+                 <button className="ghost" onClick={()=>setEditState(null)} style={{fontSize:'0.85em', color:'#a0aec0', textDecoration:'none', padding: 8, cursor:'pointer'}}>Annulla</button>
              </div>
 
           </div>
