@@ -282,7 +282,8 @@ export default function App(){
   /* --- 1. STATI --- */
   const [items,setItems] = useState([]);
   const [pinnedItems, setPinnedItems] = useState([]); 
-  const [loading,setLoading] = useState(false); 
+  const [loading,setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]); 
   const [isSaving, setIsSaving] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
   const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
@@ -827,6 +828,39 @@ export default function App(){
       }
     }; fetchMemory();
   }, []);
+  /* --- LOGICA SUGGERIMENTI ZEN --- */
+  useEffect(() => {
+    const val = qInput ? qInput.trim() : "";
+    if (val.length < 2) {
+      setSuggestions([]); // Pulisci se scrivi poco
+      return;
+    }
+
+    const fetchSuggestions = async () => {
+      let query = supabase
+        .from('items')
+        .select('id, title, author, type, note') 
+        .limit(5); // Solo 5 pillole per non affollare
+
+      if (val.startsWith('#')) {
+        query = query.ilike('note', `%${val}%`);
+      } else {
+        query = query.or(`title.ilike.%${val}%,author.ilike.%${val}%`);
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        setSuggestions(data.map(row => ({
+          id: row.id,
+          mainText: row.title,
+          kind: normType(row.type)
+        })));
+      }
+    };
+
+    const timer = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(timer);
+  }, [qInput]);
 
   /* --- 6. RENDER (JSX) --- */
   return (
@@ -836,32 +870,89 @@ export default function App(){
       
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
       
-      {/* ===== Ricerca Zen "Cool Gray" CON TASTO X ===== */}
-      <section className="card" style={{marginBottom:0, padding: "6px 12px", display:'flex', alignItems:'center', gap:8, backgroundColor:'#FFF9F0', borderRadius: 12, boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
-        <div style={{flex:1, display:'flex', alignItems:'center', gap:8}}>
+      {/* ===== BARRA DI RICERCA ZEN CON CHIPS INTEGRATE ===== */}
+      <section className="card" style={{
+          marginBottom: 0, 
+          padding: "8px 12px", 
+          display:'flex', 
+          flexDirection: 'column', // <--- CAMBIAMENTO: Disposizione a colonna
+          gap: suggestions.length > 0 ? 8 : 0, // Spazio dinamico solo se ci sono chips
+          backgroundColor:'#FFF9F0', 
+          borderRadius: 16, 
+          boxShadow:'0 1px 3px rgba(0,0,0,0.05)',
+          transition: 'all 0.3s ease' // Animazione fluida quando si apre
+      }}>
+        
+        {/* RIGA SUPERIORE: INPUT E TASTI */}
+        <div style={{display:'flex', alignItems:'center', gap:8, width:'100%'}}>
           <span style={{opacity:0.4, fontSize:'1.1em'}}>🔍</span>
           <input 
-            style={{width:'100%', border:'none', outline:'none', background:'transparent', fontSize:'1rem', padding:0, margin:0, height: 40}} 
+            style={{flex:1, border:'none', outline:'none', background:'transparent', fontSize:'1rem', padding:0, margin:0, height: 40, minWidth: 0}} 
             placeholder="Cerca..." 
             value={qInput} 
             onChange={e=>setQInput(e.target.value)} 
           />
-          {/* TASTO X */}
+          
           {qInput && (
             <button 
-              onClick={() => { setQInput(""); setStatusFilter("active"); }} 
+              onClick={() => { setQInput(""); setStatusFilter("active"); setSuggestions([]); }} 
               style={{background:'transparent', border:'none', fontSize:'1.1em', color:'#718096', cursor:'pointer', padding:'0 8px'}}
             >
               ✖
             </button>
           )}
-        </div>
-        
-        {/* Tasto STATISTICHE */}
-        <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
 
-        {/* Menu Avanzato */}
-        <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
+          <div style={{height: 20, width: 1, backgroundColor: '#e2e8f0', margin: '0 4px'}}></div> {/* Separatore Sottile */}
+
+          <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
+          <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
+        </div>
+
+        {/* RIGA INFERIORE: CHIPS SCORREVOLI (Appaiono solo se serve) */}
+        {suggestions.length > 0 && (
+          <div style={{
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto', // Scorrimento orizzontale
+            paddingBottom: 4, // Spazio per non tagliare ombre o bordi
+            scrollbarWidth: 'none', // Nascondi scrollbar (Firefox)
+            msOverflowStyle: 'none', // Nascondi scrollbar (IE/Edge)
+            animation: 'fadeIn 0.3s'
+          }}>
+            {/* Nascondi scrollbar (Chrome/Safari) */}
+            <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+            
+            {suggestions.map(s => (
+              <button
+                key={s.id}
+                onClick={() => {
+                   setQInput(s.mainText); 
+                   setSuggestions([]); // Chiude i suggerimenti dopo il click
+                }}
+                style={{
+                  flexShrink: 0, 
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '4px 10px',
+                  borderRadius: 12, 
+                  // STILE MINIMALE:
+                  border: `1px solid rgba(214, 188, 155, 0.5)`, // Bordo color oro/sabbia leggero
+                  backgroundColor: 'rgba(255, 255, 255, 0.5)', // Semitrasparente
+                  color: '#4a5568',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <span style={{fontSize:'1em'}}>{TYPE_ICONS[s.kind]}</span>
+                {/* Tronca il testo se troppo lungo per mantenere eleganza */}
+                <span style={{fontWeight: 500, maxWidth: 200, overflow:'hidden', textOverflow:'ellipsis'}}>
+                  {s.mainText}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
       </section>
 
       {/* ===== ETICHETTE FILTRI ATTIVI (Split Layout) ===== */}
