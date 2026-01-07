@@ -1332,26 +1332,49 @@ export default function App(){
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" onClick={e => e.stopPropagation()} 
                style={{
-                 maxWidth: 500, // Larghezza coerente con AddModal
+                 maxWidth: 450, 
                  width: "90%", 
                  maxHeight: "90vh", 
                  overflowY: "auto", 
                  padding: "24px", 
-                 borderRadius: 20, 
-                 backgroundColor: '#FDF8F2', // Beige Zen (Coerente)
-                 boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                 border: '1px solid #fff'
+                 borderRadius: 24, 
+                 backgroundColor: '#FDF8F2', // Beige Zen
+                 boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+                 border: '1px solid #fff',
+                 display: 'flex',
+                 flexDirection: 'column'
                }}>
             
-            {/* HEADER ZEN */}
-            <div style={{textAlign:'center', marginBottom: 20}}>
-              <h2 style={{margin:0, color:'#2d3748', fontSize:'1.4rem'}}>Modifica Elemento</h2>
-              <div style={{width: 40, height: 3, backgroundColor: '#d6bc9b', margin: '8px auto', borderRadius: 2}}></div>
+            {/* --- HEADER: CESTINO - TITOLO --- */}
+            <div style={{position: 'relative', textAlign: 'center', marginBottom: 20}}>
+              
+              {/* Tasto ELIMINA (In alto a sinistra, discreto) */}
+              <button 
+                type="button"
+                onClick={() => { if (window.confirm("Sei sicuro di voler eliminare definitivamente questo elemento?")) deleteItem(editState.id); }}
+                title="Elimina Elemento"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  background: 'transparent', border: 'none', 
+                  fontSize: '1.2rem', cursor: 'pointer', padding: '0 8px',
+                  color: '#e53e3e', opacity: 0.7
+                }}
+              >
+                🗑️
+              </button>
+
+              {/* Titolo Centrale */}
+              <div>
+                <h2 style={{margin:0, color:'#2d3748', fontSize:'1.3rem'}}>Modifica Elemento</h2>
+                <div style={{width: 30, height: 3, backgroundColor: '#d6bc9b', margin: '6px auto', borderRadius: 2}}></div>
+              </div>
             </div>
 
-            <form onSubmit={handleUpdateItem} id="edit-form" style={{display:'flex', flexDirection:'column', gap:16}}>
+            <form onSubmit={handleUpdateItem} id="edit-form" style={{display:'flex', flexDirection:'column', gap:12}}>
               
-              {/* TITOLO E AUTORE */}
+              {/* INPUT TITOLO E AUTORE */}
               <div style={{display:'flex', flexDirection:'column', gap:12}}>
                 <input 
                   placeholder="Titolo" 
@@ -1359,7 +1382,7 @@ export default function App(){
                   onChange={e => setEditState(curr => ({...curr, title: e.target.value}))} 
                   style={{
                     width: '100%', boxSizing: 'border-box',
-                    fontSize:'1.2rem', fontWeight:'bold', padding:'12px', borderRadius:12, 
+                    fontSize:'1.1rem', fontWeight:'bold', padding:'12px', borderRadius:12, 
                     border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748', textAlign:'center'
                   }}
                 />
@@ -1375,7 +1398,7 @@ export default function App(){
                 />
               </div>
 
-              {/* GRIGLIA DETTAGLI */}
+              {/* GRIGLIA INPUT */}
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                 <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType})); }} style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}>
                     {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
@@ -1416,100 +1439,85 @@ export default function App(){
                   style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, fontSize:'0.95em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} 
               />
 
-              {/* STATO (Toggle Stile Zen) */}
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop: 4}}>
-                 {/* Wishlist Toggle */}
-                 <div 
-                    onClick={() => { 
-                        const currentArr = parseSources(editState.source);
-                        const isW = currentArr.includes('Wishlist');
-                        const newArr = isW ? currentArr.filter(x => x !== 'Wishlist') : [...currentArr, 'Wishlist'];
-                        setEditState(curr => ({...curr, source: joinSources(newArr)})); 
-                    }} 
-                    style={{
-                        padding: '10px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
-                        border: parseSources(editState.source).includes('Wishlist') ? '1px solid #3182ce' : `1px solid ${BORDER_COLOR}`,
-                        backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : 'transparent',
-                        color: parseSources(editState.source).includes('Wishlist') ? '#2b6cb0' : '#718096',
-                        opacity: parseSources(editState.source).includes('Wishlist') ? 1 : 0.7
-                    }}
-                 >
-                    <div style={{fontSize:'1.2rem', marginBottom:2}}>🛒</div>
-                    <div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div>
-                 </div>
+              {/* SEZIONE STATO */}
+              <div style={{marginTop:8}}>
+                 <div style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', textTransform:'uppercase', letterSpacing:'0.05em', textAlign:'center', marginBottom:8}}>IMPOSTA STATO:</div>
+                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                    <div 
+                        onClick={() => { 
+                            const currentArr = parseSources(editState.source);
+                            const isW = currentArr.includes('Wishlist');
+                            const newArr = isW ? currentArr.filter(x => x !== 'Wishlist') : [...currentArr, 'Wishlist'];
+                            setEditState(curr => ({...curr, source: joinSources(newArr)})); 
+                        }} 
+                        style={{
+                            padding: '12px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
+                            border: parseSources(editState.source).includes('Wishlist') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`,
+                            backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : 'transparent',
+                            color: parseSources(editState.source).includes('Wishlist') ? '#2b6cb0' : '#718096',
+                            opacity: parseSources(editState.source).includes('Wishlist') ? 1 : 0.6
+                        }}
+                    >
+                        <div style={{fontSize:'1.3rem', marginBottom:2}}>🛒</div>
+                        <div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div>
+                    </div>
 
-                 {/* In Coda Toggle */}
-                 <div 
-                    onClick={() => setEditState(curr => ({...curr, is_next: !curr.is_next}))} 
-                    style={{
-                        padding: '10px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
-                        border: editState.is_next ? '1px solid #38a169' : `1px solid ${BORDER_COLOR}`,
-                        backgroundColor: editState.is_next ? '#f0fff4' : 'transparent',
-                        color: editState.is_next ? '#2f855a' : '#718096',
-                        opacity: editState.is_next ? 1 : 0.7
-                    }}
-                 >
-                    <div style={{fontSize:'1.2rem', marginBottom:2}}>📌</div>
-                    <div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Coda</div>
+                    <div 
+                        onClick={() => setEditState(curr => ({...curr, is_next: !curr.is_next}))} 
+                        style={{
+                            padding: '12px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
+                            border: editState.is_next ? '2px solid #38a169' : `1px solid ${BORDER_COLOR}`,
+                            backgroundColor: editState.is_next ? '#f0fff4' : 'transparent',
+                            color: editState.is_next ? '#2f855a' : '#718096',
+                            opacity: editState.is_next ? 1 : 0.6
+                        }}
+                    >
+                        <div style={{fontSize:'1.3rem', marginBottom:2}}>📌</div>
+                        <div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Coda</div>
+                    </div>
                  </div>
               </div>
-
             </form>
 
-            {/* ACTION BAR (Coerente con AddModal) */}
-            <div style={{marginTop:24, display:'flex', gap:12}}>
+            {/* --- FOOTER IDENTICO A "NUOVO ELEMENTO" --- */}
+            <div style={{marginTop: 24, display: 'flex', gap: 12}}>
+                
+                {/* 1. TASTO ANNULLA (Bordo colorato, sfondo chiaro) */}
                 <button 
                     type="button" 
-                    className="ghost" 
-                    onClick={()=>setEditState(null)} 
+                    onClick={()=>setEditState(null)}
                     style={{
-                        flex:1, 
+                        flex: 1, 
                         padding:'14px', 
                         borderRadius:12, 
+                        backgroundColor:'transparent', 
                         color:'#718096', 
-                        fontWeight:'600',
-                        backgroundColor: 'transparent',
-                        border: '1px solid transparent'
+                        fontWeight:'600', 
+                        fontSize: '1rem',
+                        border: `1px solid ${BORDER_COLOR}`, // Bordo color oro/sabbia
+                        cursor: 'pointer'
                     }}
                 >
                     Annulla
                 </button>
+
+                {/* 2. TASTO SALVA (Scuro, pieno, leggermente più grande) */}
                 <button 
-                    type="submit" 
-                    form="edit-form" 
+                    type="submit" form="edit-form" 
                     style={{
-                        flex:2, 
+                        flex: 1.5, // Leggermente più largo per enfasi
                         padding:'14px', 
                         borderRadius:12, 
-                        backgroundColor:'#3e3e3e', // Grigio Scuro Zen
+                        backgroundColor:'#3e3e3e', // Grigio scuro come nell'altro modale
                         color:'white', 
-                        fontWeight:'600', 
+                        fontWeight:'bold', 
+                        fontSize: '1rem',
                         border:'none', 
-                        boxShadow:'0 4px 6px rgba(0,0,0,0.1)'
+                        boxShadow:'0 4px 6px rgba(0,0,0,0.1)',
+                        cursor: 'pointer'
                     }}
                 >
                     Salva Modifiche
-                </button>
-            </div>
-
-            {/* Tasto ELIMINA separato e discreto */}
-            <div style={{textAlign:'center', marginTop: 16}}>
-                <button 
-                    type="button" 
-                    className="ghost"
-                    onClick={() => { if (window.confirm("Sei sicuro di voler eliminare definitivamente questo elemento?")) deleteItem(editState.id); }}
-                    style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#e53e3e', // Rosso discreto
-                        fontSize: '0.85rem',
-                        textDecoration: 'none',
-                        cursor: 'pointer',
-                        opacity: 0.7,
-                        padding: '8px'
-                    }}
-                >
-                    🗑️ Elimina elemento
                 </button>
             </div>
 
