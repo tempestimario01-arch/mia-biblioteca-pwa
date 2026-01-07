@@ -152,6 +152,23 @@ const LibraryItem = memo(({
   // LOGICA VISIVA: Se è archiviato E NON siamo nella vista specifica archivio -> sbiadisci
   const opacityValue = (isArchived && !isArchiveView) ? 0.6 : 1;
 
+  // STILE UNIFICATO PER I BOTTONI (Risolve problema dimensioni e colore)
+  const btnStyle = {
+    width: '40px',          // Larghezza fissa
+    height: '40px',         // Altezza fissa
+    padding: 0,             // Niente padding, usiamo flex per centrare
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontSize: '1.2em',
+    border: `1px solid ${BORDER_COLOR}`,
+    borderRadius: '8px',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    color: '#2d3748',       // Colore scuro standard (no blu)
+    textDecoration: 'none'  // Per il link <a>
+  };
+
   return (
     <div className="card" style={{ 
       padding: 16, 
@@ -197,27 +214,42 @@ const LibraryItem = memo(({
       
       {/* ZONA 2: AZIONI (Allineate a SINISTRA) */}
       <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
-        {it.video_url && ( <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={{ textDecoration: 'none', padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>{getLinkEmoji(it.video_url)}</a> )}
-        {it.note && (
-          <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px', lineHeight: 1}}>📝</button>
+        
+        {it.video_url && ( 
+            <a href={it.video_url} target="_blank" rel="noopener noreferrer" className="ghost button" title="Apri Link" style={btnStyle}>
+                {getLinkEmoji(it.video_url)}
+            </a> 
         )}
+
+        {it.note && (
+          <button className="ghost" onClick={() => alert(it.note)} title="Leggi nota personale" style={btnStyle}>
+            📝
+          </button>
+        )}
+
         {(!it.finished_at && !isArchived) && (
-          <button className="ghost" onClick={() => onToggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>{it.is_next ? "🚫" : "📌"}</button>
+          <button className="ghost" onClick={() => onToggleFocus(it)} title={it.is_next ? "Togli Focus" : "Metti Focus"} style={btnStyle}>
+            {it.is_next ? "🚫" : "📌"}
+          </button>
         )}
         
+        {/* MODIFICA QUI: Rimosso stile blu, ora usa btnStyle standard */}
         {hasWishlist && (
-          <button className="ghost" onClick={() => onMarkPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={{padding:'8px', fontSize:'1.2em', color:'#2b6cb0', borderColor:'#bee3f8', border: `1px solid #bee3f8`, borderRadius: '8px'}}>🛒</button>
+          <button className="ghost" onClick={() => onMarkPurchased(it)} title="Ho comprato! Rimuovi dalla lista." style={btnStyle}>
+            🛒
+          </button>
         )}
 
         {(it.finished_at || isArchived) ? (
           <>
-            <button className="ghost" onClick={() => onReExperience(it)} title="Rileggi/Riguarda" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>🔄</button>
-            <button className="ghost" onClick={() => onUnarchive(it)} title="Ripristina" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>↩️</button>
+            <button className="ghost" onClick={() => onReExperience(it)} title="Rileggi/Riguarda" style={btnStyle}>🔄</button>
+            <button className="ghost" onClick={() => onUnarchive(it)} title="Ripristina" style={btnStyle}>↩️</button>
           </>
         ) : (
-          <button className="ghost" onClick={() => onArchive(it)} title="Archivia" style={{padding:'8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px'}}>📦</button>
+          <button className="ghost" onClick={() => onArchive(it)} title="Archivia" style={btnStyle}>📦</button>
         )}
-        <button className="ghost" onClick={() => onEdit(it)} title="Modifica" style={{ padding: '8px', fontSize:'1.2em', border: `1px solid ${BORDER_COLOR}`, borderRadius: '8px' }}>✏️</button>
+        
+        <button className="ghost" onClick={() => onEdit(it)} title="Modifica" style={btnStyle}>✏️</button>
       </div>
     </div>
   );
