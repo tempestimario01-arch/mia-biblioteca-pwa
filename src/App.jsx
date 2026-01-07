@@ -1043,126 +1043,184 @@ export default function App(){
       {/* ===== MODALE AGGIUNTA (Beige + Trasparenza) ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
-          <div className="card" style={{maxWidth:500, width:"94%", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0, marginBottom:20, fontSize:'1.4rem', color:'#2d3748', textAlign:'center'}}>Nuovo Elemento</h2>
+          <div className="card" onClick={e => e.stopPropagation()} 
+               style={{
+                 maxWidth:500, width:"94%", padding:"24px", borderRadius: 24, // Arrotondamento coerente
+                 backgroundColor:'#FDF8F2', position:'relative', border:'1px solid #fff',
+                 boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+               }}>
+            
+            {/* HEADER ZEN BILANCIATO */}
+            <div style={{position:'relative', marginBottom: 20, marginTop: 4}}>
+              <h2 style={{margin:0, color:'#2d3748', fontSize:'1.4rem', textAlign:'center'}}>Nuovo Elemento</h2>
+              <div style={{width: 40, height: 3, backgroundColor: '#d6bc9b', margin: '8px auto', borderRadius: 2}}></div>
+              
+              {/* TASTO CHIUDI ROTONDO */}
+              <button 
+                onClick={() => setAddModalOpen(false)}
+                style={{
+                  position: 'absolute', right: -10, top: -14, // Posizionato nell'angolo
+                  width: 40, height: 40, borderRadius: '50%', // Cerchio perfetto
+                  background: 'transparent', border: 'none', 
+                  display:'flex', alignItems:'center', justifyContent:'center', // Icona centrata
+                  fontSize: '1.4rem', color: '#718096', cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >✕</button>
+            </div>
+
             <form onSubmit={addItem} id="add-form" style={{display:'flex', flexDirection:'column', gap:12}}>
-              <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} autoFocus />
-              <input placeholder="Autore / Regista / Sviluppatore" value={creator} onChange={e=>setCreator(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
+              {/* INPUT TITOLO (Stile Zen) */}
+              <input placeholder="Titolo" value={title} onChange={e=>setTitle(e.target.value)} style={{padding:'12px', fontSize:'1.1rem', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent', textAlign:'center', fontWeight:'bold', color:'#2d3748'}} autoFocus />
+              <input placeholder="Autore / Regista" value={creator} onChange={e=>setCreator(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent', textAlign:'center', color:'#4a5568'}} />
+              
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
+                <select value={kind} onChange={handleAddKindChange} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}>{TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
                 <input type="number" placeholder="Anno" value={year} onChange={e=>setYear(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', backgroundColor:'transparent'}} />
-                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}><option value="">Genere</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
-                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}><option value="">Umore</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                {showGenreInput(kind) ? (<select value={genre} onChange={e=>setGenre(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}><option value="">Genere</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div />}
+                <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}><option value="">Umore</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
+
               <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
-              <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
+              <textarea placeholder="Note personali..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
               
               <div style={{marginTop:8}}>
-                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
+                <label style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', marginBottom:8, display:'block', textAlign:'center', textTransform:'uppercase', letterSpacing:'0.05em'}}>STATO</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
-                  <div onClick={() => setIsToBuy(!isToBuy)} style={{border: isToBuy ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: isToBuy ? '#ebf8ff' : 'transparent', color: isToBuy ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>🛒</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div></div>
-                  <div onClick={() => { setIsNext(!isNext); if(!isNext) setIsInstantArchive(false); }} style={{border: isNext ? '2px solid #38a169' : `1px solid ${BORDER_COLOR}`, backgroundColor: isNext ? '#f0fff4' : 'transparent', color: isNext ? '#2f855a' : '#718096', opacity: isInstantArchive ? 0.4 : 1, borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>📌</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Corso</div></div>
-                  <div onClick={() => { setIsInstantArchive(!isInstantArchive); if(!isInstantArchive) setIsNext(false); }} style={{border: isInstantArchive ? '2px solid #d69e2e' : `1px solid ${BORDER_COLOR}`, backgroundColor: isInstantArchive ? '#fffff0' : 'transparent', color: isInstantArchive ? '#b7791f' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.4em', marginBottom:4}}>✅</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Finito</div></div>
+                  <div onClick={() => setIsToBuy(!isToBuy)} style={{border: isToBuy ? '1px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: isToBuy ? '#ebf8ff' : 'transparent', color: isToBuy ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', opacity: isToBuy ? 1 : 0.7}}><div style={{fontSize:'1.3em', marginBottom:2}}>🛒</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div></div>
+                  <div onClick={() => { setIsNext(!isNext); if(!isNext) setIsInstantArchive(false); }} style={{border: isNext ? '1px solid #38a169' : `1px solid ${BORDER_COLOR}`, backgroundColor: isNext ? '#f0fff4' : 'transparent', color: isNext ? '#2f855a' : '#718096', opacity: isInstantArchive ? 0.4 : (isNext ? 1 : 0.7), borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s'}}><div style={{fontSize:'1.3em', marginBottom:2}}>📌</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Corso</div></div>
+                  <div onClick={() => { setIsInstantArchive(!isInstantArchive); if(!isInstantArchive) setIsNext(false); }} style={{border: isInstantArchive ? '1px solid #d69e2e' : `1px solid ${BORDER_COLOR}`, backgroundColor: isInstantArchive ? '#fffff0' : 'transparent', color: isInstantArchive ? '#b7791f' : '#718096', borderRadius: 12, padding: '10px 4px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', opacity: isInstantArchive ? 1 : 0.7}}><div style={{fontSize:'1.3em', marginBottom:2}}>✅</div><div style={{fontSize:'0.75em', fontWeight:'bold'}}>Finito</div></div>
                 </div>
-                {isInstantArchive && (<div style={{marginTop:12, animation:'fadeIn 0.3s'}}><label style={{fontSize:'0.85em', color:'#718096'}}>Data completamento:</label><input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginLeft:8, padding:'6px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}} /></div>)}
+                {isInstantArchive && (<div style={{marginTop:12, animation:'fadeIn 0.3s', textAlign:'center'}}><label style={{fontSize:'0.85em', color:'#718096'}}>Data: </label><input type="date" value={instantDate} onChange={e=>setInstantDate(e.target.value)} style={{marginLeft:8, padding:'6px', borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}} /></div>)}
               </div>
             </form>
+            
             <div style={{display:'flex', gap:12, marginTop:24}}>
-              <button type="button" className="ghost" onClick={()=>setAddModalOpen(false)} style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', fontWeight:'600'}}>Annulla</button>
-              <button type="submit" form="add-form" style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>Salva Elemento</button>
+              <button type="button" className="ghost" onClick={()=>setAddModalOpen(false)} style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', fontWeight:'600', backgroundColor:'transparent'}}>Annulla</button>
+              <button type="submit" form="add-form" style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>Salva</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ===== MODALE FILTRI & STRUMENTI (Beige + Trasparenza) ===== */}
+      {/* ===== MODALE FILTRI (Zen Coerente) ===== */}
       {advOpen && (
         <div className="modal-backdrop" onClick={() => setAdvOpen(false)} style={{display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="card" style={{maxWidth:500, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}} onClick={e => e.stopPropagation()}>
-            <div style={{marginBottom:20, textAlign:'center'}}><h2 style={{margin:0, fontSize:'1.4rem', color:'#2d3748'}}>Filtri & Strumenti</h2></div>
+          <div className="card" style={{maxWidth:500, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"24px", borderRadius: 24, backgroundColor:'#FDF8F2', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border:'1px solid #fff', position:'relative'}} onClick={e => e.stopPropagation()}>
+            
+            {/* HEADER ZEN */}
+            <div style={{position:'relative', marginBottom: 20, marginTop: 4}}>
+              <h2 style={{margin:0, color:'#2d3748', fontSize:'1.4rem', textAlign:'center'}}>Filtri & Strumenti</h2>
+              <div style={{width: 40, height: 3, backgroundColor: '#d6bc9b', margin: '8px auto', borderRadius: 2}}></div>
+              
+              {/* TASTO CHIUDI ROTONDO */}
+              <button 
+                onClick={() => setAdvOpen(false)}
+                style={{
+                  position: 'absolute', right: -10, top: -14,
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'transparent', border: 'none', 
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize: '1.4rem', color: '#718096', cursor: 'pointer'
+                }}
+              >✕</button>
+            </div>
+
             <div style={{display:'flex', flexDirection:'column', gap:24}}>
+              {/* VISUALIZZAZIONE */}
               <div>
-                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Visualizzazione</label>
+                <label style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Visualizzazione</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                  <div onClick={() => { if (statusFilter === 'active') setStatusFilter('archived'); else if (statusFilter === 'archived') setStatusFilter(''); else setStatusFilter('active'); }} style={{border: statusFilter === 'active' ? '2px solid #38a169' : (statusFilter === 'archived' ? '2px solid #d69e2e' : '2px solid #718096'), backgroundColor: statusFilter === 'active' ? '#f0fff4' : (statusFilter === 'archived' ? '#fffff0' : '#edf2f7'), color: statusFilter === 'active' ? '#2f855a' : (statusFilter === 'archived' ? '#b7791f' : '#2d3748'), borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
+                  <div onClick={() => { if (statusFilter === 'active') setStatusFilter('archived'); else if (statusFilter === 'archived') setStatusFilter(''); else setStatusFilter('active'); }} style={{border: statusFilter === 'active' ? '1px solid #38a169' : (statusFilter === 'archived' ? '1px solid #d69e2e' : '1px solid #718096'), backgroundColor: statusFilter === 'active' ? '#f0fff4' : (statusFilter === 'archived' ? '#fffff0' : '#edf2f7'), color: statusFilter === 'active' ? '#2f855a' : (statusFilter === 'archived' ? '#b7791f' : '#2d3748'), borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
                     <div style={{fontSize:'1.8em', marginBottom:2}}>{statusFilter === 'active' ? '🟢' : (statusFilter === 'archived' ? '📦' : '👁️')}</div><div style={{fontSize:'0.9em', fontWeight:'bold'}}>{statusFilter === 'active' ? 'In Corso' : (statusFilter === 'archived' ? 'Archivio' : 'Mostra Tutti')}</div>
                   </div>
-                  <div onClick={() => setSourceFilter(prev => prev === 'Wishlist' ? '' : 'Wishlist')} style={{border: sourceFilter === 'Wishlist' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: sourceFilter === 'Wishlist' ? '#ebf8ff' : 'transparent', color: sourceFilter === 'Wishlist' ? '#2b6cb0' : '#718096', borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
+                  <div onClick={() => setSourceFilter(prev => prev === 'Wishlist' ? '' : 'Wishlist')} style={{border: sourceFilter === 'Wishlist' ? '1px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: sourceFilter === 'Wishlist' ? '#ebf8ff' : 'transparent', color: sourceFilter === 'Wishlist' ? '#2b6cb0' : '#718096', borderRadius: 16, padding: '16px', textAlign:'center', cursor:'pointer', transition:'all 0.2s', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4}}>
                     <div style={{fontSize:'1.8em', marginBottom:2}}>🛒</div><div style={{fontSize:'0.9em', fontWeight:'bold'}}>Wishlist</div>
                   </div>
                 </div>
               </div>
+
+              {/* DETTAGLI */}
               <div>
-                <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Dettagli</label>
+                <label style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Filtra per</label>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                   <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Tutti i Tipi</option>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}</select>
                   <select value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Umore</option>{MOODS.map(m=> <option key={m} value={m}>{m}</option>)}</select>
-                  <input type="number" placeholder="Anno Uscita" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', color:'#2d3748'}} />
+                  <input type="number" placeholder="Anno" value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', color:'#2d3748'}} />
                   {showGenreInput(typeFilter) ? (<select value={genreFilter} onChange={e=>setGenreFilter(e.target.value)} style={{padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.95em', color:'#2d3748'}}><option value="">Qualsiasi Genere</option>{GENRES.map(g=> <option key={g} value={g}>{g}</option>)}</select>) : (<div style={{padding:'12px', borderRadius:12, border: `1px dashed ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#cbd5e0', fontSize:'0.9em', display:'flex', alignItems:'center', justifyContent:'center'}}>Genere n/a</div>)}
                 </div>
               </div>
               
-              {/* ZONA INDICE A-Z POTENZIATA */}
-              <div>
-                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
-                  <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                    <span style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>INDICE:</span>
-                    <div style={{display:'flex', backgroundColor:'#edf2f7', borderRadius:8, padding:2}}>
-                       <button onClick={()=>setLetterMode('author')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='author' ? 'white' : 'transparent', color: letterMode==='author' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='author' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='author'?'bold':'normal', cursor:'pointer'}}>Autore</button>
-                       <button onClick={()=>setLetterMode('title')} style={{padding:'4px 8px', borderRadius:6, border:'none', backgroundColor: letterMode==='title' ? 'white' : 'transparent', color: letterMode==='title' ? '#2d3748' : '#718096', fontSize:'0.8em', boxShadow: letterMode==='title' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', fontWeight: letterMode==='title'?'bold':'normal', cursor:'pointer'}}>Titolo</button>
-                    </div>
-                  </div>
-                  {letterFilter && <button className="ghost" onClick={()=>setLetterFilter("")} style={{fontSize:'0.8em', color:'#e53e3e', padding:'2px 6px'}}>Cancella</button>}
-                </div>
-                <div style={{display:'flex', flexWrap:"wrap", gap:6, justifyContent:'center'}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'8px 12px', borderRadius:8, fontSize:'0.9em', border: `1px solid ${BORDER_COLOR}`, backgroundColor: letterFilter === L ? '#e2e8f0' : 'transparent', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>))}</div>
-              </div>
-
+              {/* INDICE A-Z */}
+               <div>
+                <label style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', marginBottom:8, display:'block', textTransform:'uppercase', letterSpacing:'0.05em'}}>Indice Rapido</label>
+                 <div style={{display:'flex', flexWrap:"wrap", gap:6, justifyContent:'center'}}>{"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(L=>(<button key={L} className={`ghost ${letterFilter === L ? 'active-letter' : ''}`} onClick={()=>setLetterFilter(L)} style={{padding:'8px 12px', borderRadius:8, fontSize:'0.9em', border: `1px solid ${BORDER_COLOR}`, backgroundColor: letterFilter === L ? '#e2e8f0' : 'transparent', color: letterFilter === L ? '#2d3748' : '#4a5568', fontWeight: letterFilter === L ? 'bold' : 'normal'}}>{L}</button>))}</div>
+               </div>
             </div>
+
             <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
+            
+            {/* FOOTER */}
             <div style={{display:'flex', flexDirection:'column', gap:16}}>
               <div style={{display:'flex', gap:12}}>
-                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
-                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
+                 <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 CSV</button>
+                 <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia</button>
               </div>
-              <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}>Chiudi Pannello</button>
+              <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', width:'100%', fontSize:'1rem'}}>Chiudi</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ===== MODALE STATISTICHE (RIORGANIZZATO & BEIGE) ===== */}
+      {/* ===== MODALE STATISTICHE (Zen Coerente) ===== */}
       {statsModalOpen && (
         <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
-          <div className="card" style={{maxWidth:600, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0, textAlign:'center', marginBottom:20}}>Statistiche</h2>
+          <div className="card" style={{maxWidth:600, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"24px", borderRadius: 24, backgroundColor:'#FDF8F2', position:'relative', border:'1px solid #fff'}} onClick={e => e.stopPropagation()}>
             
-            {/* TOGGLE PRINCIPALE (A Piastrelle) */}
+            {/* HEADER ZEN */}
+            <div style={{position:'relative', marginBottom: 20, marginTop: 4}}>
+              <h2 style={{margin:0, color:'#2d3748', fontSize:'1.4rem', textAlign:'center'}}>Statistiche</h2>
+              <div style={{width: 40, height: 3, backgroundColor: '#d6bc9b', margin: '8px auto', borderRadius: 2}}></div>
+              
+              {/* TASTO CHIUDI ROTONDO */}
+              <button 
+                onClick={() => setStatsModalOpen(false)}
+                style={{
+                  position: 'absolute', right: -10, top: -14,
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'transparent', border: 'none', 
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize: '1.4rem', color: '#718096', cursor: 'pointer'
+                }}
+              >✕</button>
+            </div>
+            
+            {/* TOGGLE */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
-              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
+              <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '1px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold', transition:'all 0.2s'}}>
                   📅 Periodo
               </div>
-              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
+              <div onClick={() => setStatsView('totale')} style={{border: statsView === 'totale' ? '1px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'totale' ? '#ebf8ff' : 'transparent', color: statsView === 'totale' ? '#2b6cb0' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold', transition:'all 0.2s'}}>
                   📈 Totale
               </div>
             </div>
 
+            {/* CONTENUTO */}
             {statsView === 'periodo' && (
               <div style={{animation:'fadeIn 0.3s'}}>
-                {/* Selettori Data */}
                 <div style={{display:'flex', gap: 8, alignItems: 'center', justifyContent:'center', marginBottom:20}}>
                   <input type="number" placeholder="Mese" value={statMonth} onChange={e=>setStatMonth(e.target.value)} style={{width:60, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
                   <input type="number" placeholder="Anno" value={statYear} onChange={e=>setStatYear(e.target.value)} style={{width:80, padding:8, borderRadius:8, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', textAlign:'center'}} />
                   <button className="ghost" onClick={() => { setStatMonth(new Date().getMonth() + 1); setStatYear(new Date().getFullYear()); }} style={{fontSize:'0.9em', textDecoration:'underline'}}>Oggi</button>
-                  {periodLoading && <span style={{fontSize:'0.8em', color:'#718096'}}>...</span>}
                 </div>
                 
-                {/* KPI Principale (CLICCABILE) */}
-                <div onClick={() => handleStatClick(null)} style={{textAlign:'center', marginBottom:20, cursor:'pointer', transition:'all 0.2s', padding: 8, borderRadius: 12, ':hover': {backgroundColor:'rgba(0,0,0,0.02)'}}}>
+                <div onClick={() => handleStatClick(null)} style={{textAlign:'center', marginBottom:20, cursor:'pointer', transition:'all 0.2s', padding: 8, borderRadius: 12, border:'1px dashed transparent', ':hover': {borderColor:BORDER_COLOR}}}>
                   <div style={{fontSize:'3em', fontWeight:'bold', color:'#2d3748', lineHeight:1}}>{periodStats.total}</div>
-                  <div style={{fontSize:'0.9em', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Elementi completati (Vedi tutti)</div>
+                  <div style={{fontSize:'0.9em', color:'#718096', textTransform:'uppercase', letterSpacing:'0.05em'}}>Elementi completati</div>
                 </div>
 
-                {/* Griglia Dettagli (CLICCABILE) */}
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12}}>
                   <div onClick={() => handleStatClick('libro')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>📚</div><div style={{fontWeight:'bold'}}>{periodStats.libro}</div></div>
                   <div onClick={() => handleStatClick('film')} style={{backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:12, padding:8, textAlign:'center', cursor:'pointer'}}><div style={{fontSize:'1.5em'}}>🎬</div><div style={{fontWeight:'bold'}}>{periodStats.film}</div></div>
@@ -1175,16 +1233,15 @@ export default function App(){
             )}
 
             {statsView === 'totale' && (
-              <div style={{animation:'fadeIn 0.3s'}}>
-                {/* KPI Totali */}
+               <div style={{animation:'fadeIn 0.3s'}}>
+                 {/* KPI */}
                 <div style={{display:'flex', justifyContent:'space-between', backgroundColor:'transparent', border: `1px solid ${BORDER_COLOR}`, borderRadius:16, padding:16, marginBottom:20}}>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold'}}>{stats.total}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Totali</div></div>
-                   <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
+                   <div style={{width:1, backgroundColor:BORDER_COLOR}}></div>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#38a169'}}>{stats.active}</div><div style={{fontSize:'0.8em', color:'#718096'}}>In Corso</div></div>
-                   <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
+                   <div style={{width:1, backgroundColor:BORDER_COLOR}}></div>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#d69e2e'}}>{stats.archived}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Archivio</div></div>
                 </div>
-
                 <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Per Tipo</h4>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20}}>
                    {stats.byType.map(x=> (
@@ -1194,13 +1251,7 @@ export default function App(){
                      </div>
                    ))}
                 </div>
-
-                <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Altro</h4>
-                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border:'1px solid #bee3f8', backgroundColor:'#ebf8ff', borderRadius:12, color:'#2b6cb0'}}>
-                   <span>🛒 Wishlist (Wishlist)</span>
-                   <strong>{stats.bySource[0]?.n || 0}</strong>
-                </div>
-              </div>
+               </div>
             )}
 
             <button onClick={()=>setStatsModalOpen(false)} style={{marginTop:24, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', width:'100%'}}>Chiudi</button>
@@ -1332,33 +1383,55 @@ export default function App(){
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
           <div className="card" onClick={e => e.stopPropagation()} 
                style={{
-                 maxWidth: 450,  // Leggermente più stretto per eleganza
-                 width: "90%",   // Lascia più margine ai lati su mobile
+                 maxWidth: 450, 
+                 width: "90%", 
                  maxHeight: "90vh", 
                  overflowY: "auto", 
-                 padding: "20px", // Meno padding per dare spazio al contenuto
-                 borderRadius: 20, 
-                 backgroundColor: '#FDF8F2', 
-                 boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                 border: '1px solid #fff'
+                 padding: "24px", // Un po' più di aria
+                 borderRadius: 24, 
+                 backgroundColor: '#FDF8F2', // Beige Zen
+                 boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+                 border: '1px solid #fff',
+                 position: 'relative' // Per posizionare la X
                }}>
             
-            {/* HEADER */}
-            <div style={{textAlign:'center', marginBottom: 16}}>
-              <h2 style={{margin:0, color:'#2d3748', fontSize:'1.3rem'}}>Modifica Elemento</h2>
-              <div style={{width: 40, height: 3, backgroundColor: '#d6bc9b', margin: '8px auto', borderRadius: 2}}></div>
+            {/* HEADER: TITOLO + TASTO X (Annulla) */}
+            <div style={{display:'flex', alignItems:'center', justifyContent:'center', marginBottom: 20, position:'relative'}}>
+              {/* Titolo centrato */}
+              <div style={{textAlign:'center'}}>
+                <h2 style={{margin:0, color:'#2d3748', fontSize:'1.3rem'}}>Modifica Elemento</h2>
+                <div style={{width: 40, height: 3, backgroundColor: '#d6bc9b', margin: '8px auto', borderRadius: 2}}></div>
+              </div>
+              
+              {/* Tasto X (Sostituisce Annulla) posizionato assolutamente a destra */}
+              <button 
+                onClick={()=>setEditState(null)} 
+                style={{
+                  position: 'absolute', 
+                  right: 0, 
+                  top: 0,
+                  background: 'transparent', 
+                  border: 'none', 
+                  fontSize: '1.5rem', 
+                  color: '#a0aec0', 
+                  cursor: 'pointer',
+                  padding: '8px'
+                }}
+              >
+                ✕
+              </button>
             </div>
 
             <form onSubmit={handleUpdateItem} id="edit-form" style={{display:'flex', flexDirection:'column', gap:12}}>
               
-              {/* TITOLO E AUTORE */}
+              {/* --- I TUOI INPUT (Rimasti uguali ma ordinati) --- */}
               <div style={{display:'flex', flexDirection:'column', gap:12}}>
                 <input 
                   placeholder="Titolo" 
                   value={editState.title} 
                   onChange={e => setEditState(curr => ({...curr, title: e.target.value}))} 
                   style={{
-                    width: '100%', boxSizing: 'border-box', // <--- FONDAMENTALE PER NON SBARELLARE
+                    width: '100%', boxSizing: 'border-box',
                     fontSize:'1.1rem', fontWeight:'bold', padding:'12px', borderRadius:12, 
                     border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748', textAlign:'center'
                   }}
@@ -1375,7 +1448,6 @@ export default function App(){
                 />
               </div>
 
-              {/* GRIGLIA DETTAGLI (Ordinata) */}
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                 <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType})); }} style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}>
                     {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
@@ -1416,9 +1488,8 @@ export default function App(){
                   style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, fontSize:'0.95em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} 
               />
 
-              {/* STATO (Più compatto) */}
               <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:12, marginTop:4}}>
-                 <span style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', textTransform:'uppercase', letterSpacing:'0.05em'}}>STATO:</span>
+                 <span style={{fontSize:'0.75em', fontWeight:'bold', color:'#a0aec0', textTransform:'uppercase', letterSpacing:'0.05em'}}>STATO</span>
               </div>
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
                  <div 
@@ -1429,63 +1500,73 @@ export default function App(){
                         setEditState(curr => ({...curr, source: joinSources(newArr)})); 
                     }} 
                     style={{
-                        padding: '10px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
+                        padding: '12px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
                         border: parseSources(editState.source).includes('Wishlist') ? '1px solid #3182ce' : `1px solid ${BORDER_COLOR}`,
                         backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : 'transparent',
                         color: parseSources(editState.source).includes('Wishlist') ? '#2b6cb0' : '#718096',
-                        opacity: parseSources(editState.source).includes('Wishlist') ? 1 : 0.7
+                        opacity: parseSources(editState.source).includes('Wishlist') ? 1 : 0.6
                     }}
                  >
-                    <div style={{fontSize:'1.2rem'}}>🛒</div>
+                    <div style={{fontSize:'1.3rem', marginBottom:2}}>🛒</div>
                     <div style={{fontSize:'0.75em', fontWeight:'bold'}}>Wishlist</div>
                  </div>
 
                  <div 
                     onClick={() => setEditState(curr => ({...curr, is_next: !curr.is_next}))} 
                     style={{
-                        padding: '10px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
+                        padding: '12px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
                         border: editState.is_next ? '1px solid #38a169' : `1px solid ${BORDER_COLOR}`,
                         backgroundColor: editState.is_next ? '#f0fff4' : 'transparent',
                         color: editState.is_next ? '#2f855a' : '#718096',
-                        opacity: editState.is_next ? 1 : 0.7
+                        opacity: editState.is_next ? 1 : 0.6
                     }}
                  >
-                    <div style={{fontSize:'1.2rem'}}>📌</div>
+                    <div style={{fontSize:'1.3rem', marginBottom:2}}>📌</div>
                     <div style={{fontSize:'0.75em', fontWeight:'bold'}}>In Coda</div>
                  </div>
               </div>
-
             </form>
 
-            {/* ACTION BAR PULITA */}
-            <div style={{marginTop:20, paddingTop: 16, borderTop:`1px dashed ${BORDER_COLOR}`, display:'flex', gap:12}}>
-                <button 
-                    type="button" 
-                    className="ghost"
-                    onClick={() => { if (window.confirm("Eliminare definitivamente?")) deleteItem(editState.id); }}
-                    style={{
-                        flex: 1, padding:'12px', borderRadius:12, border: '1px solid #feb2b2', 
-                        backgroundColor: '#fff5f5', color:'#c53030', fontWeight:'600', fontSize: '0.9em'
-                    }}
-                >
-                    Elimina
-                </button>
-
+            {/* --- NUOVO FOOTER PULITO --- */}
+            <div style={{marginTop: 24, display:'flex', flexDirection:'column', gap:16}}>
+                
+                {/* 1. TASTONE SALVA (Protagonista) */}
                 <button 
                     type="submit" form="edit-form" 
                     style={{
-                        flex: 2, padding:'12px', borderRadius:12, backgroundColor:'#3e3e3e',
-                        color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'
+                        width: '100%', 
+                        padding:'16px', 
+                        borderRadius:16, 
+                        backgroundColor:'#2d3748', // O usa #3e3e3e
+                        color:'white', 
+                        fontWeight:'bold', 
+                        fontSize: '1rem',
+                        border:'none', 
+                        boxShadow:'0 4px 12px rgba(45, 55, 72, 0.2)',
+                        cursor: 'pointer'
                     }}
                 >
                     Salva Modifiche
                 </button>
+
+                {/* 2. LINK ELIMINA (Discreto e Minimal) */}
+                <button 
+                    type="button" 
+                    className="ghost"
+                    onClick={() => { if (window.confirm("Sei sicuro di voler eliminare definitivamente questo elemento?")) deleteItem(editState.id); }}
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#e53e3e',
+                        fontSize: '0.85rem',
+                        textDecoration: 'none',
+                        cursor: 'pointer',
+                        opacity: 0.8
+                    }}
+                >
+                    🗑️ Elimina elemento
+                </button>
             </div>
-            
-            {/* ANNULLA minimalista (solo testo) */}
-             <div style={{textAlign:'center', marginTop:12}}>
-                 <button className="ghost" onClick={()=>setEditState(null)} style={{fontSize:'0.85em', color:'#a0aec0', textDecoration:'none', padding: 8, cursor:'pointer'}}>Annulla</button>
-             </div>
 
           </div>
         </div>
