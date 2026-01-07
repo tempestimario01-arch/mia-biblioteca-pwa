@@ -1312,30 +1312,159 @@ export default function App(){
 
       {editState && (
         <div className="modal-backdrop" onClick={() => setEditState(null)}>
-          <div className="card" style={{maxWidth:560, width:"92%", padding:16}} onClick={e => e.stopPropagation()}>
-            <h2 style={{marginTop:0}}>Modifica elemento</h2>
-            <form onSubmit={handleUpdateItem} className="grid grid-2" id="edit-form">
-              <input placeholder="Titolo" value={editState.title} onChange={e => setEditState(curr => ({...curr, title: e.target.value}))} />
-              <input placeholder="Autore" value={editState.creator} onChange={e => setEditState(curr => ({...curr, creator: e.target.value}))} />
-              <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType, genre: showGenreInput(newType) ? curr.genre : ''})); }}>{TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}</select>
-              {showGenreInput(editState.type) && (<select value={editState.genre} onChange={e => setEditState(curr => ({...curr, genre: e.target.value}))}><option value="">Genere (facoltativo)</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>)}
-              <select value={editState.mood || ""} onChange={e => setEditState(curr => ({...curr, mood: e.target.value}))}><option value="">Umore (opz.)</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
-              <input type="number" placeholder="Anno" value={editState.year} onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}/><input placeholder="Link" value={editState.video_url || ""} onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} />
-              {/* AREA NOTE MODIFICA */}
-              <div style={{gridColumn: "1 / -1"}}>
-                <textarea placeholder="Note personali..." value={editState.note || ""} onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
+          <div className="card" onClick={e => e.stopPropagation()} 
+               style={{
+                 maxWidth: 500, // Coerente con AddModal
+                 width: "94%", 
+                 maxHeight: "90vh", 
+                 overflowY: "auto", 
+                 padding: "24px", 
+                 borderRadius: 20, 
+                 backgroundColor: '#FDF8F2', // SFONDO BEIGE ZEN
+                 boxShadow: '0 10px 25px rgba(0,0,0,0.1)', // Ombra morbida
+                 border: '1px solid #fff' // Un tocco di luce sul bordo
+               }}>
+            
+            {/* HEADER ZEN */}
+            <div style={{textAlign:'center', marginBottom: 20}}>
+              <h2 style={{margin:0, color:'#2d3748', fontSize:'1.4rem'}}>Modifica Elemento</h2>
+              <div style={{width: 40, height: 3, backgroundColor: '#d6bc9b', margin: '8px auto', borderRadius: 2}}></div>
+            </div>
+
+            <form onSubmit={handleUpdateItem} id="edit-form" style={{display:'flex', flexDirection:'column', gap:16}}>
+              
+              {/* TITOLO E AUTORE (Input trasparenti e puliti) */}
+              <div style={{display:'flex', flexDirection:'column', gap:12}}>
+                <input 
+                  placeholder="Titolo" 
+                  value={editState.title} 
+                  onChange={e => setEditState(curr => ({...curr, title: e.target.value}))} 
+                  style={{
+                    fontSize:'1.2rem', fontWeight:'bold', padding:'12px', borderRadius:12, 
+                    border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748', textAlign:'center'
+                  }}
+                />
+                <input 
+                  placeholder="Autore / Regista" 
+                  value={editState.creator} 
+                  onChange={e => setEditState(curr => ({...curr, creator: e.target.value}))} 
+                  style={{
+                    fontSize:'1rem', padding:'10px', borderRadius:12, 
+                    border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', textAlign:'center'
+                  }}
+                />
               </div>
 
-              <div style={{gridColumn: "1 / -1", marginTop: 8}}>
-                <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding: '8px 12px', borderRadius: 8, border: parseSources(editState.source).includes('Wishlist') ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : '#fff'}}>
-                  <input type="checkbox" checked={parseSources(editState.source).includes('Wishlist')} onChange={e => { const active = e.target.checked; const currentArr = parseSources(editState.source).filter(x => x !== 'Wishlist' && x !== 'da comprare'); if (active) currentArr.push('Wishlist'); setEditState(curr => ({...curr, source: joinSources(currentArr)})); }} style={{margin:0}} />
-                  <span style={{color:'#4a5568'}}>🛒 Wishlist</span>
-                </label>
+              {/* GRIGLIA DETTAGLI */}
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType})); }} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}>
+                    {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                </select>
+                
+                <input 
+                  type="number" 
+                  placeholder="Anno" 
+                  value={editState.year} 
+                  onChange={e => setEditState(curr => ({...curr, year: e.target.value}))}
+                  style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}
+                />
+
+                {showGenreInput(editState.type) ? (
+                  <select value={editState.genre} onChange={e => setEditState(curr => ({...curr, genre: e.target.value}))} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>
+                    <option value="">Genere...</option>
+                    {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                ) : <div/>}
+
+                <select value={editState.mood || ""} onChange={e => setEditState(curr => ({...curr, mood: e.target.value}))} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}>
+                    <option value="">Umore...</option>
+                    {MOODS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
 
-              <div style={{gridColumn: "1 / -1", display:'flex', alignItems:'center', gap:8}}><input type="checkbox" id="edit_chk_next" checked={editState.is_next} onChange={e => setEditState(curr => ({...curr, is_next: e.target.checked}))} style={{width:'auto'}}/><label htmlFor="edit_chk_next">📌 In Coda (Prossimo)</label></div>
+              <input 
+                  placeholder="Link (URL video, wiki, ecc)..." 
+                  value={editState.video_url || ""} 
+                  onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} 
+                  style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em'}}
+              />
+              <textarea 
+                  placeholder="Note personali..." 
+                  value={editState.note || ""} 
+                  onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} 
+                  rows={4} 
+                  style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.95em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} 
+              />
+
+              {/* STATI (Toggle "Soft") */}
+              <label style={{fontSize:'0.8em', fontWeight:'bold', color:'#718096', marginBottom:-8, textAlign:'center', textTransform:'uppercase', letterSpacing:'0.05em'}}>Stato</label>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                 {/* Toggle Wishlist */}
+                 <div 
+                    onClick={() => { 
+                        const currentArr = parseSources(editState.source);
+                        const isW = currentArr.includes('Wishlist');
+                        const newArr = isW ? currentArr.filter(x => x !== 'Wishlist') : [...currentArr, 'Wishlist'];
+                        setEditState(curr => ({...curr, source: joinSources(newArr)})); 
+                    }} 
+                    style={{
+                        padding: '12px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
+                        border: parseSources(editState.source).includes('Wishlist') ? '1px solid #3182ce' : `1px solid ${BORDER_COLOR}`,
+                        backgroundColor: parseSources(editState.source).includes('Wishlist') ? '#ebf8ff' : 'transparent', // Blu pastello se attivo
+                        color: parseSources(editState.source).includes('Wishlist') ? '#2b6cb0' : '#718096',
+                        opacity: parseSources(editState.source).includes('Wishlist') ? 1 : 0.7
+                    }}
+                 >
+                    <div style={{fontSize:'1.4rem'}}>🛒</div>
+                    <div style={{fontSize:'0.8em', fontWeight:'bold'}}>Wishlist</div>
+                 </div>
+
+                 {/* Toggle In Coda */}
+                 <div 
+                    onClick={() => setEditState(curr => ({...curr, is_next: !curr.is_next}))} 
+                    style={{
+                        padding: '12px', borderRadius: 12, cursor:'pointer', textAlign:'center', transition:'all 0.3s',
+                        border: editState.is_next ? '1px solid #38a169' : `1px solid ${BORDER_COLOR}`,
+                        backgroundColor: editState.is_next ? '#f0fff4' : 'transparent', // Verde pastello se attivo
+                        color: editState.is_next ? '#2f855a' : '#718096',
+                        opacity: editState.is_next ? 1 : 0.7
+                    }}
+                 >
+                    <div style={{fontSize:'1.4rem'}}>📌</div>
+                    <div style={{fontSize:'0.8em', fontWeight:'bold'}}>In Coda</div>
+                 </div>
+              </div>
+
             </form>
-            <div className="row" style={{justifyContent:"space-between", marginTop:12}}><button type="button" className="ghost" style={{ color: '#c53030', borderColor: '#c53030' }} onClick={() => { if (window.confirm("Sei sicuro?")) deleteItem(editState.id); }}>Elimina</button><div className="row" style={{gap: 8}}><button className="ghost" type="button" onClick={()=>setEditState(null)}>Annulla</button><button type="submit" form="edit-form">Salva Modifiche</button></div></div>
+
+            {/* ACTION BAR */}
+            <div style={{marginTop:24, paddingTop: 20, borderTop:`1px dashed ${BORDER_COLOR}`, display:'flex', gap:12}}>
+                <button 
+                    type="button" 
+                    className="ghost"
+                    onClick={() => { if (window.confirm("Eliminare definitivamente?")) deleteItem(editState.id); }}
+                    style={{
+                        flex: 1, padding:'14px', borderRadius:12, border: '1px solid #feb2b2', 
+                        backgroundColor: '#fff5f5', color:'#c53030', fontWeight:'600'
+                    }}
+                >
+                    Elimina
+                </button>
+
+                <button 
+                    type="submit" form="edit-form" 
+                    style={{
+                        flex: 2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', // Grigio scuro coerente con AddModal
+                        color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    Salva Modifiche
+                </button>
+            </div>
+             <div style={{textAlign:'center', marginTop:12}}>
+                 <button className="ghost" onClick={()=>setEditState(null)} style={{fontSize:'0.9em', color:'#718096', textDecoration:'underline'}}>Annulla</button>
+             </div>
+
           </div>
         </div>
       )}
