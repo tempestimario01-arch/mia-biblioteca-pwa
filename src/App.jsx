@@ -288,6 +288,9 @@ export default function App(){
   const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
   const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
   const [storageMetrics, setStorageMetrics] = useState({ usedMB: 0, percent: 0 });
+  const [memoryQuote, setMemoryQuote] = useState(null);// Memory Jar
+  const [showSource, setShowSource] = useState(false);// Memory Jar
+
 
   // Stats
   const [stats, setStats] = useState({
@@ -825,6 +828,50 @@ export default function App(){
     }; fetchMemory();
   }, []);
 
+  /* --- MEMORY JAR "HAIKU" (Minimalista) --- */
+  useEffect(() => {
+    const fetchQuote = async () => {
+      // 1. Preleva un campione di elementi che hanno una nota
+      const { data } = await supabase
+        .from('items')
+        .select('title, author, note')
+        .not('note', 'is', null) 
+        .limit(30);
+
+      if (data && data.length > 0) {
+        // Mischia i risultati
+        const shuffled = data.sort(() => 0.5 - Math.random());
+
+        for (let item of shuffled) {
+          const rawNote = item.note || "";
+          
+          // 2. CERCA TESTO TRA PARENTESI GRAFFE { ... }
+          // La regex trova tutte le occorrenze
+          const matches = rawNote.match(/\{([^}]+)\}/g);
+
+          if (matches && matches.length > 0) {
+            // Prendi una citazione a caso tra quelle trovate nel libro
+            const randomQuote = matches[Math.floor(Math.random() * matches.length)]
+                                .replace(/^\{|\}$/g, ''); // Pulisce le parentesi { }
+
+            // Controllo qualità: deve essere abbastanza lunga
+            if (randomQuote.trim().length > 5) {
+              setMemoryQuote({
+                text: randomQuote,
+                source: item.title,
+                author: item.author
+              });
+              setShowSource(false); // Nascondi la fonte all'inizio
+              break; // Trovata! Esci dal ciclo.
+            }
+          }
+        }
+      }
+    };
+    
+    fetchQuote();
+  }, []);
+
   /* --- AUTOCOMPLETE GHOST (Versatile & Ordinato) --- */
   useEffect(() => {
     const val = qInput ? qInput.trim() : "";
@@ -1118,6 +1165,63 @@ export default function App(){
               </div>
             </section>
           )}
+
+          {/* ===== MEMORY JAR HAIKU (Zen Mode) ===== */}
+      {memoryQuote && (
+        <div 
+          onClick={() => setShowSource(!showSource)}
+          style={{
+            margin: '24px 12px 32px 12px', // Un po' di spazio
+            textAlign: 'center',
+            cursor: 'pointer',
+            animation: 'fadeIn 1.5s ease-in', // Entrata lentissima e rilassante
+            userSelect: 'none' 
+          }}
+        >
+          {/* La Citazione */}
+          <div style={{
+            fontFamily: '"Times New Roman", Times, serif', // Font classico elegante
+            fontStyle: 'italic',
+            fontSize: '1.35rem', 
+            color: '#2d3748',
+            lineHeight: 1.6,
+            maxWidth: '600px',
+            margin: '0 auto'
+          }}>
+            "{memoryQuote.text}"
+          </div>
+
+          {/* La Fonte (Appare in dissolvenza solo se clicchi) */}
+          <div style={{
+            marginTop: 12,
+            opacity: showSource ? 1 : 0, 
+            transform: showSource ? 'translateY(0)' : 'translateY(-5px)',
+            transition: 'all 0.6s ease', 
+            fontSize: '0.85rem',
+            color: '#d6bc9b', 
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            fontWeight: 600
+          }}>
+            — {memoryQuote.source} <span style={{fontWeight:'normal', opacity:0.7, textTransform:'none'}}>({memoryQuote.author})</span>
+          </div>
+          
+          {/* Piccolissima X per chiudere */}
+          {showSource && (
+            <button 
+               onClick={(e) => { e.stopPropagation(); setMemoryQuote(null); }}
+               style={{
+                 background:'transparent', border:'none', 
+                 color:'#cbd5e0', fontSize:'1.2rem', marginTop:8, 
+                 cursor:'pointer', opacity: 0.5
+               }}
+               title="Nascondi"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
 
           {/* MEMORY LANE */}
           {memoryItem && (
