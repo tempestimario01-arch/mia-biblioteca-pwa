@@ -1166,71 +1166,77 @@ export default function App(){
             </section>
           )}
 
-          {/* ===== MEMORY JAR HAIKU (Discreto & Leggibile) ===== */}
-          {memoryQuote && (
-            <div 
-              onClick={() => setShowSource(!showSource)}
-              style={{
-                margin: '12px 16px 20px 16px', 
-                textAlign: 'center',
-                cursor: 'pointer',
-                animation: 'fadeIn 1.5s ease-in',
-                userSelect: 'none'
-              }}
-            >
-              {/* La Citazione */}
-              <div style={{
-                fontFamily: '"Times New Roman", Times, serif',
-                fontStyle: 'italic',
-                fontSize: '1.1rem', 
-                color: '#2d3748',   // SCURITO: Grigio Antracite
-                lineHeight: 1.5,
-                maxWidth: '500px',  
-                margin: '0 auto'
-              }}>
-                "{memoryQuote.text}"
-              </div>
+          {/* ===== SLOT DELLA MEMORIA (Uniformato & Compatto) ===== */}
+      {(dailyWidget === 'jar' && memoryQuote) || (dailyWidget === 'lane' && !memoryItem && memoryQuote) ? (
+        
+        /* --- WIDGET: MEMORY JAR (Box Tratteggiato) --- */
+        <div 
+          onClick={() => setShowSource(!showSource)}
+          className="card"
+          style={{
+            marginTop: 16, marginBottom: 24,
+            backgroundColor: 'transparent', // Sfondo Zen
+            border: '1px dashed #cbd5e0',   // Bordo tratteggiato come il Remainder
+            borderRadius: 12,
+            padding: '12px 16px',
+            textAlign: 'center',
+            cursor: 'pointer',
+            animation: 'fadeIn 1s',
+            userSelect: 'none',
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            gap: 6
+          }}
+        >
+          {/* La Citazione (Piccola e Compatta) */}
+          <div style={{
+            fontFamily: '"Times New Roman", Times, serif',
+            fontStyle: 'italic',
+            fontSize: '0.95rem', // RIDOTTO: Molto compatto ora
+            color: '#2d3748', 
+            lineHeight: 1.4,
+            maxWidth: '100%'
+          }}>
+            "{memoryQuote.text}"
+          </div>
 
-              {/* La Fonte (Appare al click) */}
-              <div style={{
-                marginTop: 8,
-                opacity: showSource ? 1 : 0, 
-                transform: showSource ? 'translateY(0)' : 'translateY(-5px)',
-                transition: 'all 0.6s ease', 
-                fontSize: '0.8rem', 
-                color: '#b7791f',   // SCURITO: Oro Antico / Bronzo
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                fontWeight: 700     // Aumentato peso per leggibilità
-              }}>
-                — {memoryQuote.source} <span style={{fontWeight:'normal', opacity:0.8, textTransform:'none', color:'#4a5568'}}>({memoryQuote.author})</span>
-              </div>
-              
-              {/* Tasto Chiudi minuscolo */}
-              {showSource && (
-                <button 
-                   onClick={(e) => { e.stopPropagation(); setMemoryQuote(null); }}
-                   style={{
-                     background:'transparent', border:'none', 
-                     color:'#cbd5e0', fontSize:'1rem', marginTop:4, 
-                     cursor:'pointer', opacity: 0.5
-                   }}
-                   title="Nascondi"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          )}
-          
-          {/* MEMORY LANE */}
-          {memoryItem && (
-             <div className="card" style={{marginTop: 12, marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '10px 12px'}}>
-               <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0, textAlign: 'center', fontStyle: 'italic' }}>
-                 🕰️ {memoryItem.daysAgo < 30 ? `${memoryItem.daysAgo} giorni fa` : `${Math.floor(memoryItem.daysAgo / 30)} mesi fa`} finivi <strong>{memoryItem.title}</strong>
-               </p>
-             </div>
-          )}
+          {/* La Fonte (Appare sotto se clicchi) */}
+          <div style={{
+            opacity: showSource ? 1 : 0, 
+            height: showSource ? 'auto' : 0, // Collassa se nascosto per risparmiare spazio
+            overflow: 'hidden',
+            transform: showSource ? 'translateY(0)' : 'translateY(-5px)',
+            transition: 'all 0.4s ease', 
+            fontSize: '0.75rem', // Minuscolo
+            color: '#b7791f', 
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+            marginTop: showSource ? 4 : 0
+          }}>
+            — {memoryQuote.source}
+          </div>
+        </div>
+
+      ) : memoryItem ? (
+
+        /* --- WIDGET: MEMORY LANE (Box Tratteggiato) --- */
+        <div className="card" style={{
+            marginTop: 16, marginBottom: 24, 
+            backgroundColor: 'transparent', 
+            border: '1px dashed #cbd5e0', 
+            borderRadius: 12,
+            padding: '12px 16px',
+            textAlign: 'center',
+            animation: 'fadeIn 1s'
+        }}>
+          <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0, fontStyle: 'italic' }}>
+            🕰️ {memoryItem.daysAgo < 30 ? `${memoryItem.daysAgo} giorni fa` : `${Math.floor(memoryItem.daysAgo / 30)} mesi fa`} finivi <strong>{memoryItem.title}</strong>
+          </p>
+        </div>
+
+      ) : null}
 
           {/* SUGGERIMENTO ZEN */}
           {suggestion && (
