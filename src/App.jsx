@@ -283,10 +283,11 @@ export default function App(){
   const [items,setItems] = useState([]);
   const [pinnedItems, setPinnedItems] = useState([]); 
   const [loading,setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState([]); // <--- QUESTO È L'UNICO E IL SOLO
+  const [suggestions, setSuggestions] = useState([]); 
   const [isSaving, setIsSaving] = useState(false);
   const [visibleCount, setVisibleCount] = useState(50); // INFINITE SCROLL STATE
   const [toasts, setToasts] = useState([]); // TOAST NOTIFICATIONS
+  const [storageMetrics, setStorageMetrics] = useState({ usedMB: 0, percent: 0 });
 
   // Stats
   const [stats, setStats] = useState({
@@ -526,20 +527,6 @@ export default function App(){
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // AGGIUNTO IL COMMENTO PERCHÈ QUESTO BLOCCO È STATO INTEGRATO NELLA LOGICA DI RICERCA
-  // useEffect(() => {
-  //   const t = setTimeout(() => {
-  //     const val = qInput.trim();
-  //     setQ(val);
-  //     if (val.length > 0) {
-  //       setStatusFilter("");
-  //     } else {
-  //       setStatusFilter("active");
-  //     }
-  //   }, 250);
-  //   return () => clearTimeout(t);
-  // }, [qInput]);
-
   const isSearchActive = useMemo(() => {
     const isStatusChanged = statusFilter !== 'active';
     return q.length > 0 || isStatusChanged || typeFilter.length > 0 || genreFilter.length > 0 || moodFilter.length > 0 ||
@@ -589,9 +576,6 @@ export default function App(){
     fetchPinnedItems();
   } else { 
     showToast("Errore salvataggio: " + (error?.message), "error"); 
-    // Nota: I dati del form sono persi perché l'abbiamo resettato. 
-    // Se vuoi essere ultra-sicuro, resetta il form SOLO se !error, 
-    // ma per un'app personale questo va benissimo.
   }
 }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
 
@@ -845,58 +829,92 @@ export default function App(){
   useEffect(() => {
     const val = qInput ? qInput.trim() : "";
     
-    // Serve almeno 2 caratteri
+    // Serve almeno 2 caratteri per attivarsi
     if (val.length < 2) {
       setSuggestions([]); 
       return;
     }
 
     const fetchSuggestions = async () => {
+      // 1. ANALISI INPUT: Separiamo parole e tag
+      const tagsInInput = val.match(/#[a-z0-9_àèìòù]+/gi) || [];
+      // Parole di testo pulite (senza tag)
+      const textParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/).filter(s => s.length > 0);
+      
+      // Capiamo se l'utente sta scrivendo un tag in questo momento (l'ultima parola inizia con #)
+      const words = val.split(/\s+/);
+      const lastWord = words[words.length - 1];
+      const isTypingTag = lastWord && lastWord.startsWith('#');
+
+      // 2. COSTRUZIONE QUERY AL DATABASE
       let query = supabase
         .from('items')
         .select('title, author, note') 
-        .limit(50); // Scarica un campione ampio per trovare concetti unici
+        .limit(50); 
 
-      const isHashtag = val.startsWith('#');
-      const searchStr = val.toLowerCase();
+      // A. Filtra per i TAG già completi
+      tagsInInput.forEach(tag => {
+         // Se il tag è l'ultimo che sto scrivendo, è parziale, quindi lo cerchiamo con il %
+         // Ma per sicurezza usiamo il filtro ampio su tutti
+         query = query.ilike('note', `%${tag}%`);
+      });
 
-      if (isHashtag) {
-        query = query.ilike('note', `%${val}%`); // Cerca solo nelle note
-      } else {
-        query = query.or(`title.ilike.%${val}%,author.ilike.%${val}%`);
+      // B. Filtra per il TESTO (Logica "Smart": cerca almeno la prima parola, poi filtriamo noi)
+      if (textParts.length > 0) {
+         const firstToken = textParts[0];
+         // Cerca elementi che abbiano ALMENO la prima parola nel titolo O nell'autore
+         query = query.or(`title.ilike.%${firstToken}%,author.ilike.%${firstToken}%`);
       }
 
       const { data, error } = await query;
 
       if (!error && data) {
         const uniqueSet = new Set();
+        const valLower = val.toLowerCase();
 
+        // 3. FILTRAGGIO CLIENT-SIDE (Per la precisione multi-parola)
         data.forEach(row => {
-          if (isHashtag) {
-            // ESTRAZIONE TAG
-            if (row.note) {
-               const tags = row.note.match(/#[a-z0-9_àèìòù]+/gi); 
-               if (tags) {
-                 tags.forEach(t => {
-                   if (t.toLowerCase().includes(searchStr)) uniqueSet.add(t);
-                 });
-               }
-            }
-          } else {
-            // ESTRAZIONE AUTORE E TITOLO
-            if (row.author && row.author.toLowerCase().includes(searchStr)) uniqueSet.add(row.author);
-            if (row.title && row.title.toLowerCase().includes(searchStr)) uniqueSet.add(row.title);
+          const rowTitle = (row.title || "").toLowerCase();
+          const rowAuthor = (row.author || "").toLowerCase();
+          
+          // Verifica: La riga contiene TUTTE le parole scritte? (Logica AND)
+          // Es: Input "King Step" -> "Stephen King" contiene sia "King" che "Step"? SÌ.
+          const matchTitle = textParts.every(part => rowTitle.includes(part));
+          const matchAuthor = textParts.every(part => rowAuthor.includes(part));
+          
+          // CASO 1: Suggerimenti Testuali (Titoli/Autori)
+          // Li mostriamo solo se non stiamo digitando un tag
+          if (!isTypingTag) { 
+              if (matchTitle) uniqueSet.add(row.title);
+              if (matchAuthor) uniqueSet.add(row.author);
+          }
+          
+          // CASO 2: Completamento Tag
+          if (isTypingTag && row.note) {
+              // Estrai tutti i tag dalla nota
+              const matches = row.note.match(/#[a-z0-9_àèìòù]+/gi) || [];
+              matches.forEach(t => {
+                  // Se il tag trovato inizia con quello che stiamo scrivendo (es: #fan -> #fantasy)
+                  if (t.toLowerCase().startsWith(lastWord.toLowerCase())) {
+                      // Costruiamo il suggerimento mantenendo il prefisso
+                      // Es: "Harry #fan" diventa "Harry #fantasy"
+                      const prefix = val.substring(0, val.lastIndexOf(lastWord));
+                      uniqueSet.add(prefix + t);
+                  }
+              });
           }
         });
 
-        // ORDINAMENTO SMART: Prima chi inizia con la parola, poi per lunghezza
+        // 4. ORDINAMENTO
         const sorted = Array.from(uniqueSet).sort((a, b) => {
-            const aStarts = a.toLowerCase().startsWith(searchStr);
-            const bStarts = b.toLowerCase().startsWith(searchStr);
+            // Chi inizia esattamente con quello che hai scritto vince
+            const aStarts = a.toLowerCase().startsWith(valLower);
+            const bStarts = b.toLowerCase().startsWith(valLower);
             if (aStarts && !bStarts) return -1;
             if (!aStarts && bStarts) return 1;
+            // Altrimenti vince il più corto
             return a.length - b.length;
-        }).slice(0, 6); // Max 6 risultati per pulizia
+        }).slice(0, 6);
 
         setSuggestions(sorted);
       }
@@ -905,6 +923,28 @@ export default function App(){
     const timer = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timer);
   }, [qInput]);
+
+  /* --- CALCOLO SPAZIO DISCO (Proiezione Realistica) --- */
+  useEffect(() => {
+    if (items.length > 0 && stats.total > 0) {
+      // 1. Calcola il peso medio in byte degli elementi caricati (incluso JSON overhead)
+      const sampleSize = items.reduce((acc, item) => acc + JSON.stringify(item).length, 0);
+      const avgBytesPerItem = sampleSize / items.length;
+      
+      // 2. Proietta sul totale degli elementi nel database
+      // Moltiplichiamo x2 per stare sicuri (indici database, metadati, id nascosti)
+      const totalEstimatedBytes = avgBytesPerItem * stats.total * 2;
+      
+      // 3. Converti in MB (1 MB = 1.048.576 byte) e calcola percentuale su 500MB (limite Free)
+      const mb = totalEstimatedBytes / 1048576;
+      const pct = (mb / 500) * 100;
+      
+      setStorageMetrics({ 
+        usedMB: mb < 0.01 ? 0.01 : parseFloat(mb.toFixed(2)), // Minimo 0.01 MB per bellezza
+        percent: parseFloat(pct.toFixed(4)) 
+      });
+    }
+  }, [items, stats.total]);
 
   /* --- 6. RENDER (JSX) --- */
   return (
@@ -1327,6 +1367,28 @@ export default function App(){
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#38a169'}}>{stats.active}</div><div style={{fontSize:'0.8em', color:'#718096'}}>In Corso</div></div>
                    <div style={{width:1, backgroundColor:'#e2e8f0'}}></div>
                    <div style={{textAlign:'center'}}><div style={{fontSize:'1.4em', fontWeight:'bold', color:'#d69e2e'}}>{stats.archived}</div><div style={{fontSize:'0.8em', color:'#718096'}}>Archivio</div></div>
+                </div>
+
+                {/* INDICATORE SPAZIO ZEN */}
+                <div style={{marginBottom: 24, padding:'12px', border:`1px dashed ${BORDER_COLOR}`, borderRadius:12, backgroundColor:'rgba(255,255,255,0.5)'}}>
+                   <div style={{display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:'0.85em', color:'#718096'}}>
+                      <span>💾 Spazio Database (Piano Free)</span>
+                      <strong>{storageMetrics.usedMB} MB / 500 MB</strong>
+                   </div>
+                   
+                   {/* Barra di Progresso */}
+                   <div style={{width:'100%', height:8, backgroundColor:'#e2e8f0', borderRadius:4, overflow:'hidden'}}>
+                      <div style={{
+                         width: `${Math.max(storageMetrics.percent, 1)}%`, // Almeno 1% visibile
+                         height:'100%', 
+                         backgroundColor: storageMetrics.percent > 90 ? '#e53e3e' : (storageMetrics.percent > 50 ? '#d69e2e' : '#38a169'),
+                         transition: 'width 1s ease-in-out'
+                      }}></div>
+                   </div>
+                   
+                   <div style={{textAlign:'right', fontSize:'0.75em', color:'#a0aec0', marginTop:4}}>
+                      Utilizzato: {storageMetrics.percent}% — Stai tranquillo, hai spazio per decenni.
+                   </div>
                 </div>
 
                 <h4 style={{marginTop:0, marginBottom:8, color:'#718096', fontSize:'0.9em', textTransform:'uppercase'}}>Per Tipo</h4>
