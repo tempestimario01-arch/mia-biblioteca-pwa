@@ -290,7 +290,8 @@ export default function App(){
   const [storageMetrics, setStorageMetrics] = useState({ usedMB: 0, percent: 0 });
   const [memoryQuote, setMemoryQuote] = useState(null);// Memory Jar
   const [showSource, setShowSource] = useState(false);// Memory Jar
-
+// Decide quale widget mostrare oggi: 'jar' o 'lane'
+  const [dailyWidget, setDailyWidget] = useState(Math.random() > 0.5 ? 'jar' : 'lane');
 
   // Stats
   const [stats, setStats] = useState({
