@@ -1166,63 +1166,63 @@ export default function App(){
             </section>
           )}
 
-          {/* ===== MEMORY JAR HAIKU (Zen Mode) ===== */}
-      {memoryQuote && (
-        <div 
-          onClick={() => setShowSource(!showSource)}
-          style={{
-            margin: '24px 12px 32px 12px', // Un po' di spazio
-            textAlign: 'center',
-            cursor: 'pointer',
-            animation: 'fadeIn 1.5s ease-in', // Entrata lentissima e rilassante
-            userSelect: 'none' 
-          }}
-        >
-          {/* La Citazione */}
-          <div style={{
-            fontFamily: '"Times New Roman", Times, serif', // Font classico elegante
-            fontStyle: 'italic',
-            fontSize: '1.35rem', 
-            color: '#2d3748',
-            lineHeight: 1.6,
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
-            "{memoryQuote.text}"
-          </div>
-
-          {/* La Fonte (Appare in dissolvenza solo se clicchi) */}
-          <div style={{
-            marginTop: 12,
-            opacity: showSource ? 1 : 0, 
-            transform: showSource ? 'translateY(0)' : 'translateY(-5px)',
-            transition: 'all 0.6s ease', 
-            fontSize: '0.85rem',
-            color: '#d6bc9b', 
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase',
-            fontWeight: 600
-          }}>
-            — {memoryQuote.source} <span style={{fontWeight:'normal', opacity:0.7, textTransform:'none'}}>({memoryQuote.author})</span>
-          </div>
-          
-          {/* Piccolissima X per chiudere */}
-          {showSource && (
-            <button 
-               onClick={(e) => { e.stopPropagation(); setMemoryQuote(null); }}
-               style={{
-                 background:'transparent', border:'none', 
-                 color:'#cbd5e0', fontSize:'1.2rem', marginTop:8, 
-                 cursor:'pointer', opacity: 0.5
-               }}
-               title="Nascondi"
+          {/* ===== MEMORY JAR HAIKU (Discreto & Leggibile) ===== */}
+          {memoryQuote && (
+            <div 
+              onClick={() => setShowSource(!showSource)}
+              style={{
+                margin: '12px 16px 20px 16px', 
+                textAlign: 'center',
+                cursor: 'pointer',
+                animation: 'fadeIn 1.5s ease-in',
+                userSelect: 'none'
+              }}
             >
-              ×
-            </button>
-          )}
-        </div>
-      )}
+              {/* La Citazione */}
+              <div style={{
+                fontFamily: '"Times New Roman", Times, serif',
+                fontStyle: 'italic',
+                fontSize: '1.1rem', 
+                color: '#2d3748',   // SCURITO: Grigio Antracite
+                lineHeight: 1.5,
+                maxWidth: '500px',  
+                margin: '0 auto'
+              }}>
+                "{memoryQuote.text}"
+              </div>
 
+              {/* La Fonte (Appare al click) */}
+              <div style={{
+                marginTop: 8,
+                opacity: showSource ? 1 : 0, 
+                transform: showSource ? 'translateY(0)' : 'translateY(-5px)',
+                transition: 'all 0.6s ease', 
+                fontSize: '0.8rem', 
+                color: '#b7791f',   // SCURITO: Oro Antico / Bronzo
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                fontWeight: 700     // Aumentato peso per leggibilità
+              }}>
+                — {memoryQuote.source} <span style={{fontWeight:'normal', opacity:0.8, textTransform:'none', color:'#4a5568'}}>({memoryQuote.author})</span>
+              </div>
+              
+              {/* Tasto Chiudi minuscolo */}
+              {showSource && (
+                <button 
+                   onClick={(e) => { e.stopPropagation(); setMemoryQuote(null); }}
+                   style={{
+                     background:'transparent', border:'none', 
+                     color:'#cbd5e0', fontSize:'1rem', marginTop:4, 
+                     cursor:'pointer', opacity: 0.5
+                   }}
+                   title="Nascondi"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          )}
+          
           {/* MEMORY LANE */}
           {memoryItem && (
              <div className="card" style={{marginTop: 12, marginBottom: 12, backgroundColor: 'transparent', border: '1px dashed #cbd5e0', padding: '10px 12px'}}>
