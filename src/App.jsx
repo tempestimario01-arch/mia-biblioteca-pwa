@@ -340,94 +340,83 @@ const LibraryItem = memo(({
   );
 });
 
-// COMPONENTE: GRUPPO AUTORE (Stile Coerente Zen)
+// COMPONENTE: GRUPPO AUTORE (Stile Zen Puro - Senza Box)
 const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => {
   const total = works.length;
   const completed = works.filter(w => w.status === 'archived').length;
   const isAllDone = total > 0 && total === completed;
 
-  // Stile "Beige/Sabbia" coerente con il resto dell'app
-  const BORDER_COLOR = '#d6bc9b'; 
-
   return (
-    <div className="card" style={{
-      marginBottom: 20, 
-      padding: 0,
-      backgroundColor: '#fff', 
-      border: `1px solid ${BORDER_COLOR}`,
-      borderRadius: 8, // Un po' meno arrotondato delle card singole per sembrare un folder
-      overflow: 'hidden',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-    }}>
-      {/* HEADER: Nome Autore e Statistiche */}
+    <div style={{ marginBottom: 32, marginTop: 8 }}>
+      
+      {/* HEADER AUTORE (Minimalista: Solo testo e linea) */}
       <div style={{
-        padding: '12px 16px',
-        // Se tutto finito diventa verdino pallido, altrimenti il tuo beige classico
-        backgroundColor: isAllDone ? '#f0fff4' : '#FDF8F2', 
-        borderBottom: `1px solid ${BORDER_COLOR}`,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        borderBottom: `2px solid ${isAllDone ? '#38a169' : '#d6bc9b'}`, // Linea colorata sotto
+        paddingBottom: 4, marginBottom: 8
       }}>
-        <div style={{fontWeight: 'bold', fontSize: '1.05rem', color: '#2d3748'}}>
+        <div style={{
+            fontWeight: '800', 
+            fontSize: '1.2rem', // Nome autore grande
+            color: '#2d3748',
+            letterSpacing: '-0.02em'
+        }}>
           {author}
         </div>
-        {/* Badge conteggio */}
         <div style={{
             fontSize: '0.8rem', 
-            fontWeight: 600,
-            color: isAllDone ? '#2f855a' : '#b7791f', // Verde o Oro scuro
-            backgroundColor: 'rgba(255,255,255,0.5)',
-            padding: '2px 8px',
-            borderRadius: 12
+            color: isAllDone ? '#38a169' : '#a0aec0',
+            fontWeight: 600
         }}>
-          {completed} / {total}
+          {completed}/{total}
         </div>
       </div>
 
-      {/* LISTA: Elementi interni (Stile minimal) */}
-      <div>
-        {works.map((it, idx) => {
+      {/* LISTA OPERE */}
+      <div style={{display:'flex', flexDirection:'column', gap: 8}}>
+        {works.map((it) => {
           const isArchived = it.status === 'archived';
           
           return (
             <div key={it.id} style={{
-              padding: '10px 16px',
-              borderBottom: idx === works.length - 1 ? 'none' : '1px solid #f0f4f8', // Separatore sottilissimo
               display: 'flex', alignItems: 'center', gap: 12,
-              backgroundColor: isArchived ? '#fafafa' : 'white',
-              opacity: isArchived ? 0.6 : 1, // Sbiadisce se archiviato
-              transition: 'all 0.2s'
+              opacity: isArchived ? 0.5 : 1, // Se fatto, diventa molto leggero
+              transition: 'opacity 0.2s'
             }}>
               
-              {/* CHECKBOX (Funziona come tasto Archivia/Ripristina) */}
+              {/* CHECKBOX ZEN (Cerchio o Quadrato minimal) */}
               <div 
                 onClick={(e) => { e.stopPropagation(); isArchived ? onUnarchive(it) : onArchive(it); }}
                 style={{
-                  width: 20, height: 20, borderRadius: 5,
-                  border: isArchived ? 'none' : `1px solid ${BORDER_COLOR}`,
+                  width: 22, height: 22, borderRadius: 6,
+                  border: isArchived ? 'none' : `1.5px solid #cbd5e0`,
                   backgroundColor: isArchived ? '#38a169' : 'transparent',
                   color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0, fontSize: '0.8em'
+                  cursor: 'pointer', flexShrink: 0, fontSize: '0.85em'
                 }}
               >
                 {isArchived && '✓'}
               </div>
 
-              {/* TITOLO (Clicca per modificare/vedere note) */}
+              {/* TITOLO + TIPO + INFO */}
               <div style={{flex: 1, cursor:'pointer'}} onClick={() => onEdit(it)}>
-                <span style={{
-                  fontSize: '0.95rem', 
+                <div style={{
+                  fontSize: '1.1rem', // AUMENTATO (Punto 5)
                   textDecoration: isArchived ? 'line-through' : 'none',
-                  color: '#2d3748'
+                  color: '#2d3748',
+                  lineHeight: 1.3
                 }}>
+                  {/* ICONA TIPO (Punto 6) */}
+                  <span style={{marginRight: 6, fontSize:'0.9em'}}>{TYPE_ICONS[it.kind]}</span>
                   {it.title}
-                </span>
+                </div>
                 
-                {/* ICONCINE DI STATO (Note, Wishlist, Focus) */}
-                <span style={{marginLeft:8, fontSize:'0.75em', opacity:0.8}}>
-                   {it.is_next && '📌'} 
-                   {(it.sourcesArr||[]).includes('Wishlist') && '🛒'} 
-                   {it.note && '🗒️'}
-                </span>
+                {/* Micro-dettagli (Anno, Wishlist) - NO NOTE (Punto 2) */}
+                <div style={{fontSize: '0.75rem', color: '#a0aec0', marginTop:2}}>
+                   {it.year && <span>{it.year}</span>}
+                   {it.is_next && <span style={{color:'#d69e2e', marginLeft: it.year ? 6 : 0}}>📌 Focus</span>} 
+                   {(it.sourcesArr||[]).includes('Wishlist') && <span style={{color:'#3182ce', marginLeft: 6}}>🛒 Wishlist</span>} 
+                </div>
               </div>
 
             </div>
@@ -1213,6 +1202,25 @@ export default function App(){
 
           <div style={{height: 20, width: 1, backgroundColor: '#e2e8f0', margin: '0 4px'}}></div>
 
+          {/* --- [NUOVO] TASTO RAGGRUPPA --- */}
+          {/* Lo inseriamo qui, prima delle statistiche */}
+          <button 
+            className="ghost" 
+            onClick={() => setViewMode(prev => prev === 'list' ? 'group' : 'list')} 
+            title={viewMode === 'list' ? "Raggruppa per Autore" : "Torna alla Lista"}
+            style={{
+                padding:'8px', 
+                fontSize:'1.2em', // Leggermente più grande per visibilità
+                cursor:'pointer',
+                opacity: viewMode === 'group' ? 1 : 0.5, // Se attivo è pieno, se inattivo è semi-trasparente
+                transition: 'all 0.2s',
+                filter: viewMode === 'list' ? 'grayscale(100%)' : 'none' // Effetto B/N se non attivo
+            }} 
+          >
+            {/* Cambia icona in base alla vista: Libri (Lista) o Persone (Gruppo) */}
+            {viewMode === 'list' ? '≔' : '👥'}
+          </button>
+
           <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
           <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
         </div>
@@ -1278,22 +1286,6 @@ export default function App(){
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
             
-            {/* TOGGLE VISTA: LISTA vs GRUPPI */}
-            <button 
-              className="ghost" 
-              onClick={() => setViewMode(prev => prev === 'list' ? 'group' : 'list')} 
-              style={{
-                padding:'4px 10px', fontSize:'0.85em', borderRadius:12, 
-                // Colore attivo: Grigio scuro (elegante), Colore inattivo: Bianco con bordo
-                backgroundColor: viewMode === 'group' ? '#2d3748' : 'white', 
-                color: viewMode === 'group' ? 'white' : '#4a5568', 
-                border: `1px solid ${BORDER_COLOR}`,
-                display:'flex', alignItems:'center', gap:6,
-                cursor:'pointer', marginLeft: 4
-              }}
-            >
-              {viewMode === 'list' ? '👥 Raggruppa' : '📄 Lista'}
-            </button>
 
             {/* TAG LETTERA MODIFICATO CON INDICAZIONE TIPO */}
             {letterFilter && (
