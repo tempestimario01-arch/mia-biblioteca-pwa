@@ -340,6 +340,104 @@ const LibraryItem = memo(({
   );
 });
 
+// COMPONENTE: GRUPPO AUTORE (Stile Coerente Zen)
+const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => {
+  const total = works.length;
+  const completed = works.filter(w => w.status === 'archived').length;
+  const isAllDone = total > 0 && total === completed;
+
+  // Stile "Beige/Sabbia" coerente con il resto dell'app
+  const BORDER_COLOR = '#d6bc9b'; 
+
+  return (
+    <div className="card" style={{
+      marginBottom: 20, 
+      padding: 0,
+      backgroundColor: '#fff', 
+      border: `1px solid ${BORDER_COLOR}`,
+      borderRadius: 8, // Un po' meno arrotondato delle card singole per sembrare un folder
+      overflow: 'hidden',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+    }}>
+      {/* HEADER: Nome Autore e Statistiche */}
+      <div style={{
+        padding: '12px 16px',
+        // Se tutto finito diventa verdino pallido, altrimenti il tuo beige classico
+        backgroundColor: isAllDone ? '#f0fff4' : '#FDF8F2', 
+        borderBottom: `1px solid ${BORDER_COLOR}`,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+      }}>
+        <div style={{fontWeight: 'bold', fontSize: '1.05rem', color: '#2d3748'}}>
+          {author}
+        </div>
+        {/* Badge conteggio */}
+        <div style={{
+            fontSize: '0.8rem', 
+            fontWeight: 600,
+            color: isAllDone ? '#2f855a' : '#b7791f', // Verde o Oro scuro
+            backgroundColor: 'rgba(255,255,255,0.5)',
+            padding: '2px 8px',
+            borderRadius: 12
+        }}>
+          {completed} / {total}
+        </div>
+      </div>
+
+      {/* LISTA: Elementi interni (Stile minimal) */}
+      <div>
+        {works.map((it, idx) => {
+          const isArchived = it.status === 'archived';
+          
+          return (
+            <div key={it.id} style={{
+              padding: '10px 16px',
+              borderBottom: idx === works.length - 1 ? 'none' : '1px solid #f0f4f8', // Separatore sottilissimo
+              display: 'flex', alignItems: 'center', gap: 12,
+              backgroundColor: isArchived ? '#fafafa' : 'white',
+              opacity: isArchived ? 0.6 : 1, // Sbiadisce se archiviato
+              transition: 'all 0.2s'
+            }}>
+              
+              {/* CHECKBOX (Funziona come tasto Archivia/Ripristina) */}
+              <div 
+                onClick={(e) => { e.stopPropagation(); isArchived ? onUnarchive(it) : onArchive(it); }}
+                style={{
+                  width: 20, height: 20, borderRadius: 5,
+                  border: isArchived ? 'none' : `1px solid ${BORDER_COLOR}`,
+                  backgroundColor: isArchived ? '#38a169' : 'transparent',
+                  color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0, fontSize: '0.8em'
+                }}
+              >
+                {isArchived && '✓'}
+              </div>
+
+              {/* TITOLO (Clicca per modificare/vedere note) */}
+              <div style={{flex: 1, cursor:'pointer'}} onClick={() => onEdit(it)}>
+                <span style={{
+                  fontSize: '0.95rem', 
+                  textDecoration: isArchived ? 'line-through' : 'none',
+                  color: '#2d3748'
+                }}>
+                  {it.title}
+                </span>
+                
+                {/* ICONCINE DI STATO (Note, Wishlist, Focus) */}
+                <span style={{marginLeft:8, fontSize:'0.75em', opacity:0.8}}>
+                   {it.is_next && '📌'} 
+                   {(it.sourcesArr||[]).includes('Wishlist') && '🛒'} 
+                   {it.note && '🗒️'}
+                </span>
+              </div>
+
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
 /* =========================================
    4. APP PRINCIPALE
    ========================================= */
@@ -359,6 +457,9 @@ export default function App(){
   const [showSource, setShowSource] = useState(false);// Memory Jar
 // Decide quale widget mostrare oggi: 'jar' o 'lane'
   const [dailyWidget, setDailyWidget] = useState(Math.random() > 0.5 ? 'jar' : 'lane');
+  // 'list' = vista classica (card separate)
+  // 'group' = vista raggruppata per autore (cartelline)
+  const [viewMode, setViewMode] = useState('list');
 
   // Stats
   const [stats, setStats] = useState({
@@ -1177,6 +1278,23 @@ export default function App(){
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
             
+            {/* TOGGLE VISTA: LISTA vs GRUPPI */}
+            <button 
+              className="ghost" 
+              onClick={() => setViewMode(prev => prev === 'list' ? 'group' : 'list')} 
+              style={{
+                padding:'4px 10px', fontSize:'0.85em', borderRadius:12, 
+                // Colore attivo: Grigio scuro (elegante), Colore inattivo: Bianco con bordo
+                backgroundColor: viewMode === 'group' ? '#2d3748' : 'white', 
+                color: viewMode === 'group' ? 'white' : '#4a5568', 
+                border: `1px solid ${BORDER_COLOR}`,
+                display:'flex', alignItems:'center', gap:6,
+                cursor:'pointer', marginLeft: 4
+              }}
+            >
+              {viewMode === 'list' ? '👥 Raggruppa' : '📄 Lista'}
+            </button>
+
             {/* TAG LETTERA MODIFICATO CON INDICAZIONE TIPO */}
             {letterFilter && (
                 <button className="ghost" onClick={()=>setLetterFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>
@@ -1374,26 +1492,75 @@ export default function App(){
         <section className="card" style={{marginTop: 12}}>
           {loading ? <p>Caricamento…</p> : (
             <div className="list" style={{ gap: 16, display: 'flex', flexDirection: 'column' }}>
-              {items.slice(0, visibleCount).map(it => (
+              
+              {/* --- SCENARIO A: VISTA CLASSICA (Lista infinita) --- */}
+              {viewMode === 'list' && items.slice(0, visibleCount).map(it => (
                 <LibraryItem 
                   key={it.id} 
                   it={it}
-                  isArchiveView={statusFilter === 'archived'} // Passa true se stiamo guardando solo l'archivio
+                  isArchiveView={statusFilter === 'archived'}
                   onToggleFocus={toggleFocus}
                   onMarkPurchased={markAsPurchased}
                   onArchive={openArchiveModal}
                   onEdit={openEditModal}
                   onReExperience={reExperience}
                   onUnarchive={unarchive}
-                  onFilterAuthor={handleFilterAuthor}
+                  onFilterAuthor={(authName) => {
+                      // Se clicco l'autore nella card, filtro per lui E passo alla vista gruppi
+                      handleFilterAuthor(authName);
+                      setViewMode('group'); 
+                  }}
                 />
               ))}
-              {items.length === 0 && <p style={{opacity:.8, textAlign:'center'}}>Nessun elemento trovato.</p>}
-              {items.length > visibleCount && (
+
+              {/* --- SCENARIO B: VISTA RAGGRUPPATA (Cartelline Autore) --- */}
+              {viewMode === 'group' && (
+                (() => {
+                  // 1. Qui avviene la magia: Raggruppiamo i libri filtrati
+                  const grouped = items.reduce((acc, item) => {
+                    // Se manca l'autore, lo mettiamo sotto "Vari"
+                    const key = item.creator ? item.creator.trim() : "Vari";
+                    
+                    if (!acc[key]) {
+                        acc[key] = [];
+                    }
+                    acc[key].push(item);
+                    return acc;
+                  }, {});
+                  
+                  // 2. Ordiniamo gli autori dalla A alla Z
+                  const sortedAuthors = Object.keys(grouped).sort((a, b) => 
+                      a.localeCompare(b, undefined, { sensitivity: 'base' })
+                  );
+
+                  // 3. Disegniamo le cartelline (AuthorGroup)
+                  return sortedAuthors.map(authName => (
+                    <AuthorGroup 
+                      key={authName}
+                      author={authName}
+                      works={grouped[authName]} // Passiamo l'array dei libri di questo autore
+                      onArchive={openArchiveModal}
+                      onUnarchive={unarchive}
+                      onEdit={openEditModal}
+                    />
+                  ));
+                })()
+              )}
+
+              {/* Messaggio se non si trova nulla */}
+              {items.length === 0 && (
+                  <p style={{opacity:.8, textAlign:'center', marginTop: 20}}>
+                      Nessun elemento trovato.
+                  </p>
+              )}
+              
+              {/* Il caricamento infinito serve solo nella vista a Lista */}
+              {viewMode === 'list' && items.length > visibleCount && (
                 <div style={{textAlign: 'center', padding: 20, color: '#718096', fontStyle:'italic'}}>
                   Scorri per caricare altri elementi...
                 </div>
               )}
+
             </div>
           )}
         </section>
