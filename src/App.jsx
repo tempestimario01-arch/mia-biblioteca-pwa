@@ -249,7 +249,8 @@ const LibraryItem = memo(({
             title="Filtra per questo autore"
             style={{
               fontWeight: 500, marginBottom: 4, cursor: 'pointer', 
-              textDecoration: 'underline', textDecorationColor: 'rgba(0,0,0,0.1)', textUnderlineOffset: '3px'
+              textDecoration: 'underline', textDecorationColor: 'rgba(0,0,0,0.1)', textUnderlineOffset: '3px', WebkitTapHighlightColor: 'transparent',
+              userSelect: 'none'
             }}
           >
             {TYPE_ICONS[it.kind]} {it.creator}
@@ -399,7 +400,8 @@ const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => 
               </div>
 
               {/* TITOLO + TIPO + INFO */}
-              <div style={{flex: 1, cursor:'pointer'}} onClick={() => onEdit(it)}>
+              <div style={{flex: 1, cursor:'pointer' ,WebkitTapHighlightColor: 'transparent', 
+                    userSelect: 'none'}} onClick={() => onEdit(it)}>
                 <div style={{
                   fontSize: '1.1rem', // AUMENTATO (Punto 5)
                   textDecoration: isArchived ? 'line-through' : 'none',
@@ -1202,24 +1204,31 @@ export default function App(){
 
           <div style={{height: 20, width: 1, backgroundColor: '#e2e8f0', margin: '0 4px'}}></div>
 
-          {/* --- [NUOVO] TASTO RAGGRUPPA --- */}
-          {/* Lo inseriamo qui, prima delle statistiche */}
-          <button 
-            className="ghost" 
-            onClick={() => setViewMode(prev => prev === 'list' ? 'group' : 'list')} 
-            title={viewMode === 'list' ? "Raggruppa per Autore" : "Torna alla Lista"}
-            style={{
-                padding:'8px', 
-                fontSize:'1.2em', // Leggermente più grande per visibilità
-                cursor:'pointer',
-                opacity: viewMode === 'group' ? 1 : 0.5, // Se attivo è pieno, se inattivo è semi-trasparente
-                transition: 'all 0.2s',
-                filter: viewMode === 'list' ? 'grayscale(100%)' : 'none' // Effetto B/N se non attivo
-            }} 
-          >
-            {/* Cambia icona in base alla vista: Libri (Lista) o Persone (Gruppo) */}
-            {viewMode === 'list' ? '≔' : '👥'}
-          </button>
+          {/* DIVISORE VERTICALE */}
+          <div style={{height: 20, width: 1, backgroundColor: '#e2e8f0', margin: '0 4px'}}></div>
+
+          {/* TASTO RAGGRUPPA (Appare SOLO se c'è una ricerca attiva) */}
+          {isSearchActive && (
+            <button 
+              className="ghost" 
+              onClick={() => setViewMode(prev => prev === 'list' ? 'group' : 'list')} 
+              title={viewMode === 'list' ? "Raggruppa per Autore" : "Torna alla Lista"}
+              style={{
+                  padding:'8px', 
+                  fontSize:'1.2em', 
+                  cursor:'pointer',
+                  opacity: viewMode === 'group' ? 1 : 0.6,
+                  transition: 'all 0.2s',
+                  // Rimuove il flash blu su mobile anche qui, per coerenza
+                  WebkitTapHighlightColor: 'transparent' 
+              }} 
+            >
+              {viewMode === 'list' ? '≔' : '👥'}
+            </button>
+          )}
+
+          {/* Se il tasto non c'è, manteniamo l'allineamento con un margine vuoto se serve, 
+              oppure lasciamo che gli altri tasti si avvicinino. */}
 
           <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
           <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
