@@ -61,17 +61,84 @@ function getLinkEmoji(url) {
   return "🔗";
 }
 
-function exportItemsToCsv(rows){
-  const headers = ["id","title","creator","kind","status","genre","mood","year","sources","video_url","note","finished_at","created_at"];
-  const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
-  const body = rows.map(i => headers.map(h => esc(i[h])).join(";")).join("\n");
-  const headerRow = headers.map(h => esc(h)).join(";");
-  const csvContent = [headerRow, body].join("\n");
+/* =========================================
+   FUNZIONE EXPORT CSV "PREMIUM"
+   ========================================= */
+function exportItemsToCsv(rows) {
+  // 1. Mappa delle colonne: (Chiave nel DB) -> (Nome colonna in Excel)
+  const columns = [
+    { key: "title", label: "Titolo" },
+    { key: "creator", label: "Autore/Regista" },
+    { key: "kind", label: "Tipo" },
+    { key: "status", label: "Stato" },
+    { key: "genre", label: "Genere" },
+    { key: "year", label: "Anno" },
+    { key: "mood", label: "Mood" },
+    { key: "is_next", label: "In Piano" },
+    { key: "sourcesArr", label: "Fonti/Wishlist" },
+    { key: "note", label: "Note Personali" },
+    { key: "video_url", label: "Link" },
+    { key: "finished_at", label: "Data Fine" },
+    { key: "created_at", label: "Data Aggiunta" }
+  ];
+
+  // 2. Helper per pulire i dati (Escape CSV)
+  const processValue = (key, value) => {
+    if (value === null || value === undefined) return "";
+
+    // FORMATTAZIONE DATE (Solo YYYY-MM-DD)
+    if (key === "created_at" || key === "finished_at") {
+      return String(value).slice(0, 10);
+    }
+
+    // FORMATTAZIONE TIPO (Aggiunge Emoji)
+    if (key === "kind") {
+      return `${TYPE_ICONS[value] || ''} ${value}`;
+    }
+
+    // FORMATTAZIONE STATO
+    if (key === "status") {
+      return value === "active" ? "In Corso" : "Archiviato";
+    }
+
+    // FORMATTAZIONE BOOLEANI (Sì/No)
+    if (key === "is_next") {
+      return value ? "Sì" : "";
+    }
+
+    // FORMATTAZIONE LISTE (Wishlist, ecc)
+    if (key === "sourcesArr" && Array.isArray(value)) {
+      return value.join(", ");
+    }
+
+    // PULIZIA TESTO (Rimuove "a capo" che rompono i CSV e doppi apici)
+    let stringValue = String(value);
+    // Sostituisce i "new line" con una barra verticale spaziosa per mantenere la riga unica
+    stringValue = stringValue.replace(/(\r\n|\n|\r)/gm, " | ");
+    // Escape dei doppi apici (standard CSV: " diventa "")
+    stringValue = stringValue.replace(/"/g, '""');
+
+    return `"${stringValue}"`; // Racchiude tutto tra virgolette per sicurezza
+  };
+
+  // 3. Costruzione del contenuto CSV
+  // Riga Intestazione
+  const headerRow = columns.map(col => `"${col.label}"`).join(";");
+
+  // Righe Dati
+  const bodyRows = rows.map(row => {
+    return columns.map(col => processValue(col.key, row[col.key] || row[col.key.split(':')[0]])).join(";");
+  }).join("\n");
+
+  const csvContent = [headerRow, bodyRows].join("\n");
+
+  // 4. Download del file
+  // \uFEFF è il BOM per dire a Excel che è UTF-8 (caratteri speciali, accenti, emoji)
   const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `biblioteca_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `Biblioteca_Zen_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
