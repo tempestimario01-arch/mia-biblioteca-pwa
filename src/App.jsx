@@ -290,7 +290,7 @@ const LibraryItem = memo(({
                 borderColor: showNote ? '#d6bc9b' : BORDER_COLOR
             }}
           >
-            📝
+            💭
           </button>
         )}
 
