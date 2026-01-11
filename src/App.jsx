@@ -319,21 +319,48 @@ const LibraryItem = memo(({
         <button className="ghost" onClick={() => onEdit(it)} title="Modifica" style={btnStyle}>✏️</button>
       </div>
 
-      {/* 3. VISUALIZZAZIONE NOTA ELEGANTE (ZEN) */}
+      {/* 3. VISUALIZZAZIONE NOTA ATTIVA (Hashtag Cliccabili) */}
       {showNote && (
         <div style={{ 
             marginTop: 12, 
             padding: '12px 16px', 
-            backgroundColor: '#FFF9F0', // Beige chiarissimo
-            borderLeft: '3px solid #d6bc9b', // Linea dorata laterale
+            backgroundColor: '#FFF9F0', 
+            borderLeft: '3px solid #d6bc9b', 
             borderRadius: '0 8px 8px 0',
             color: '#4a5568', 
             fontSize: '0.95rem', 
-            lineHeight: 1.5,
+            lineHeight: 1.6,
             fontStyle: 'italic',
-            animation: 'fadeIn 0.3s' // Assicurati di avere @keyframes fadeIn nel CSS
+            animation: 'fadeIn 0.3s'
         }}>
-          "{it.note}"
+          "
+          {it.note.split(/(\s+)/).map((part, index) => {
+            // Se la parola inizia con # ed è lunga almeno 2 caratteri
+            if (part.startsWith('#') && part.length > 1) {
+              return (
+                <span 
+                  key={index}
+                  onClick={(e) => {
+                    e.stopPropagation(); 
+                    onFilterAuthor(part); // Usa la funzione di filtro per cercare il tag
+                  }}
+                  style={{
+                    color: '#b7791f', 
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '2px',
+                    textDecorationColor: 'rgba(183, 121, 31, 0.3)'
+                  }}
+                  title="Filtra per questo tag"
+                >
+                  {part}
+                </span>
+              );
+            }
+            return part;
+          })}
+          "
         </div>
       )}
 
@@ -697,51 +724,54 @@ export default function App(){
            String(completionMonthFilter).length > 0 || String(completionYearFilter).length > 0;
   }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, yearFilter, completionMonthFilter, completionYearFilter]);
 
-  const addItem = useCallback(async (e) => {
-  e.preventDefault();
-  if(!title.trim()) return;
+const addItem = useCallback(async (e) => {
+    e.preventDefault();
+    if(!title.trim()) return;
 
-  // 1. Snapshot dei dati attuali
-  const finalStatus = isInstantArchive ? "archived" : "active";
-  const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
-  const finalIsNext = isInstantArchive ? false : isNext;
-  const finalSource = isToBuy ? "Wishlist" : "";
-  
-  const payload = {
-    title, author: creator, type: kind, status: finalStatus,
-    genre: showGenreInput(kind) ? canonGenere(genre) : null, 
-    year: year ? Number(year) : null,
-    source: finalSource, 
-    mood: mood || null, video_url: videoUrl || null, 
-    note: note || null, 
-    is_next: finalIsNext, ended_on: finalEndedOn
-  };
+    // 1. Snapshot dati
+    const finalStatus = isInstantArchive ? "archived" : "active";
+    const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
+    const finalIsNext = isInstantArchive ? false : isNext;
+    const finalSource = isToBuy ? "Wishlist" : "";
+    
+    const payload = {
+      title, author: creator, type: kind, status: finalStatus,
+      genre: showGenreInput(kind) ? canonGenere(genre) : null, 
+      year: year ? Number(year) : null,
+      source: finalSource, 
+      mood: mood || null, video_url: videoUrl || null, 
+      note: note || null, 
+      is_next: finalIsNext, ended_on: finalEndedOn
+    };
 
-  // 2. CHIUSURA ISTANTANEA & RESET FORM
-  setAddModalOpen(false);
-  setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
-  setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); 
-  setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false);
+    // 2. Reset immediato UI
+    setAddModalOpen(false);
+    setTitle(""); setCreator(""); setKind("libro"); setGenre(""); setYear(""); 
+    setMood(""); setVideoUrl(""); setNote(""); setIsNext(false); 
+    setIsInstantArchive(false); setInstantDate(""); setIsToBuy(false);
+    setIsSaving(true);
 
-  // 3. ATTIVAZIONE ZEN BAR
-  setIsSaving(true);
+    // 3. Chiamata con .select() per avere subito l'ID
+    const { data, error } = await supabase.from("items").insert(payload).select();
 
-  // 4. CHIAMATA SUPABASE
-  const { error } = await supabase.from("items").insert(payload);
+    setIsSaving(false);
 
-  // 5. FINE
-  setIsSaving(false);
-
-  if(!error){
-    showToast("Elemento aggiunto con successo!", "success");
-    if (isSearchActive) fetchItems(); 
-    fetchStats(); 
-    fetchPinnedItems();
-  } else { 
-    showToast("Errore salvataggio: " + (error?.message), "error"); 
-  }
-}, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, isSearchActive, fetchItems, fetchStats, fetchPinnedItems, showToast]);
-
+    if(!error && data && data.length > 0){
+      // 4. Inserimento in cima alla lista LOCALE
+      const newItem = data[0];
+      const adaptedNewItem = {
+          ...newItem,
+          kind: normType(newItem.type),
+          creator: newItem.author,
+          sourcesArr: parseSources(newItem.source)
+      };
+      setItems(prev => [adaptedNewItem, ...prev]); 
+      showToast("Elemento aggiunto! 🚀", "success");
+      fetchStats(); fetchPinnedItems();
+    } else { 
+      showToast("Errore salvataggio: " + (error?.message), "error"); 
+    }
+  }, [title, creator, kind, genre, year, mood, videoUrl, note, isNext, isInstantArchive, instantDate, isToBuy, fetchStats, fetchPinnedItems, showToast]);
   const toggleFocus = useCallback(async (it) => {
     const newVal = !it.is_next;
     const { error } = await supabase.from("items").update({ is_next: newVal }).eq("id", it.id);
@@ -849,49 +879,43 @@ export default function App(){
     });
   }, []);
   
-  const handleUpdateItem = useCallback(async (e) => {
-  e.preventDefault();
-  if (!editState || !editState.title.trim()) return;
+const handleUpdateItem = useCallback(async (e) => {
+    e.preventDefault();
+    if (!editState || !editState.title.trim()) return;
 
-  // 1. PREPARIAMO I DATI
-  const payload = {
-    title: editState.title, author: editState.creator, type: editState.type,
-    genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
-    year: editState.year ? Number(editState.year) : null, mood: editState.mood || null, 
-    video_url: editState.video_url || null, note: editState.note || null,
-    is_next: editState.is_next, source: editState.source 
-  };
-  
-  const idToUpdate = editState.id; // Salviamo l'ID perché stiamo per chiudere il modale
+    const payload = {
+      title: editState.title, author: editState.creator, type: editState.type,
+      genre: showGenreInput(editState.type) ? canonGenere(editState.genre) : null,
+      year: editState.year ? Number(editState.year) : null, mood: editState.mood || null, 
+      video_url: editState.video_url || null, note: editState.note || null,
+      is_next: editState.is_next, source: editState.source 
+    };
+    
+    const idToUpdate = editState.id;
 
-  // 2. CHIUDIAMO SUBITO IL MODALE (Percezione istantanea)
-  setEditState(null); 
-  
-  // 3. ATTIVIAMO LA ZEN BAR (Il feedback "sto pensando")
-  setIsSaving(true);
-
-  // 4. ESEGUIAMO IL SALVATAGGIO REALE (In background)
-  const { error } = await supabase.from("items").update(payload).eq('id', idToUpdate);
-
-  // 5. FINITO: SPEGNI BARRA E MOSTRA TOAST
-  setIsSaving(false);
-
-  if (!error) {
-    // Aggiorniamo la lista locale
+    // 1. Aggiornamento Ottimistico LOCALE
     setItems(prevItems => prevItems.map(it => {
       if (it.id === idToUpdate) {
         return { ...it, ...payload, creator: payload.author, kind: payload.type, sourcesArr: parseSources(payload.source) };
-      } return it;
+      } 
+      return it;
     }));
-    fetchPinnedItems(); 
-    showToast("Modifiche salvate! 💾", "success"); // <-- Il toast arriva qui
-  } else { 
-    // Se c'è un errore, dobbiamo riaprire il modale o avvisare
-    showToast("Errore aggiornamento: " + error.message, "error"); 
-    // Opzionale: potresti riaprire il modale qui se vuoi
-  }
-}, [editState, fetchPinnedItems, showToast]);
 
+    setEditState(null); 
+    showToast("Modifica salvata", "success"); 
+    setIsSaving(true); 
+
+    // 2. Salvataggio Server Background
+    const { error } = await supabase.from("items").update(payload).eq('id', idToUpdate);
+    setIsSaving(false);
+
+    if (error) { 
+      showToast("Errore sync: " + error.message, "error"); 
+      fetchItems(); // Rollback in caso di errore
+    } else {
+        fetchPinnedItems();
+    }
+  }, [editState, fetchPinnedItems, showToast, fetchItems]);
   const handleStatClick = useCallback((typeClicked) => {
     if (typeClicked && TYPES.includes(typeClicked)) setTypeFilter(typeClicked);
     else setTypeFilter(''); 
@@ -975,6 +999,22 @@ export default function App(){
   useEffect(() => { if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]);
   useEffect(() => { if (statsModalOpen) { fetchPeriodStats(); } }, [statsModalOpen, statMonth, statYear, fetchPeriodStats]);
   
+  /* --- SAFETY NET: Impedisce chiusura durante il salvataggio --- */
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isSaving) {
+        // Messaggio standard (i browser moderni mostrano un testo generico)
+        const msg = "Il salvataggio è in corso. Vuoi davvero uscire?";
+        e.preventDefault();
+        e.returnValue = msg; 
+        return msg;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isSaving]);
+
   // Memory Lane
   useEffect(() => {
     const fetchMemory = async () => {
@@ -1032,97 +1072,79 @@ export default function App(){
     fetchQuote();
   }, []);
 
-  /* --- AUTOCOMPLETE GHOST (Versatile & Ordinato) --- */
+  /* --- AUTOCOMPLETE GHOST (Intelligente con Tag #) --- */
   useEffect(() => {
     const val = qInput ? qInput.trim() : "";
     
-    // Serve almeno 2 caratteri per attivarsi
-    if (val.length < 2) {
+    // 1. REGOLA D'INGAGGIO:
+    // Se inizia con # basta 1 carattere. Se è testo normale, ne servono almeno 2.
+    const isTagMode = val.includes('#');
+    if ((!isTagMode && val.length < 2) || (isTagMode && val.length < 1)) {
       setSuggestions([]); 
       return;
     }
 
     const fetchSuggestions = async () => {
-      // 1. ANALISI INPUT: Separiamo parole e tag
-      const tagsInInput = val.match(/#[a-z0-9_àèìòù]+/gi) || [];
-      // Parole di testo pulite (senza tag)
-      const textParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/).filter(s => s.length > 0);
-      
-      // Capiamo se l'utente sta scrivendo un tag in questo momento (l'ultima parola inizia con #)
+      // Capiamo cosa sta scrivendo l'utente (ultima parola)
       const words = val.split(/\s+/);
       const lastWord = words[words.length - 1];
       const isTypingTag = lastWord && lastWord.startsWith('#');
 
-      // 2. COSTRUZIONE QUERY AL DATABASE
+      // Prepariamo la query
       let query = supabase
         .from('items')
-        .select('title, author, note') 
+        .select('title, author, note') // Ci servono le note per i tag!
         .limit(50); 
 
-      // A. Filtra per i TAG già completi
-      tagsInInput.forEach(tag => {
-         // Se il tag è l'ultimo che sto scrivendo, è parziale, quindi lo cerchiamo con il %
-         // Ma per sicurezza usiamo il filtro ampio su tutti
-         query = query.ilike('note', `%${tag}%`);
-      });
-
-      // B. Filtra per il TESTO (Logica "Smart": cerca almeno la prima parola, poi filtriamo noi)
-      if (textParts.length > 0) {
-         const firstToken = textParts[0];
-         // Cerca elementi che abbiano ALMENO la prima parola nel titolo O nell'autore
-         query = query.or(`title.ilike.%${firstToken}%,author.ilike.%${firstToken}%`);
+      // SE STO SCRIVENDO UN TAG (#...):
+      if (isTypingTag) {
+          query = query
+            .not('note', 'is', null) // Deve avere una nota
+            .ilike('note', `%${lastWord}%`); // La nota deve contenere il tag parziale
+      } 
+      // SE STO SCRIVENDO TESTO NORMALE:
+      else {
+          // Rimuoviamo eventuali tag precedenti dalla stringa di ricerca per pulizia
+          const textParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/).filter(s => s.length > 0);
+          if (textParts.length > 0) {
+             const firstToken = textParts[0];
+             query = query.or(`title.ilike.%${firstToken}%,author.ilike.%${firstToken}%`);
+          } else {
+             setSuggestions([]);
+             return;
+          }
       }
 
       const { data, error } = await query;
 
       if (!error && data) {
         const uniqueSet = new Set();
-        const valLower = val.toLowerCase();
+        const lastWordLower = lastWord.toLowerCase();
 
-        // 3. FILTRAGGIO CLIENT-SIDE (Per la precisione multi-parola)
         data.forEach(row => {
-          const rowTitle = (row.title || "").toLowerCase();
-          const rowAuthor = (row.author || "").toLowerCase();
-          
-          // Verifica: La riga contiene TUTTE le parole scritte? (Logica AND)
-          // Es: Input "King Step" -> "Stephen King" contiene sia "King" che "Step"? SÌ.
-          const matchTitle = textParts.every(part => rowTitle.includes(part));
-          const matchAuthor = textParts.every(part => rowAuthor.includes(part));
-          
-          // CASO 1: Suggerimenti Testuali (Titoli/Autori)
-          // Li mostriamo solo se non stiamo digitando un tag
-          if (!isTypingTag) { 
-              if (matchTitle) uniqueSet.add(row.title);
-              if (matchAuthor) uniqueSet.add(row.author);
-          }
-          
-          // CASO 2: Completamento Tag
+          // --- LOGICA A: SUGGERIMENTI TAG ---
           if (isTypingTag && row.note) {
-              // Estrai tutti i tag dalla nota
               const matches = row.note.match(/#[a-z0-9_àèìòù]+/gi) || [];
               matches.forEach(t => {
-                  // Se il tag trovato inizia con quello che stiamo scrivendo (es: #fan -> #fantasy)
-                  if (t.toLowerCase().startsWith(lastWord.toLowerCase())) {
-                      // Costruiamo il suggerimento mantenendo il prefisso
-                      // Es: "Harry #fan" diventa "Harry #fantasy"
+                  if (t.toLowerCase().startsWith(lastWordLower)) {
+                      // Costruiamo la stringa finale preservando il prefisso
                       const prefix = val.substring(0, val.lastIndexOf(lastWord));
-                      uniqueSet.add(prefix + t);
+                      uniqueSet.add(prefix + t); 
                   }
               });
           }
+          // --- LOGICA B: SUGGERIMENTI TITOLI/AUTORI ---
+          else if (!isTypingTag) { 
+             const cleanTextParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/);
+             const rowTitle = (row.title || "").toLowerCase();
+             const rowAuthor = (row.author || "").toLowerCase();
+             
+             if (cleanTextParts.every(p => rowTitle.includes(p))) uniqueSet.add(row.title);
+             if (cleanTextParts.every(p => rowAuthor.includes(p))) uniqueSet.add(row.author);
+          }
         });
 
-        // 4. ORDINAMENTO
-        const sorted = Array.from(uniqueSet).sort((a, b) => {
-            // Chi inizia esattamente con quello che hai scritto vince
-            const aStarts = a.toLowerCase().startsWith(valLower);
-            const bStarts = b.toLowerCase().startsWith(valLower);
-            if (aStarts && !bStarts) return -1;
-            if (!aStarts && bStarts) return 1;
-            // Altrimenti vince il più corto
-            return a.length - b.length;
-        }).slice(0, 6);
-
+        const sorted = Array.from(uniqueSet).sort((a, b) => a.length - b.length).slice(0, 5);
         setSuggestions(sorted);
       }
     };
@@ -1202,9 +1224,6 @@ export default function App(){
             </button>
           )}
 
-          <div style={{height: 20, width: 1, backgroundColor: '#e2e8f0', margin: '0 4px'}}></div>
-
-          {/* DIVISORE VERTICALE */}
           <div style={{height: 20, width: 1, backgroundColor: '#e2e8f0', margin: '0 4px'}}></div>
 
           {/* TASTO RAGGRUPPA (Appare SOLO se c'è una ricerca attiva) */}
