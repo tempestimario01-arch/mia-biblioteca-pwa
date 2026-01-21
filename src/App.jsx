@@ -473,7 +473,7 @@ export default function App(){
   const [storageMetrics, setStorageMetrics] = useState({ usedMB: 0, percent: 0 });
   const [memoryQuote, setMemoryQuote] = useState(null);// Memory Jar
   const [showSource, setShowSource] = useState(false);// Memory Jar
-// Decide quale widget mostrare oggi: 'jar' o 'lane'
+  // Decide quale widget mostrare oggi: 'jar' o 'lane'
   const [dailyWidget, setDailyWidget] = useState(Math.random() > 0.5 ? 'jar' : 'lane');
   // 'list' = vista classica (card separate)
   // 'group' = vista raggruppata per autore (cartelline)
@@ -545,12 +545,22 @@ export default function App(){
   const [statMonth,setStatMonth] = useState(new Date().getMonth() + 1);
   const [statYear,setStatYear] = useState(new Date().getFullYear());
 
-/* --- STATI & LOGICA IMPORTAZIONE JSON --- */
+  /* --- STATI & LOGICA IMPORTAZIONE JSON --- */
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [jsonInput, setJsonInput] = useState("");
   const [importPreview, setImportPreview] = useState([]);
   const [step, setStep] = useState(1); // 1 = Incolla, 2 = Revisione
 
+  /* --- 2. SISTEMA NOTIFICHE (TOAST) - SPOSTATO IN CIMA PER EVITARE ERRORI --- */
+  const showToast = useCallback((message, type = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  }, []);
+
+  /* --- LOGICHE IMPORTAZIONE (ORA SICURE) --- */
   // 1. ANALIZZA JSON E RILEVA DOPPIONI
   const handleParseJSON = useCallback(() => {
     try {
@@ -669,16 +679,6 @@ export default function App(){
       showToast("Errore Import: " + error.message, "error");
     }
   }, [importPreview, fetchStats, showToast]);
-
-
-  /* --- 2. SISTEMA NOTIFICHE (TOAST) --- */
-  const showToast = useCallback((message, type = 'info') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
-  }, []);
 
 
   /* --- 3. FUNZIONI ASINCRONE --- */
