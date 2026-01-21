@@ -551,7 +551,8 @@ export default function App(){
   const [importPreview, setImportPreview] = useState([]);
   const [step, setStep] = useState(1); // 1 = Incolla, 2 = Revisione
 
-  /* --- 2. SISTEMA NOTIFICHE (TOAST) - SPOSTATO IN CIMA PER EVITARE ERRORI --- */
+  /* --- 2. SISTEMA NOTIFICHE (TOAST) --- */
+  // SPOSTATO IN CIMA PER ESSERE VISTO DA TUTTI GLI HANDLERS SOTTOSTANTI
   const showToast = useCallback((message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -559,127 +560,6 @@ export default function App(){
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
   }, []);
-
-  /* --- LOGICHE IMPORTAZIONE (ORA SICURE) --- */
-  // 1. ANALIZZA JSON E RILEVA DOPPIONI
-  const handleParseJSON = useCallback(() => {
-    try {
-      const parsed = JSON.parse(jsonInput);
-      if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
-
-      const previewData = parsed.map((item, index) => {
-        // Normalizzazione per confronto
-        const cleanTitle = String(item.title || "").toLowerCase().trim();
-        const cleanAuthor = String(item.author || "").toLowerCase().trim();
-
-        // Check Doppione (Titolo + Autore uguali)
-        const isDuplicate = items.some(existing => {
-             const existTitle = String(existing.title || "").toLowerCase().trim();
-             const existAuthor = String(existing.creator || "").toLowerCase().trim();
-             return existTitle === cleanTitle && existAuthor === cleanAuthor;
-        });
-
-        return {
-          _tempId: Date.now() + index,
-          title: item.title || "",
-          author: item.author || "",
-          year: item.year || "",
-          kind: 'libro', // Default
-          genre: "", mood: "", video_url: "", note: "",
-          // Stati logici
-          isToBuy: false, 
-          isNext: false, 
-          isArchived: false,
-          // Fonte pre-compilata se c'è (es. Instagram)
-          source: item.source || "",
-          // Flag Doppione
-          isDuplicate: isDuplicate
-        };
-      });
-
-      setImportPreview(previewData);
-      setStep(2); 
-    } catch (err) {
-      showToast("Errore: JSON non valido. Controlla il formato.", "error");
-    }
-  }, [jsonInput, items, showToast]);
-
-  // 2. GESTISCE LE MODIFICHE NELLA GRIGLIA ANTEPRIMA
-  const updatePreviewItem = useCallback((id, field, value) => {
-    setImportPreview(prev => prev.map(item => {
-        if (item._tempId !== id) return item;
-        
-        // Logica Toggle Stati (Esclusiva come nel modale Add)
-        if (field === 'isToBuy') return { ...item, isToBuy: !item.isToBuy };
-        if (field === 'isNext') return { ...item, isNext: !item.isNext, isArchived: false };
-        if (field === 'isArchived') return { ...item, isArchived: !item.isArchived, isNext: false };
-        
-        return { ...item, [field]: value };
-    }));
-  }, []);
-
-  const removePreviewItem = useCallback((id) => {
-    setImportPreview(prev => prev.filter(item => item._tempId !== id));
-  }, []);
-
-  // 3. SALVATAGGIO FINALE (Batch Insert)
-  const handleFinalImport = useCallback(async () => {
-    if (importPreview.length === 0) return;
-    setIsSaving(true);
-
-    const toInsert = importPreview.map(({ _tempId, isToBuy, isNext, isArchived, isDuplicate, ...item }) => {
-      // Calcolo Stato
-      const finalStatus = isArchived ? "archived" : "active";
-      const finalEndedOn = isArchived ? new Date().toISOString().slice(0,10) : null;
-      
-      // Calcolo Fonte (Aggiungi Wishlist se serve)
-      let finalSource = item.source || "";
-      if (isToBuy) {
-          const parts = parseSources(finalSource);
-          if (!parts.includes("Wishlist")) parts.push("Wishlist");
-          finalSource = joinSources(parts);
-      }
-
-      return {
-        title: item.title,
-        author: item.author,
-        year: item.year ? Number(item.year) : null,
-        type: item.kind,
-        genre: showGenreInput(item.kind) ? canonGenere(item.genre) : null,
-        mood: item.mood || null,
-        video_url: item.video_url || null,
-        note: item.note || null,
-        status: finalStatus,
-        ended_on: finalEndedOn,
-        is_next: isNext,
-        source: finalSource,
-        created_at: new Date().toISOString() // Data di oggi
-      };
-    });
-
-    const { data, error } = await supabase.from('items').insert(toInsert).select();
-    setIsSaving(false);
-
-    if (!error && data) {
-      const adapted = data.map(row => ({
-         ...row, kind: normType(row.type), creator: row.author, sourcesArr: parseSources(row.source)
-      }));
-      setItems(prev => [...adapted, ...prev]); // Aggiungi in cima
-      
-      // Pulizia e Chiusura
-      setImportModalOpen(false);
-      setJsonInput("");
-      setImportPreview([]);
-      setStep(1);
-      setAdvOpen(false);
-      
-      showToast(`Importati ${data.length} elementi! 🎉`, "success");
-      fetchStats();
-    } else {
-      showToast("Errore Import: " + error.message, "error");
-    }
-  }, [importPreview, fetchStats, showToast]);
-
 
   /* --- 3. FUNZIONI ASINCRONE --- */
 
@@ -919,6 +799,126 @@ const addItem = useCallback(async (e) => {
         showToast("Rimosso dalla Wishlist 🛒", "success");
     }
   }, [fetchStats, showToast]);
+
+  /* --- LOGICHE IMPORTAZIONE SPOSTATE QUI (DOPO ASYNC FNS) --- */
+  // 1. ANALIZZA JSON E RILEVA DOPPIONI
+  const handleParseJSON = useCallback(() => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
+
+      const previewData = parsed.map((item, index) => {
+        // Normalizzazione per confronto
+        const cleanTitle = String(item.title || "").toLowerCase().trim();
+        const cleanAuthor = String(item.author || "").toLowerCase().trim();
+
+        // Check Doppione (Titolo + Autore uguali)
+        const isDuplicate = items.some(existing => {
+             const existTitle = String(existing.title || "").toLowerCase().trim();
+             const existAuthor = String(existing.creator || "").toLowerCase().trim();
+             return existTitle === cleanTitle && existAuthor === cleanAuthor;
+        });
+
+        return {
+          _tempId: Date.now() + index,
+          title: item.title || "",
+          author: item.author || "",
+          year: item.year || "",
+          kind: 'libro', // Default
+          genre: "", mood: "", video_url: "", note: "",
+          // Stati logici
+          isToBuy: false, 
+          isNext: false, 
+          isArchived: false,
+          // Fonte pre-compilata se c'è (es. Instagram)
+          source: item.source || "",
+          // Flag Doppione
+          isDuplicate: isDuplicate
+        };
+      });
+
+      setImportPreview(previewData);
+      setStep(2); 
+    } catch (err) {
+      showToast("Errore: JSON non valido. Controlla il formato.", "error");
+    }
+  }, [jsonInput, items, showToast]);
+
+  // 2. GESTISCE LE MODIFICHE NELLA GRIGLIA ANTEPRIMA
+  const updatePreviewItem = useCallback((id, field, value) => {
+    setImportPreview(prev => prev.map(item => {
+        if (item._tempId !== id) return item;
+        
+        // Logica Toggle Stati (Esclusiva come nel modale Add)
+        if (field === 'isToBuy') return { ...item, isToBuy: !item.isToBuy };
+        if (field === 'isNext') return { ...item, isNext: !item.isNext, isArchived: false };
+        if (field === 'isArchived') return { ...item, isArchived: !item.isArchived, isNext: false };
+        
+        return { ...item, [field]: value };
+    }));
+  }, []);
+
+  const removePreviewItem = useCallback((id) => {
+    setImportPreview(prev => prev.filter(item => item._tempId !== id));
+  }, []);
+
+  // 3. SALVATAGGIO FINALE (Batch Insert)
+  const handleFinalImport = useCallback(async () => {
+    if (importPreview.length === 0) return;
+    setIsSaving(true);
+
+    const toInsert = importPreview.map(({ _tempId, isToBuy, isNext, isArchived, isDuplicate, ...item }) => {
+      // Calcolo Stato
+      const finalStatus = isArchived ? "archived" : "active";
+      const finalEndedOn = isArchived ? new Date().toISOString().slice(0,10) : null;
+      
+      // Calcolo Fonte (Aggiungi Wishlist se serve)
+      let finalSource = item.source || "";
+      if (isToBuy) {
+          const parts = parseSources(finalSource);
+          if (!parts.includes("Wishlist")) parts.push("Wishlist");
+          finalSource = joinSources(parts);
+      }
+
+      return {
+        title: item.title,
+        author: item.author,
+        year: item.year ? Number(item.year) : null,
+        type: item.kind,
+        genre: showGenreInput(item.kind) ? canonGenere(item.genre) : null,
+        mood: item.mood || null,
+        video_url: item.video_url || null,
+        note: item.note || null,
+        status: finalStatus,
+        ended_on: finalEndedOn,
+        is_next: isNext,
+        source: finalSource,
+        created_at: new Date().toISOString() // Data di oggi
+      };
+    });
+
+    const { data, error } = await supabase.from('items').insert(toInsert).select();
+    setIsSaving(false);
+
+    if (!error && data) {
+      const adapted = data.map(row => ({
+         ...row, kind: normType(row.type), creator: row.author, sourcesArr: parseSources(row.source)
+      }));
+      setItems(prev => [...adapted, ...prev]); // Aggiungi in cima
+      
+      // Pulizia e Chiusura
+      setImportModalOpen(false);
+      setJsonInput("");
+      setImportPreview([]);
+      setStep(1);
+      setAdvOpen(false);
+      
+      showToast(`Importati ${data.length} elementi! 🎉`, "success");
+      fetchStats();
+    } else {
+      showToast("Errore Import: " + error.message, "error");
+    }
+  }, [importPreview, fetchStats, showToast]);
 
   const openArchiveModal = useCallback((it) => {
     setArchModal({
