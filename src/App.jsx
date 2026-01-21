@@ -171,7 +171,7 @@ const ToastContainer = ({ toasts }) => {
 // La barra sottile e minimalista
 const ZenBar = ({ active }) => {
   if (!active) return null;
-  
+   
   return (
     <div style={{
       position: 'fixed',
@@ -255,7 +255,7 @@ const LibraryItem = memo(({
           >
             {TYPE_ICONS[it.kind]} {it.creator}
           </div>
-          
+           
           <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center', marginTop:4}}>
             {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
             {it.genre && showGenreInput(it.kind) && <span style={{fontSize:'0.85em', opacity:0.8}}>• {canonGenere(it.genre)}</span>}
@@ -269,7 +269,7 @@ const LibraryItem = memo(({
           {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
         </div>
       </div>
-      
+       
       {/* ZONA 2: AZIONI */}
       <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
         
@@ -376,7 +376,7 @@ const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => 
 
   return (
     <div style={{ marginBottom: 32, marginTop: 8 }}>
-      
+       
       {/* HEADER AUTORE (Minimalista: Solo testo e linea) */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
@@ -404,14 +404,14 @@ const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => 
       <div style={{display:'flex', flexDirection:'column', gap: 8}}>
         {works.map((it) => {
           const isArchived = it.status === 'archived';
-          
+           
           return (
             <div key={it.id} style={{
               display: 'flex', alignItems: 'center', gap: 12,
               opacity: isArchived ? 0.5 : 1, // Se fatto, diventa molto leggero
               transition: 'opacity 0.2s'
             }}>
-              
+               
               {/* CHECKBOX ZEN (Cerchio o Quadrato minimal) */}
               <div 
                 onClick={(e) => { e.stopPropagation(); isArchived ? onUnarchive(it) : onArchive(it); }}
@@ -439,7 +439,7 @@ const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => 
                   <span style={{marginRight: 6, fontSize:'0.9em'}}>{TYPE_ICONS[it.kind]}</span>
                   {it.title}
                 </div>
-                
+                 
                 {/* Micro-dettagli (Anno, Wishlist) - NO NOTE (Punto 2) */}
                 <div style={{fontSize: '0.75rem', color: '#a0aec0', marginTop:2}}>
                    {it.year && <span>{it.year}</span>}
@@ -494,7 +494,7 @@ export default function App(){
   const [genreFilter,setGenreFilter] = useState("");
   const [moodFilter, setMoodFilter] = useState("");
   const [sourceFilter,setSourceFilter] = useState(""); 
-  
+   
   // NOVITÀ: Filtro Lettera Avanzato
   const [letterFilter, setLetterFilter] = useState("");
   const [letterMode, setLetterMode] = useState("author"); // "author" oppure "title"
@@ -512,7 +512,7 @@ export default function App(){
   const [statsModalOpen, setStatsModalOpen] = useState(false); 
   const [statsView, setStatsView] = useState('periodo'); 
   const [editState, setEditState] = useState(null);
-  
+   
   // Clean Up
   const [cleanupItem, setCleanupItem] = useState(null);
 
@@ -526,7 +526,7 @@ export default function App(){
   const [year,setYear] = useState("");
   const [note, setNote] = useState(""); 
   const [isNext, setIsNext] = useState(false);
-  
+   
   // Aggiunta Avanzata
   const [isInstantArchive, setIsInstantArchive] = useState(false);
   const [instantDate, setInstantDate] = useState("");
@@ -544,6 +544,131 @@ export default function App(){
   // Input Stats Periodo
   const [statMonth,setStatMonth] = useState(new Date().getMonth() + 1);
   const [statYear,setStatYear] = useState(new Date().getFullYear());
+
+/* --- STATI & LOGICA IMPORTAZIONE JSON --- */
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [jsonInput, setJsonInput] = useState("");
+  const [importPreview, setImportPreview] = useState([]);
+  const [step, setStep] = useState(1); // 1 = Incolla, 2 = Revisione
+
+  // 1. ANALIZZA JSON E RILEVA DOPPIONI
+  const handleParseJSON = useCallback(() => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
+
+      const previewData = parsed.map((item, index) => {
+        // Normalizzazione per confronto
+        const cleanTitle = String(item.title || "").toLowerCase().trim();
+        const cleanAuthor = String(item.author || "").toLowerCase().trim();
+
+        // Check Doppione (Titolo + Autore uguali)
+        const isDuplicate = items.some(existing => {
+             const existTitle = String(existing.title || "").toLowerCase().trim();
+             const existAuthor = String(existing.creator || "").toLowerCase().trim();
+             return existTitle === cleanTitle && existAuthor === cleanAuthor;
+        });
+
+        return {
+          _tempId: Date.now() + index,
+          title: item.title || "",
+          author: item.author || "",
+          year: item.year || "",
+          kind: 'libro', // Default
+          genre: "", mood: "", video_url: "", note: "",
+          // Stati logici
+          isToBuy: false, 
+          isNext: false, 
+          isArchived: false,
+          // Fonte pre-compilata se c'è (es. Instagram)
+          source: item.source || "",
+          // Flag Doppione
+          isDuplicate: isDuplicate
+        };
+      });
+
+      setImportPreview(previewData);
+      setStep(2); 
+    } catch (err) {
+      showToast("Errore: JSON non valido. Controlla il formato.", "error");
+    }
+  }, [jsonInput, items, showToast]);
+
+  // 2. GESTISCE LE MODIFICHE NELLA GRIGLIA ANTEPRIMA
+  const updatePreviewItem = useCallback((id, field, value) => {
+    setImportPreview(prev => prev.map(item => {
+        if (item._tempId !== id) return item;
+        
+        // Logica Toggle Stati (Esclusiva come nel modale Add)
+        if (field === 'isToBuy') return { ...item, isToBuy: !item.isToBuy };
+        if (field === 'isNext') return { ...item, isNext: !item.isNext, isArchived: false };
+        if (field === 'isArchived') return { ...item, isArchived: !item.isArchived, isNext: false };
+        
+        return { ...item, [field]: value };
+    }));
+  }, []);
+
+  const removePreviewItem = useCallback((id) => {
+    setImportPreview(prev => prev.filter(item => item._tempId !== id));
+  }, []);
+
+  // 3. SALVATAGGIO FINALE (Batch Insert)
+  const handleFinalImport = useCallback(async () => {
+    if (importPreview.length === 0) return;
+    setIsSaving(true);
+
+    const toInsert = importPreview.map(({ _tempId, isToBuy, isNext, isArchived, isDuplicate, ...item }) => {
+      // Calcolo Stato
+      const finalStatus = isArchived ? "archived" : "active";
+      const finalEndedOn = isArchived ? new Date().toISOString().slice(0,10) : null;
+      
+      // Calcolo Fonte (Aggiungi Wishlist se serve)
+      let finalSource = item.source || "";
+      if (isToBuy) {
+          const parts = parseSources(finalSource);
+          if (!parts.includes("Wishlist")) parts.push("Wishlist");
+          finalSource = joinSources(parts);
+      }
+
+      return {
+        title: item.title,
+        author: item.author,
+        year: item.year ? Number(item.year) : null,
+        type: item.kind,
+        genre: showGenreInput(item.kind) ? canonGenere(item.genre) : null,
+        mood: item.mood || null,
+        video_url: item.video_url || null,
+        note: item.note || null,
+        status: finalStatus,
+        ended_on: finalEndedOn,
+        is_next: isNext,
+        source: finalSource,
+        created_at: new Date().toISOString() // Data di oggi
+      };
+    });
+
+    const { data, error } = await supabase.from('items').insert(toInsert).select();
+    setIsSaving(false);
+
+    if (!error && data) {
+      const adapted = data.map(row => ({
+         ...row, kind: normType(row.type), creator: row.author, sourcesArr: parseSources(row.source)
+      }));
+      setItems(prev => [...adapted, ...prev]); // Aggiungi in cima
+      
+      // Pulizia e Chiusura
+      setImportModalOpen(false);
+      setJsonInput("");
+      setImportPreview([]);
+      setStep(1);
+      setAdvOpen(false);
+      
+      showToast(`Importati ${data.length} elementi! 🎉`, "success");
+      fetchStats();
+    } else {
+      showToast("Errore Import: " + error.message, "error");
+    }
+  }, [importPreview, fetchStats, showToast]);
 
 
   /* --- 2. SISTEMA NOTIFICHE (TOAST) --- */
@@ -564,7 +689,7 @@ export default function App(){
       .select('*, note') 
       .eq('is_next', true)
       .neq('status', 'archived'); 
-    
+     
     if (!error && data) {
       const adapted = data.map(row => ({
         ...row,
@@ -605,10 +730,10 @@ export default function App(){
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
     if (moodFilter) { query = query.eq('mood', moodFilter); }
-    
+     
     if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
     else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
-    
+     
     // NUOVA LOGICA: Filtra per autore OPPURE per titolo in base allo switch
     if (letterFilter) { 
       const columnToSearch = letterMode === 'title' ? 'title' : 'author';
@@ -621,7 +746,7 @@ export default function App(){
       const year = Number(completionYearFilter);
       const month = Number(completionMonthFilter); 
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-      const nextMonth = month === 12 ? 1 : month + 1;
+      const nextMonth = month === 12 ? 1 : month + 1; 
       const nextYear = month === 12 ? year + 1 : year;
       const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
       query = query.gte('ended_on', startDate).lt('ended_on', endDate);
@@ -671,7 +796,7 @@ export default function App(){
   const fetchPeriodStats = useCallback(async () => {
     if (!statYear) return;
     setPeriodLoading(true);
-    
+     
     const y = Number(statYear); 
     let startDate, endDate;
 
@@ -687,7 +812,7 @@ export default function App(){
     }
 
     const { data, error } = await supabase.from('items').select('type').gte('ended_on', startDate).lt('ended_on', endDate);
-    
+     
     if (error) { 
       setPeriodStats({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 }); 
     } 
@@ -700,7 +825,7 @@ export default function App(){
   }, [statYear, statMonth]); 
 
   /* --- 4. HANDLERS --- */
-  
+   
   // RESET INFINITE SCROLL ON FILTER CHANGE
   useEffect(() => {
     setVisibleCount(50);
@@ -733,7 +858,7 @@ const addItem = useCallback(async (e) => {
     const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
     const finalIsNext = isInstantArchive ? false : isNext;
     const finalSource = isToBuy ? "Wishlist" : "";
-    
+     
     const payload = {
       title, author: creator, type: kind, status: finalStatus,
       genre: showGenreInput(kind) ? canonGenere(genre) : null, 
@@ -802,11 +927,11 @@ const addItem = useCallback(async (e) => {
       dateISO: new Date().toISOString().slice(0,10),
     });
   }, []);
-  
+   
   const saveArchiveFromModal = useCallback(async (m) => {
   // 1. CHIUDI SUBITO
   setArchModal(null);
-  
+   
   // 2. ZEN BAR ON
   setIsSaving(true);
 
@@ -861,7 +986,7 @@ const addItem = useCallback(async (e) => {
     setSuggestion({ ...raw, kind: normType(raw.type), author: raw.author || raw.creator });
   }, [pinnedItems, randKind, randGenre, randMood, showToast]); 
 
-  
+   
   const handleAddKindChange = useCallback((e) => {
     const newKind = e.target.value; setKind(newKind);
     if (!showGenreInput(newKind)) setGenre(""); 
@@ -890,7 +1015,7 @@ const handleUpdateItem = useCallback(async (e) => {
       video_url: editState.video_url || null, note: editState.note || null,
       is_next: editState.is_next, source: editState.source 
     };
-    
+     
     const idToUpdate = editState.id;
 
     // 1. Aggiornamento Ottimistico LOCALE
@@ -951,7 +1076,7 @@ const handleUpdateItem = useCallback(async (e) => {
     await deleteItem(cleanupItem.id);
     setCleanupItem(null);
   };
-  
+   
   /* =========================================
      NUOVA LOGICA: RITUALE DELLA POLVERE
      ========================================= */
@@ -964,10 +1089,10 @@ const handleUpdateItem = useCallback(async (e) => {
 
   // 1. VIA LA MODALE
   setCleanupItem(null);
-  
+   
   // 2. BARRA
   setIsSaving(true);
-  
+   
   const now = new Date().toISOString();
   const { error } = await supabase.from('items').update({ created_at: now }).eq('id', id);
 
@@ -998,7 +1123,7 @@ const handleUpdateItem = useCallback(async (e) => {
   useEffect(()=>{ fetchStats(); fetchPinnedItems(); },[fetchStats, fetchPinnedItems]); 
   useEffect(() => { if (isSearchActive) { setLoading(true); fetchItems(); } else { setItems([]); setLoading(false); } }, [isSearchActive, fetchItems]);
   useEffect(() => { if (statsModalOpen) { fetchPeriodStats(); } }, [statsModalOpen, statMonth, statYear, fetchPeriodStats]);
-  
+   
   /* --- SAFETY NET: Impedisce chiusura durante il salvataggio --- */
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -1044,7 +1169,7 @@ const handleUpdateItem = useCallback(async (e) => {
 
         for (let item of shuffled) {
           const rawNote = item.note || "";
-          
+           
           // 2. CERCA TESTO TRA PARENTESI GRAFFE { ... }
           // La regex trova tutte le occorrenze
           const matches = rawNote.match(/\{([^}]+)\}/g);
@@ -1068,14 +1193,14 @@ const handleUpdateItem = useCallback(async (e) => {
         }
       }
     };
-    
+     
     fetchQuote();
   }, []);
 
   /* --- AUTOCOMPLETE GHOST (Intelligente con Tag #) --- */
   useEffect(() => {
     const val = qInput ? qInput.trim() : "";
-    
+     
     // 1. REGOLA D'INGAGGIO:
     // Se inizia con # basta 1 carattere. Se è testo normale, ne servono almeno 2.
     const isTagMode = val.includes('#');
@@ -1159,15 +1284,15 @@ const handleUpdateItem = useCallback(async (e) => {
       // 1. Calcola il peso medio in byte degli elementi caricati (incluso JSON overhead)
       const sampleSize = items.reduce((acc, item) => acc + JSON.stringify(item).length, 0);
       const avgBytesPerItem = sampleSize / items.length;
-      
+       
       // 2. Proietta sul totale degli elementi nel database
       // Moltiplichiamo x2 per stare sicuri (indici database, metadati, id nascosti)
       const totalEstimatedBytes = avgBytesPerItem * stats.total * 2;
-      
+       
       // 3. Converti in MB (1 MB = 1.048.576 byte) e calcola percentuale su 500MB (limite Free)
       const mb = totalEstimatedBytes / 1048576;
       const pct = (mb / 500) * 100;
-      
+       
       setStorageMetrics({ 
         usedMB: mb < 0.01 ? 0.01 : parseFloat(mb.toFixed(2)), // Minimo 0.01 MB per bellezza
         percent: parseFloat(pct.toFixed(4)) 
@@ -1180,9 +1305,9 @@ const handleUpdateItem = useCallback(async (e) => {
     <div className="app">
       <ZenBar active={isSaving} /> 
       <ToastContainer toasts={toasts} />
-      
+       
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
-      
+       
       {/* ===== BARRA DI RICERCA ZEN (GHOST MODE) ===== */}
       <section className="card" style={{
           marginBottom: 0, 
@@ -1214,7 +1339,7 @@ const handleUpdateItem = useCallback(async (e) => {
                 }
             }}
           />
-          
+           
           {qInput && (
             <button 
               onClick={() => { setQInput(""); setQ(""); setStatusFilter("active"); setSuggestions([]); }} 
@@ -1266,15 +1391,15 @@ const handleUpdateItem = useCallback(async (e) => {
             animation: 'fadeIn 0.4s'
           }}>
             <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-            
+             
             {suggestions.map((text, idx) => (
               <button
                 key={idx}
                 onClick={() => {
-                   setQInput(text);      
-                   setQ(text);           
-                   setSuggestions([]);   
-                   setStatusFilter(""); 
+                   setQInput(text);       
+                   setQ(text);            
+                   setSuggestions([]);    
+                   setStatusFilter("");   
                 }}
                 style={{
                   flexShrink: 0,
@@ -1303,7 +1428,7 @@ const handleUpdateItem = useCallback(async (e) => {
       {/* ===== ETICHETTE FILTRI ATTIVI (Split Layout) ===== */}
       {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter || completionYearFilter) && (
         <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'12px', gap:12}}>
-          
+           
           {/* COLONNA SINISTRA (Tag Flessibili) */}
           <div style={{display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', flex:1}}>
             <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
@@ -1313,7 +1438,7 @@ const handleUpdateItem = useCallback(async (e) => {
             {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
-            
+             
 
             {/* TAG LETTERA MODIFICATO CON INDICAZIONE TIPO */}
             {letterFilter && (
@@ -1506,7 +1631,7 @@ const handleUpdateItem = useCallback(async (e) => {
           </section>
         </>
       )}
-      
+       
       {/* ===== Lista Risultati (Card Minimal) con Infinite Scroll ===== */}
       {isSearchActive && (
         <section className="card" style={{marginTop: 12}}>
@@ -1540,7 +1665,7 @@ const handleUpdateItem = useCallback(async (e) => {
                   const grouped = items.reduce((acc, item) => {
                     // Se manca l'autore, lo mettiamo sotto "Vari"
                     const key = item.creator ? item.creator.trim() : "Vari";
-                    
+                     
                     if (!acc[key]) {
                         acc[key] = [];
                     }
@@ -1588,7 +1713,7 @@ const handleUpdateItem = useCallback(async (e) => {
 
       {/* ===== FAB / MODALI ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
-      
+       
       {/* ===== MODALE AGGIUNTA (Beige + Trasparenza) ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
@@ -1673,6 +1798,19 @@ const handleUpdateItem = useCallback(async (e) => {
                   <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
                   <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
               </div>
+                
+                <button 
+                  className="ghost" 
+                  onClick={() => setImportModalOpen(true)} 
+                  style={{
+                      padding:'12px', borderRadius:12, width: '100%',
+                      border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', 
+                      color:'#2d3748', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'
+                  }}
+                >
+                  📥 Importa da JSON (Instagram/AI)
+                </button>
+
               <button onClick={()=>setAdvOpen(false)} style={{padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)', width:'100%', fontSize:'1.1em'}}>Chiudi Pannello</button>
             </div>
           </div>
@@ -1684,7 +1822,7 @@ const handleUpdateItem = useCallback(async (e) => {
         <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
           <div className="card" style={{maxWidth:600, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
             <h2 style={{marginTop:0, textAlign:'center', marginBottom:20}}>Statistiche</h2>
-            
+             
             {/* TOGGLE PRINCIPALE (A Piastrelle) */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
               <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
@@ -1704,7 +1842,7 @@ const handleUpdateItem = useCallback(async (e) => {
                   <button className="ghost" onClick={() => { setStatMonth(new Date().getMonth() + 1); setStatYear(new Date().getFullYear()); }} style={{fontSize:'0.9em', textDecoration:'underline'}}>Oggi</button>
                   {periodLoading && <span style={{fontSize:'0.8em', color:'#718096'}}>...</span>}
                 </div>
-                
+                 
                 {/* KPI Principale (CLICCABILE) */}
                 <div onClick={() => handleStatClick(null)} style={{textAlign:'center', marginBottom:20, cursor:'pointer', transition:'all 0.2s', padding: 8, borderRadius: 12, ':hover': {backgroundColor:'rgba(0,0,0,0.02)'}}}>
                   <div style={{fontSize:'3em', fontWeight:'bold', color:'#2d3748', lineHeight:1}}>{periodStats.total}</div>
@@ -1737,22 +1875,22 @@ const handleUpdateItem = useCallback(async (e) => {
                 {/* INDICATORE SPAZIO ZEN */}
                 <div style={{marginBottom: 24, padding:'12px', border:`1px dashed ${BORDER_COLOR}`, borderRadius:12, backgroundColor:'rgba(255,255,255,0.5)'}}>
                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:'0.85em', color:'#718096'}}>
-                      <span>💾 Spazio Database (Piano Free)</span>
-                      <strong>{storageMetrics.usedMB} MB / 500 MB</strong>
+                     <span>💾 Spazio Database (Piano Free)</span>
+                     <strong>{storageMetrics.usedMB} MB / 500 MB</strong>
                    </div>
                    
                    {/* Barra di Progresso */}
                    <div style={{width:'100%', height:8, backgroundColor:'#e2e8f0', borderRadius:4, overflow:'hidden'}}>
-                      <div style={{
+                     <div style={{
                          width: `${Math.max(storageMetrics.percent, 1)}%`, // Almeno 1% visibile
                          height:'100%', 
                          backgroundColor: storageMetrics.percent > 90 ? '#e53e3e' : (storageMetrics.percent > 50 ? '#d69e2e' : '#38a169'),
                          transition: 'width 1s ease-in-out'
-                      }}></div>
+                     }}></div>
                    </div>
                    
                    <div style={{textAlign:'right', fontSize:'0.75em', color:'#a0aec0', marginTop:4}}>
-                      Utilizzato: {storageMetrics.percent}% — Stai tranquillo, hai spazio per decenni.
+                     Utilizzato: {storageMetrics.percent}% — Stai tranquillo, hai spazio per decenni.
                    </div>
                 </div>
 
@@ -1812,13 +1950,13 @@ const handleUpdateItem = useCallback(async (e) => {
             }} 
             onClick={e => e.stopPropagation()}
           >
-            
+             
             <div style={{fontSize:'3rem', marginBottom:10, filter: 'grayscale(0.5)'}}>💨</div>
-            
+             
             <h3 style={{marginTop:0, marginBottom: 12, color:'#2d3748', fontSize:'1.4rem'}}>
               C'è un po' di polvere...
             </h3>
-            
+             
             <p style={{color:'#718096', lineHeight:1.6, marginBottom: 20, fontSize: '0.95rem'}}>
               Hai aggiunto questo elemento molto tempo fa e non l'hai ancora finito. Ha ancora valore per te?
             </p>
@@ -1974,7 +2112,7 @@ const handleUpdateItem = useCallback(async (e) => {
                 <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType})); }} style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}>
                     {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                 </select>
-                
+                 
                 <input 
                   type="number" 
                   placeholder="Anno" 
@@ -2095,6 +2233,139 @@ const handleUpdateItem = useCallback(async (e) => {
           </div>
         </div>
       )}
+
+      {/* ===== MODALE IMPORTAZIONE STEP-BY-STEP ===== */}
+      {importModalOpen && (
+        <div className="modal-backdrop" onClick={() => setImportModalOpen(false)}>
+          <div className="card" onClick={e => e.stopPropagation()} 
+               style={{
+                   maxWidth: 600, width: "94%", height: "85vh", 
+                   display:'flex', flexDirection:'column',
+                   padding: 0, borderRadius: 20, backgroundColor: '#FDF8F2', overflow:'hidden'
+               }}>
+            
+            {/* HEADER */}
+            <div style={{padding:'20px 24px', borderBottom:`1px solid ${BORDER_COLOR}`, backgroundColor:'white', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <h2 style={{margin:0, color:'#2d3748', fontSize:'1.2rem'}}>
+                    {step === 1 ? "Incolla JSON" : `Revisione (${importPreview.length})`}
+                </h2>
+                {step === 2 && <span style={{fontSize:'0.8em', color:'#a0aec0'}}>Controlla i doppioni rossi</span>}
+            </div>
+
+            {/* BODY SCROLLABILE */}
+            <div style={{flex:1, overflowY:'auto', padding:'20px 24px', backgroundColor:'#FDF8F2'}}>
+                
+                {/* STEP 1: INPUT */}
+                {step === 1 && (
+                    <div style={{display:'flex', flexDirection:'column', height:'100%'}}>
+                        <p style={{marginTop:0, color:'#718096', fontSize:'0.95em'}}>
+                            Incolla qui l'array JSON generato dall'AI.
+                        </p>
+                        <textarea 
+                            value={jsonInput}
+                            onChange={e => setJsonInput(e.target.value)}
+                            placeholder='[ { "title": "...", "author": "..." }, ... ]'
+                            style={{
+                                flex:1, width:'100%', boxSizing:'border-box', padding:'16px', borderRadius:12, 
+                                border: `1px solid ${BORDER_COLOR}`, backgroundColor:'white', 
+                                fontFamily:'monospace', fontSize:'0.85em', resize:'none'
+                            }}
+                        />
+                    </div>
+                )}
+
+                {/* STEP 2: CARDS MODIFICABILI */}
+                {step === 2 && (
+                    <div style={{display:'flex', flexDirection:'column', gap:16}}>
+                        {importPreview.map((item) => (
+                            <div key={item._tempId} style={{
+                                backgroundColor: item.isDuplicate ? '#fff5f5' : 'white', // SFONDO ROSSO SE DOPPIO
+                                borderRadius:16, padding:16, 
+                                border: item.isDuplicate ? '2px solid #fc8181' : `1px solid ${BORDER_COLOR}`, 
+                                display:'flex', flexDirection:'column', gap:12,
+                                boxShadow: '0 2px 5px rgba(0,0,0,0.03)',
+                                position: 'relative'
+                            }}>
+                                {/* BADGE AVVISO DOPPIONE */}
+                                {item.isDuplicate && (
+                                    <div style={{
+                                        position:'absolute', top:-10, right:10, 
+                                        backgroundColor:'#c53030', color:'white', 
+                                        fontSize:'0.75em', fontWeight:'bold', 
+                                        padding:'4px 8px', borderRadius:10,
+                                        boxShadow:'0 2px 4px rgba(0,0,0,0.2)'
+                                    }}>
+                                        ⚠️ GIÀ IN LIBRERIA
+                                    </div>
+                                )}
+
+                                {/* RIGA 1: Titolo e Cestino */}
+                                <div style={{display:'flex', gap:10, alignItems:'flex-start'}}>
+                                    <input 
+                                        value={item.title} 
+                                        onChange={e => updatePreviewItem(item._tempId, 'title', e.target.value)}
+                                        placeholder="Titolo"
+                                        style={{
+                                            flex:1, fontWeight:'bold', border:'none', 
+                                            borderBottom: item.isDuplicate ? '1px solid #fc8181' : '1px solid #e2e8f0', 
+                                            fontSize:'1.1rem', padding:'4px 0', 
+                                            color: item.isDuplicate ? '#c53030' : '#2d3748', backgroundColor:'transparent'
+                                        }}
+                                    />
+                                    <button onClick={() => removePreviewItem(item._tempId)} style={{background: item.isDuplicate ? '#c53030' : 'transparent', color: item.isDuplicate ? 'white' : '#a0aec0', borderRadius:8, width:32, height:32, border:'none', fontSize:'1.2em', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>🗑️</button>
+                                </div>
+
+                                {/* RIGA 2: Autore, Anno, Tipo */}
+                                <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:10}}>
+                                    <input value={item.author} onChange={e => updatePreviewItem(item._tempId, 'author', e.target.value)} placeholder="Autore" style={{border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}} />
+                                    <input type="number" value={item.year} onChange={e => updatePreviewItem(item._tempId, 'year', e.target.value)} placeholder="Anno" style={{border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}} />
+                                    <select value={item.kind} onChange={e => updatePreviewItem(item._tempId, 'kind', e.target.value)} style={{border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}}>{TYPES.map(t=> <option key={t} value={t}>{t}</option>)}</select>
+                                </div>
+
+                                {/* RIGA 3: Genere e Mood */}
+                                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                                    {showGenreInput(item.kind) ? (<select value={item.genre} onChange={e => updatePreviewItem(item._tempId, 'genre', e.target.value)} style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', backgroundColor:'#f7fafc'}}><option value="">Genere...</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div/>}
+                                    <select value={item.mood} onChange={e => updatePreviewItem(item._tempId, 'mood', e.target.value)} style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', backgroundColor:'#f7fafc'}}><option value="">Umore...</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                                </div>
+
+                                {/* RIGA 4: Link e Note */}
+                                <input value={item.video_url} onChange={e => updatePreviewItem(item._tempId, 'video_url', e.target.value)} placeholder="Link..." style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em'}} />
+                                <textarea value={item.note} onChange={e => updatePreviewItem(item._tempId, 'note', e.target.value)} placeholder="Note..." rows={1} style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', fontFamily:'inherit', resize:'vertical'}} />
+
+                                {/* RIGA 5: STATO (Toggle) */}
+                                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
+                                    <div onClick={() => updatePreviewItem(item._tempId, 'isToBuy', null)} style={{border: item.isToBuy ? '2px solid #3182ce' : `1px solid ${BORDER_COLOR}`, backgroundColor: item.isToBuy ? '#ebf8ff' : 'transparent', color: item.isToBuy ? '#2b6cb0' : '#718096', borderRadius: 8, padding: '8px', textAlign:'center', cursor:'pointer', fontSize:'0.8em', fontWeight:'bold'}}>🛒 Wishlist</div>
+                                    <div onClick={() => updatePreviewItem(item._tempId, 'isNext', null)} style={{border: item.isNext ? '2px solid #38a169' : `1px solid ${BORDER_COLOR}`, backgroundColor: item.isNext ? '#f0fff4' : 'transparent', color: item.isNext ? '#2f855a' : '#718096', opacity: item.isArchived ? 0.4 : 1, borderRadius: 8, padding: '8px', textAlign:'center', cursor:'pointer', fontSize:'0.8em', fontWeight:'bold'}}>📌 In Corso</div>
+                                    <div onClick={() => updatePreviewItem(item._tempId, 'isArchived', null)} style={{border: item.isArchived ? '2px solid #d69e2e' : `1px solid ${BORDER_COLOR}`, backgroundColor: item.isArchived ? '#fffff0' : 'transparent', color: item.isArchived ? '#b7791f' : '#718096', borderRadius: 8, padding: '8px', textAlign:'center', cursor:'pointer', fontSize:'0.8em', fontWeight:'bold'}}>✅ Finito</div>
+                                </div>
+                            </div>
+                        ))}
+                        {importPreview.length === 0 && <p style={{textAlign:'center', color:'#a0aec0'}}>Nessun elemento da importare.</p>}
+                    </div>
+                )}
+            </div>
+
+            {/* FOOTER AZIONI */}
+            <div style={{padding:'20px 24px', borderTop:`1px solid ${BORDER_COLOR}`, backgroundColor:'white', display:'flex', gap:12}}>
+                {step === 1 ? (
+                    <>
+                        <button className="ghost" onClick={()=>setImportModalOpen(false)} style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', border:`1px solid ${BORDER_COLOR}`, fontWeight:'bold'}}>Annulla</button>
+                        <button onClick={handleParseJSON} style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#2d3748', color:'white', fontWeight:'bold', border:'none'}}>Analizza JSON ➡️</button>
+                    </>
+                ) : (
+                    <>
+                        <button className="ghost" onClick={()=>setStep(1)} style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', border:`1px solid ${BORDER_COLOR}`, fontWeight:'bold'}}>⬅️ Indietro</button>
+                        <button onClick={handleFinalImport} disabled={importPreview.length === 0} style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#38a169', color:'white', fontWeight:'bold', border:'none', opacity: importPreview.length===0?0.5:1}}>
+                            Conferma ({importPreview.length}) 🚀
+                        </button>
+                    </>
+                )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
