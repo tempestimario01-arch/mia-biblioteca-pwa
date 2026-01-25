@@ -802,21 +802,25 @@ const addItem = useCallback(async (e) => {
 
   /* --- LOGICHE IMPORTAZIONE SPOSTATE QUI (DOPO ASYNC FNS) --- */
   // 1. ANALIZZA JSON E RILEVA DOPPIONI
+// 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione Corretta e Potenziata)
   const handleParseJSON = useCallback(() => {
     try {
       const parsed = JSON.parse(jsonInput);
       if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
 
       const previewData = parsed.map((item, index) => {
-        // Normalizzazione per confronto
+        // Normalizzazione stringhe (minuscolo e senza spazi extra)
         const cleanTitle = String(item.title || "").toLowerCase().trim();
         const cleanAuthor = String(item.author || "").toLowerCase().trim();
 
-        // Check Doppione (Titolo + Autore uguali)
+        // Check Doppione più robusto
         const isDuplicate = items.some(existing => {
              const existTitle = String(existing.title || "").toLowerCase().trim();
-             const existAuthor = String(existing.creator || "").toLowerCase().trim();
-             return existTitle === cleanTitle && existAuthor === cleanAuthor;
+             // Controllo incrociato: a volte è 'creator', a volte 'author'
+             const existCreator = String(existing.creator || existing.author || "").toLowerCase().trim();
+             
+             // È doppione se il titolo coincide E (l'autore coincide OPPURE l'autore esistente è vuoto/sconosciuto)
+             return existTitle === cleanTitle && (existCreator === cleanAuthor || existTitle.length > 5); // Se titolo lungo e identico, è probabile sia lui
         });
 
         return {
@@ -824,23 +828,18 @@ const addItem = useCallback(async (e) => {
           title: item.title || "",
           author: item.author || "",
           year: item.year || "",
-          kind: 'libro', // Default
+          kind: 'libro', 
           genre: "", mood: "", video_url: "", note: "",
-          // Stati logici
-          isToBuy: false, 
-          isNext: false, 
-          isArchived: false,
-          // Fonte pre-compilata se c'è (es. Instagram)
+          isToBuy: false, isNext: false, isArchived: false,
           source: item.source || "",
-          // Flag Doppione
-          isDuplicate: isDuplicate
+          isDuplicate: isDuplicate // <--- Qui salviamo il risultato
         };
       });
 
       setImportPreview(previewData);
       setStep(2); 
     } catch (err) {
-      showToast("Errore: JSON non valido. Controlla il formato.", "error");
+      showToast("Errore JSON: Assicurati che sia una lista valida.", "error");
     }
   }, [jsonInput, items, showToast]);
 
@@ -2279,7 +2278,7 @@ const handleUpdateItem = useCallback(async (e) => {
                     <div style={{display:'flex', flexDirection:'column', gap:16}}>
                         {importPreview.map((item) => (
                             <div key={item._tempId} style={{
-                                backgroundColor: item.isDuplicate ? '#fff5f5' : 'white', // SFONDO ROSSO SE DOPPIO
+                                backgroundColor: item.isDuplicate ? '#fff5f5' : 'white', 
                                 borderRadius:16, padding:16, 
                                 border: item.isDuplicate ? '2px solid #fc8181' : `1px solid ${BORDER_COLOR}`, 
                                 display:'flex', flexDirection:'column', gap:12,
@@ -2293,44 +2292,77 @@ const handleUpdateItem = useCallback(async (e) => {
                                         backgroundColor:'#c53030', color:'white', 
                                         fontSize:'0.75em', fontWeight:'bold', 
                                         padding:'4px 8px', borderRadius:10,
-                                        boxShadow:'0 2px 4px rgba(0,0,0,0.2)'
+                                        boxShadow:'0 2px 4px rgba(0,0,0,0.2)',
+                                        zIndex: 10
                                     }}>
                                         ⚠️ GIÀ IN LIBRERIA
                                     </div>
                                 )}
 
-                                {/* RIGA 1: Titolo e Cestino */}
+                                {/* RIGA 1: Titolo e Cestino (Flex) */}
                                 <div style={{display:'flex', gap:10, alignItems:'flex-start'}}>
                                     <input 
                                         value={item.title} 
                                         onChange={e => updatePreviewItem(item._tempId, 'title', e.target.value)}
                                         placeholder="Titolo"
                                         style={{
-                                            flex:1, fontWeight:'bold', border:'none', 
+                                            flex:1, minWidth: 0, // Importante per non uscire dallo schermo
+                                            fontWeight:'bold', border:'none', 
                                             borderBottom: item.isDuplicate ? '1px solid #fc8181' : '1px solid #e2e8f0', 
                                             fontSize:'1.1rem', padding:'4px 0', 
                                             color: item.isDuplicate ? '#c53030' : '#2d3748', backgroundColor:'transparent'
                                         }}
                                     />
-                                    <button onClick={() => removePreviewItem(item._tempId)} style={{background: item.isDuplicate ? '#c53030' : 'transparent', color: item.isDuplicate ? 'white' : '#a0aec0', borderRadius:8, width:32, height:32, border:'none', fontSize:'1.2em', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'}}>🗑️</button>
+                                    <button onClick={() => removePreviewItem(item._tempId)} style={{background: item.isDuplicate ? '#c53030' : 'transparent', color: item.isDuplicate ? 'white' : '#a0aec0', borderRadius:8, width:32, height:32, border:'none', fontSize:'1.2em', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}>🗑️</button>
                                 </div>
 
-                                {/* RIGA 2: Autore, Anno, Tipo */}
-                                <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:10}}>
-                                    <input value={item.author} onChange={e => updatePreviewItem(item._tempId, 'author', e.target.value)} placeholder="Autore" style={{border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}} />
-                                    <input type="number" value={item.year} onChange={e => updatePreviewItem(item._tempId, 'year', e.target.value)} placeholder="Anno" style={{border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}} />
-                                    <select value={item.kind} onChange={e => updatePreviewItem(item._tempId, 'kind', e.target.value)} style={{border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}}>{TYPES.map(t=> <option key={t} value={t}>{t}</option>)}</select>
+                                {/* RIGA 2: Autore, Anno, Tipo (RESPONSIVE) */}
+                                <div style={{display:'flex', flexWrap:'wrap', gap:10}}>
+                                    <input 
+                                        value={item.author} 
+                                        onChange={e => updatePreviewItem(item._tempId, 'author', e.target.value)} 
+                                        placeholder="Autore" 
+                                        style={{flex:'2 1 140px', minWidth:'140px', border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}} 
+                                    />
+                                    <input 
+                                        type="number" 
+                                        value={item.year} 
+                                        onChange={e => updatePreviewItem(item._tempId, 'year', e.target.value)} 
+                                        placeholder="Anno" 
+                                        style={{flex:'1 1 60px', minWidth:'60px', border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}} 
+                                    />
+                                    <select 
+                                        value={item.kind} 
+                                        onChange={e => updatePreviewItem(item._tempId, 'kind', e.target.value)} 
+                                        style={{flex:'1 1 80px', minWidth:'80px', border:'none', borderBottom:'1px solid #e2e8f0', fontSize:'0.95em', padding:'6px 0', backgroundColor:'transparent'}}
+                                    >
+                                        {TYPES.map(t=> <option key={t} value={t}>{t}</option>)}
+                                    </select>
                                 </div>
 
-                                {/* RIGA 3: Genere e Mood */}
-                                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
-                                    {showGenreInput(item.kind) ? (<select value={item.genre} onChange={e => updatePreviewItem(item._tempId, 'genre', e.target.value)} style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', backgroundColor:'#f7fafc'}}><option value="">Genere...</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}</select>) : <div/>}
-                                    <select value={item.mood} onChange={e => updatePreviewItem(item._tempId, 'mood', e.target.value)} style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', backgroundColor:'#f7fafc'}}><option value="">Umore...</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                                {/* RIGA 3: Genere e Mood (RESPONSIVE) */}
+                                <div style={{display:'flex', flexWrap:'wrap', gap:10}}>
+                                    {showGenreInput(item.kind) ? (
+                                        <select 
+                                            value={item.genre} 
+                                            onChange={e => updatePreviewItem(item._tempId, 'genre', e.target.value)} 
+                                            style={{flex:'1 1 120px', border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', backgroundColor:'#f7fafc'}}
+                                        >
+                                            <option value="">Genere...</option>{GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+                                        </select>
+                                    ) : <div/>}
+                                    <select 
+                                        value={item.mood} 
+                                        onChange={e => updatePreviewItem(item._tempId, 'mood', e.target.value)} 
+                                        style={{flex:'1 1 120px', border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', backgroundColor:'#f7fafc'}}
+                                    >
+                                        <option value="">Umore...</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
                                 </div>
 
                                 {/* RIGA 4: Link e Note */}
-                                <input value={item.video_url} onChange={e => updatePreviewItem(item._tempId, 'video_url', e.target.value)} placeholder="Link..." style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em'}} />
-                                <textarea value={item.note} onChange={e => updatePreviewItem(item._tempId, 'note', e.target.value)} placeholder="Note..." rows={1} style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', fontFamily:'inherit', resize:'vertical'}} />
+                                <input value={item.video_url} onChange={e => updatePreviewItem(item._tempId, 'video_url', e.target.value)} placeholder="Link..." style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', width:'100%', boxSizing:'border-box'}} />
+                                <textarea value={item.note} onChange={e => updatePreviewItem(item._tempId, 'note', e.target.value)} placeholder="Note..." rows={1} style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', fontFamily:'inherit', resize:'vertical', width:'100%', boxSizing:'border-box'}} />
 
                                 {/* RIGA 5: STATO (Toggle) */}
                                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
