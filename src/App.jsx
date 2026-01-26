@@ -801,33 +801,52 @@ const addItem = useCallback(async (e) => {
   }, [fetchStats, showToast]);
 
   /* --- LOGICHE IMPORTAZIONE SPOSTATE QUI (DOPO ASYNC FNS) --- */
- // 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione "Super Fuzzy")
+ // 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione "Terminator" Aggressiva)
   const handleParseJSON = useCallback(() => {
     try {
       const parsed = JSON.parse(jsonInput);
       if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
 
-      // Funzione helper interna per "pulire" le stringhe da punteggiatura e spazi
-      const normalize = (str) => String(str || "").toLowerCase().replace(/[.,:;!?\s]/g, "");
+      // Funzione che riduce tutto all'osso: solo lettere e numeri minuscoli.
+      // Esempio: "C'è post@ per te!" -> "cepostperte"
+      const slugify = (str) => {
+          return String(str || "")
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Via gli accenti (è -> e)
+            .replace(/[^a-z0-9]/g, ""); // Via tutto ciò che non è lettera o numero
+      };
 
       const previewData = parsed.map((item, index) => {
-        // Creiamo le versioni "pulite" per il confronto
-        const cleanTitle = normalize(item.title);
-        const cleanAuthor = normalize(item.author);
+        // 1. Creiamo le "impronte digitali" pulite
+        const jsonTitleSlug = slugify(item.title);
+        const jsonAuthorSlug = slugify(item.author);
 
-        // Check Doppione
+        // 2. CHECK DOPPIONE SUPER-ROBUSTO
         const isDuplicate = items.some(existing => {
-             const existTitle = normalize(existing.title);
-             const existAuthor = normalize(existing.creator || existing.author);
+             // 3. Creiamo le impronte per i dati esistenti
+             const dbTitleSlug = slugify(existing.title);
+             const dbAuthorSlug = slugify(existing.creator || existing.author);
              
-             // Confronto: se le stringhe "piallate" si contengono a vicenda
-             const titleMatch = existTitle.includes(cleanTitle) || cleanTitle.includes(existTitle);
+             // 4. Debug in console (F12) per vedere cosa sta succedendo davvero
+             // (Toglieremo questo console.log una volta che funziona, ma ora serve!)
+             if (jsonTitleSlug.length > 5 && dbTitleSlug.includes(jsonTitleSlug)) {
+                 console.log("MATCH TROVATO (DEBUG):", {
+                     JSON: jsonTitleSlug, 
+                     DB: dbTitleSlug,
+                     AuthorJSON: jsonAuthorSlug,
+                     AuthorDB: dbAuthorSlug
+                 });
+             }
+
+             // 5. CONFRONTO: 
+             // Il titolo del DB contiene quello del JSON? (o viceversa)
+             const titleMatch = dbTitleSlug.includes(jsonTitleSlug) || jsonTitleSlug.includes(dbTitleSlug);
              
-             // Se l'autore manca in uno dei due, ci basiamo solo sul titolo (rischioso ma utile per l'AI)
-             // Se l'autore c'è, deve matchare
-             const authorMatch = (!existAuthor || !cleanAuthor) 
+             // L'autore del DB contiene quello del JSON? (o viceversa)
+             // Se uno dei due è vuoto, ignoriamo l'autore (ci fidiamo del titolo)
+             const authorMatch = (!dbAuthorSlug || !jsonAuthorSlug) 
                                  ? true 
-                                 : (existAuthor.includes(cleanAuthor) || cleanAuthor.includes(existAuthor));
+                                 : (dbAuthorSlug.includes(jsonAuthorSlug) || jsonAuthorSlug.includes(dbAuthorSlug));
 
              return titleMatch && authorMatch;
         });
@@ -848,6 +867,7 @@ const addItem = useCallback(async (e) => {
       setImportPreview(previewData);
       setStep(2); 
     } catch (err) {
+      console.error(err);
       showToast("Errore JSON: Controlla che il formato sia corretto.", "error");
     }
   }, [jsonInput, items, showToast]);
