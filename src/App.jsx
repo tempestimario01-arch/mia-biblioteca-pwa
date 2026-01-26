@@ -801,26 +801,32 @@ const addItem = useCallback(async (e) => {
   }, [fetchStats, showToast]);
 
   /* --- LOGICHE IMPORTAZIONE SPOSTATE QUI (DOPO ASYNC FNS) --- */
-  // 1. ANALIZZA JSON E RILEVA DOPPIONI
-// 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione Corretta e Potenziata)
+  // 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione Fuzzy/Intelligente)
   const handleParseJSON = useCallback(() => {
     try {
       const parsed = JSON.parse(jsonInput);
       if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
 
       const previewData = parsed.map((item, index) => {
-        // Normalizzazione stringhe (minuscolo e senza spazi extra)
-        const cleanTitle = String(item.title || "").toLowerCase().trim();
-        const cleanAuthor = String(item.author || "").toLowerCase().trim();
+        // 1. Pulizia stringhe (minuscolo, trim) per il confronto
+        const newTitle = String(item.title || "").toLowerCase().trim();
+        const newAuthor = String(item.author || "").toLowerCase().trim();
 
-        // Check Doppione più robusto
+        // 2. CHECK DOPPIONE PIÙ ELASTICO
         const isDuplicate = items.some(existing => {
-             const existTitle = String(existing.title || "").toLowerCase().trim();
-             // Controllo incrociato: a volte è 'creator', a volte 'author'
-             const existCreator = String(existing.creator || existing.author || "").toLowerCase().trim();
+             const oldTitle = String(existing.title || "").toLowerCase().trim();
+             // Cerchiamo sia in 'creator' che 'author' per sicurezza
+             const oldAuthor = String(existing.creator || existing.author || "").toLowerCase().trim();
              
-             // È doppione se il titolo coincide E (l'autore coincide OPPURE l'autore esistente è vuoto/sconosciuto)
-             return existTitle === cleanTitle && (existCreator === cleanAuthor || existTitle.length > 5); // Se titolo lungo e identico, è probabile sia lui
+             // A. I titoli devono essere uguali
+             if (oldTitle !== newTitle) return false;
+
+             // B. Se i titoli sono uguali, controlliamo l'autore in modo "soft"
+             // Se uno dei due autori è vuoto, lo consideriamo un potenziale doppione (per sicurezza)
+             if (!newAuthor || !oldAuthor) return true;
+
+             // C. Se uno include l'altro (es: "King" matcha "Stephen King")
+             return oldAuthor.includes(newAuthor) || newAuthor.includes(oldAuthor);
         });
 
         return {
@@ -832,17 +838,16 @@ const addItem = useCallback(async (e) => {
           genre: "", mood: "", video_url: "", note: "",
           isToBuy: false, isNext: false, isArchived: false,
           source: item.source || "",
-          isDuplicate: isDuplicate // <--- Qui salviamo il risultato
+          isDuplicate: isDuplicate 
         };
       });
 
       setImportPreview(previewData);
       setStep(2); 
     } catch (err) {
-      showToast("Errore JSON: Assicurati che sia una lista valida.", "error");
+      showToast("Errore JSON: Controlla che il formato sia corretto.", "error");
     }
   }, [jsonInput, items, showToast]);
-
   // 2. GESTISCE LE MODIFICHE NELLA GRIGLIA ANTEPRIMA
   const updatePreviewItem = useCallback((id, field, value) => {
     setImportPreview(prev => prev.map(item => {
