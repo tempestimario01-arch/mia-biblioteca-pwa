@@ -801,28 +801,30 @@ const addItem = useCallback(async (e) => {
   }, [fetchStats, showToast]);
 
   /* --- LOGICHE IMPORTAZIONE SPOSTATE QUI (DOPO ASYNC FNS) --- */
- // 1. ANALIZZA JSON E RILEVA DOPPIONI (Logica "Elastica" per Sottotitoli)
+ // 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione "Super Fuzzy")
   const handleParseJSON = useCallback(() => {
     try {
       const parsed = JSON.parse(jsonInput);
       if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
 
+      // Funzione helper interna per "pulire" le stringhe da punteggiatura e spazi
+      const normalize = (str) => String(str || "").toLowerCase().replace(/[.,:;!?\s]/g, "");
+
       const previewData = parsed.map((item, index) => {
-        // Normalizzazione stringhe (minuscolo e senza spazi extra)
-        const cleanTitle = String(item.title || "").toLowerCase().trim();
-        const cleanAuthor = String(item.author || "").toLowerCase().trim();
+        // Creiamo le versioni "pulite" per il confronto
+        const cleanTitle = normalize(item.title);
+        const cleanAuthor = normalize(item.author);
 
         // Check Doppione
         const isDuplicate = items.some(existing => {
-             const existTitle = String(existing.title || "").toLowerCase().trim();
-             // Cerchiamo sia in 'creator' che 'author' per sicurezza
-             const existAuthor = String(existing.creator || existing.author || "").toLowerCase().trim();
+             const existTitle = normalize(existing.title);
+             const existAuthor = normalize(existing.creator || existing.author);
              
-             // 1. Controllo TITOLO (Uno contiene l'altro? Utile per i sottotitoli)
+             // Confronto: se le stringhe "piallate" si contengono a vicenda
              const titleMatch = existTitle.includes(cleanTitle) || cleanTitle.includes(existTitle);
-
-             // 2. Controllo AUTORE (Uno contiene l'altro?)
-             // Se l'autore manca in uno dei due, ci fidiamo del titolo (spesso l'AI non mette l'autore)
+             
+             // Se l'autore manca in uno dei due, ci basiamo solo sul titolo (rischioso ma utile per l'AI)
+             // Se l'autore c'è, deve matchare
              const authorMatch = (!existAuthor || !cleanAuthor) 
                                  ? true 
                                  : (existAuthor.includes(cleanAuthor) || cleanAuthor.includes(existAuthor));
@@ -867,17 +869,18 @@ const addItem = useCallback(async (e) => {
     setImportPreview(prev => prev.filter(item => item._tempId !== id));
   }, []);
 
-  // 3. SALVATAGGIO FINALE (Batch Insert)
+ // 3. SALVATAGGIO FINALE (Batch Insert con Protezione Anti-Crash)
   const handleFinalImport = useCallback(async () => {
     if (importPreview.length === 0) return;
     setIsSaving(true);
 
     const toInsert = importPreview.map(({ _tempId, isToBuy, isNext, isArchived, isDuplicate, ...item }) => {
-      // Calcolo Stato
+      // Se è palesemente un doppione rilevato, potremmo saltarlo qui, 
+      // ma lasciamo che sia il DB a decidere con ignoreDuplicates per sicurezza.
+      
       const finalStatus = isArchived ? "archived" : "active";
       const finalEndedOn = isArchived ? new Date().toISOString().slice(0,10) : null;
       
-      // Calcolo Fonte (Aggiungi Wishlist se serve)
       let finalSource = item.source || "";
       if (isToBuy) {
           const parts = parseSources(finalSource);
@@ -898,29 +901,35 @@ const addItem = useCallback(async (e) => {
         ended_on: finalEndedOn,
         is_next: isNext,
         source: finalSource,
-        created_at: new Date().toISOString() // Data di oggi
+        created_at: new Date().toISOString()
       };
     });
 
-    const { data, error } = await supabase.from('items').insert(toInsert).select();
+    // NOTA: Aggiunto { ignoreDuplicates: true } per non far crashare se c'è un doppio
+    const { data, error } = await supabase.from('items').insert(toInsert, { ignoreDuplicates: true }).select();
+    
     setIsSaving(false);
 
-    if (!error && data) {
-      const adapted = data.map(row => ({
-         ...row, kind: normType(row.type), creator: row.author, sourcesArr: parseSources(row.source)
-      }));
-      setItems(prev => [...adapted, ...prev]); // Aggiungi in cima
+    if (!error) {
+      // Se data è null o vuoto (perché erano tutti doppioni), non crashiamo
+      if (data && data.length > 0) {
+          const adapted = data.map(row => ({
+             ...row, kind: normType(row.type), creator: row.author, sourcesArr: parseSources(row.source)
+          }));
+          setItems(prev => [...adapted, ...prev]); 
+          showToast(`Importati ${data.length} nuovi elementi! 🎉`, "success");
+      } else {
+          showToast("Nessun elemento nuovo inserito (erano tutti doppioni).", "info");
+      }
       
-      // Pulizia e Chiusura
       setImportModalOpen(false);
       setJsonInput("");
       setImportPreview([]);
       setStep(1);
       setAdvOpen(false);
-      
-      showToast(`Importati ${data.length} elementi! 🎉`, "success");
       fetchStats();
     } else {
+      // Se l'errore persiste nonostante ignoreDuplicates, lo mostriamo
       showToast("Errore Import: " + error.message, "error");
     }
   }, [importPreview, fetchStats, showToast]);
