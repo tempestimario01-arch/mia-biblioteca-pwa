@@ -801,32 +801,33 @@ const addItem = useCallback(async (e) => {
   }, [fetchStats, showToast]);
 
   /* --- LOGICHE IMPORTAZIONE SPOSTATE QUI (DOPO ASYNC FNS) --- */
-  // 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione Fuzzy/Intelligente)
+ // 1. ANALIZZA JSON E RILEVA DOPPIONI (Logica "Elastica" per Sottotitoli)
   const handleParseJSON = useCallback(() => {
     try {
       const parsed = JSON.parse(jsonInput);
       if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
 
       const previewData = parsed.map((item, index) => {
-        // 1. Pulizia stringhe (minuscolo, trim) per il confronto
-        const newTitle = String(item.title || "").toLowerCase().trim();
-        const newAuthor = String(item.author || "").toLowerCase().trim();
+        // Normalizzazione stringhe (minuscolo e senza spazi extra)
+        const cleanTitle = String(item.title || "").toLowerCase().trim();
+        const cleanAuthor = String(item.author || "").toLowerCase().trim();
 
-        // 2. CHECK DOPPIONE PIÙ ELASTICO
+        // Check Doppione
         const isDuplicate = items.some(existing => {
-             const oldTitle = String(existing.title || "").toLowerCase().trim();
+             const existTitle = String(existing.title || "").toLowerCase().trim();
              // Cerchiamo sia in 'creator' che 'author' per sicurezza
-             const oldAuthor = String(existing.creator || existing.author || "").toLowerCase().trim();
+             const existAuthor = String(existing.creator || existing.author || "").toLowerCase().trim();
              
-             // A. I titoli devono essere uguali
-             if (oldTitle !== newTitle) return false;
+             // 1. Controllo TITOLO (Uno contiene l'altro? Utile per i sottotitoli)
+             const titleMatch = existTitle.includes(cleanTitle) || cleanTitle.includes(existTitle);
 
-             // B. Se i titoli sono uguali, controlliamo l'autore in modo "soft"
-             // Se uno dei due autori è vuoto, lo consideriamo un potenziale doppione (per sicurezza)
-             if (!newAuthor || !oldAuthor) return true;
+             // 2. Controllo AUTORE (Uno contiene l'altro?)
+             // Se l'autore manca in uno dei due, ci fidiamo del titolo (spesso l'AI non mette l'autore)
+             const authorMatch = (!existAuthor || !cleanAuthor) 
+                                 ? true 
+                                 : (existAuthor.includes(cleanAuthor) || cleanAuthor.includes(existAuthor));
 
-             // C. Se uno include l'altro (es: "King" matcha "Stephen King")
-             return oldAuthor.includes(newAuthor) || newAuthor.includes(oldAuthor);
+             return titleMatch && authorMatch;
         });
 
         return {
