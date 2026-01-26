@@ -801,52 +801,54 @@ const addItem = useCallback(async (e) => {
   }, [fetchStats, showToast]);
 
   /* --- LOGICHE IMPORTAZIONE SPOSTATE QUI (DOPO ASYNC FNS) --- */
- // 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione "Terminator" Aggressiva)
-  const handleParseJSON = useCallback(() => {
+// 1. ANALIZZA JSON E RILEVA DOPPIONI (Versione "High Capacity" fino a 10k)
+  const handleParseJSON = useCallback(async () => {
     try {
       const parsed = JSON.parse(jsonInput);
       if (!Array.isArray(parsed)) throw new Error("Il testo deve essere una lista [...]");
 
-      // Funzione che riduce tutto all'osso: solo lettere e numeri minuscoli.
-      // Esempio: "C'è post@ per te!" -> "cepostperte"
-      const slugify = (str) => {
+      // A. Scarichiamo TUTTI i libri. Aggiunto .range(0, 9999) per superare il limite di 1000
+      showToast(`Controllo su ${items.length > 1000 ? 'oltre 1000' : items.length} elementi...`, "info");
+      
+      const { data: allDbItems, error } = await supabase
+        .from('items')
+        .select('title, author, creator')
+        .range(0, 9999); // <--- ECCO IL TRUCCO PER I TUOI 1158 ELEMENTI
+
+      // Se il download fallisce, usiamo la lista locale come salvagente
+      const referenceList = (error || !allDbItems) ? items : allDbItems;
+
+      // HELPER: Pulisce e trasforma in "sacchetto di parole" (Token)
+      const tokenize = (str) => {
           return String(str || "")
             .toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Via gli accenti (è -> e)
-            .replace(/[^a-z0-9]/g, ""); // Via tutto ciò che non è lettera o numero
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
+            .replace(/[^a-z0-9\s]/g, "") 
+            .split(/\s+/) 
+            .filter(w => w.length > 2); 
+      };
+
+      // HELPER: Controlla se le parole chiave coincidono abbastanza (Fuzzy Match)
+      const isFuzzyMatch = (tokensA, tokensB) => {
+          if (tokensA.length === 0 || tokensB.length === 0) return false;
+          const matches = tokensA.filter(token => tokensB.some(t => t.includes(token) || token.includes(t)));
+          return (matches.length / tokensA.length) >= 0.5;
       };
 
       const previewData = parsed.map((item, index) => {
-        // 1. Creiamo le "impronte digitali" pulite
-        const jsonTitleSlug = slugify(item.title);
-        const jsonAuthorSlug = slugify(item.author);
+        const jsonTitleTokens = tokenize(item.title);
+        const jsonAuthorTokens = tokenize(item.author);
 
-        // 2. CHECK DOPPIONE SUPER-ROBUSTO
-        const isDuplicate = items.some(existing => {
-             // 3. Creiamo le impronte per i dati esistenti
-             const dbTitleSlug = slugify(existing.title);
-             const dbAuthorSlug = slugify(existing.creator || existing.author);
+        // B. CHECK DOPPIONE INTELLIGENTE
+        const isDuplicate = referenceList.some(existing => {
+             const dbTitleTokens = tokenize(existing.title);
+             const dbAuthorTokens = tokenize(existing.creator || existing.author);
              
-             // 4. Debug in console (F12) per vedere cosa sta succedendo davvero
-             // (Toglieremo questo console.log una volta che funziona, ma ora serve!)
-             if (jsonTitleSlug.length > 5 && dbTitleSlug.includes(jsonTitleSlug)) {
-                 console.log("MATCH TROVATO (DEBUG):", {
-                     JSON: jsonTitleSlug, 
-                     DB: dbTitleSlug,
-                     AuthorJSON: jsonAuthorSlug,
-                     AuthorDB: dbAuthorSlug
-                 });
-             }
+             const titleMatch = isFuzzyMatch(jsonTitleTokens, dbTitleTokens) || isFuzzyMatch(dbTitleTokens, jsonTitleTokens);
 
-             // 5. CONFRONTO: 
-             // Il titolo del DB contiene quello del JSON? (o viceversa)
-             const titleMatch = dbTitleSlug.includes(jsonTitleSlug) || jsonTitleSlug.includes(dbTitleSlug);
-             
-             // L'autore del DB contiene quello del JSON? (o viceversa)
-             // Se uno dei due è vuoto, ignoriamo l'autore (ci fidiamo del titolo)
-             const authorMatch = (!dbAuthorSlug || !jsonAuthorSlug) 
-                                 ? true 
-                                 : (dbAuthorSlug.includes(jsonAuthorSlug) || jsonAuthorSlug.includes(dbAuthorSlug));
+             if (dbAuthorTokens.length === 0 || jsonAuthorTokens.length === 0) return titleMatch;
+
+             const authorMatch = jsonAuthorTokens.some(t => dbAuthorTokens.includes(t));
 
              return titleMatch && authorMatch;
         });
@@ -868,9 +870,10 @@ const addItem = useCallback(async (e) => {
       setStep(2); 
     } catch (err) {
       console.error(err);
-      showToast("Errore JSON: Controlla che il formato sia corretto.", "error");
+      showToast("Errore analisi. Controlla il formato JSON.", "error");
     }
   }, [jsonInput, items, showToast]);
+
   // 2. GESTISCE LE MODIFICHE NELLA GRIGLIA ANTEPRIMA
   const updatePreviewItem = useCallback((id, field, value) => {
     setImportPreview(prev => prev.map(item => {
@@ -889,15 +892,13 @@ const addItem = useCallback(async (e) => {
     setImportPreview(prev => prev.filter(item => item._tempId !== id));
   }, []);
 
- // 3. SALVATAGGIO FINALE (Batch Insert con Protezione Anti-Crash)
+// 3. SALVATAGGIO FINALE (Con protezione Database)
   const handleFinalImport = useCallback(async () => {
     if (importPreview.length === 0) return;
     setIsSaving(true);
 
     const toInsert = importPreview.map(({ _tempId, isToBuy, isNext, isArchived, isDuplicate, ...item }) => {
-      // Se è palesemente un doppione rilevato, potremmo saltarlo qui, 
-      // ma lasciamo che sia il DB a decidere con ignoreDuplicates per sicurezza.
-      
+      // Calcolo stati
       const finalStatus = isArchived ? "archived" : "active";
       const finalEndedOn = isArchived ? new Date().toISOString().slice(0,10) : null;
       
@@ -925,21 +926,20 @@ const addItem = useCallback(async (e) => {
       };
     });
 
-    // NOTA: Aggiunto { ignoreDuplicates: true } per non far crashare se c'è un doppio
+    // PROTEZIONE: ignoreDuplicates evita schermate rosse se il libro esiste già
     const { data, error } = await supabase.from('items').insert(toInsert, { ignoreDuplicates: true }).select();
     
     setIsSaving(false);
 
     if (!error) {
-      // Se data è null o vuoto (perché erano tutti doppioni), non crashiamo
       if (data && data.length > 0) {
           const adapted = data.map(row => ({
              ...row, kind: normType(row.type), creator: row.author, sourcesArr: parseSources(row.source)
           }));
           setItems(prev => [...adapted, ...prev]); 
-          showToast(`Importati ${data.length} nuovi elementi! 🎉`, "success");
+          showToast(`Aggiunti ${data.length} nuovi stimoli alla collezione!`, "success");
       } else {
-          showToast("Nessun elemento nuovo inserito (erano tutti doppioni).", "info");
+          showToast("Nessun elemento aggiunto (erano già tutti presenti).", "info");
       }
       
       setImportModalOpen(false);
@@ -949,7 +949,6 @@ const addItem = useCallback(async (e) => {
       setAdvOpen(false);
       fetchStats();
     } else {
-      // Se l'errore persiste nonostante ignoreDuplicates, lo mostriamo
       showToast("Errore Import: " + error.message, "error");
     }
   }, [importPreview, fetchStats, showToast]);
