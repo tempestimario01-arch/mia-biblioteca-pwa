@@ -342,9 +342,8 @@ const LibraryItem = memo(({
                   key={index}
                   onClick={(e) => {
                     e.stopPropagation(); 
-              // NORMALIZZAZIONE: Trasforma in minuscolo prima di filtrare
-                   onFilterAuthor(part.toLowerCase()); 
-                     }}  
+                    onFilterAuthor(part); // Usa la funzione di filtro per cercare il tag
+                  }}
                   style={{
                     color: '#b7791f', 
                     fontWeight: 'bold',
@@ -582,47 +581,76 @@ export default function App(){
     }
   }, []);
 
-const fetchItems = useCallback(async () => {
-    setLoading(true);
+  const fetchItems = useCallback(async () => {
     let query = supabase
-        .from("items")
-        .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on")
-        .order("created_at", { ascending: false })
-        .limit(500);
+      .from("items")
+      .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on")
+      .order("created_at", { ascending:false })
+      .limit(500); 
 
+    // LOGICA RICERCA POTENZIATA (Multi-Tag + Testo Misto)
     if (q) {
-        // 1. Estrai tutti i tag (es: #storia #eco)
-        const tagsFound = q.match(/#[a-z0-9_àèìòù]+/gi) || [];
-        // 2. Pulisci la ricerca dal testo rimanente
-        const cleanText = q.replace(/#[a-z0-9_àèìòù]+/gi, '').trim();
+      // 1. Estrai tutti i tag (parole che iniziano con #)
+      const tagsFound = q.match(/#[a-z0-9_àèìòù]+/gi) || [];
+      
+      // 2. Pulisci la ricerca togliendo i tag per lasciare solo il testo
+      const cleanText = q.replace(/#[a-z0-9_àèìòù]+/gi, '').trim();
 
-        // 3. Applica i filtri TAG (Logica AND: deve averli tutti)
-        tagsFound.forEach(tag => {
-            // .ilike rende la ricerca case-insensitive nel database
-            query = query.ilike('note', `%${tag}%`);
-        });
+      // 3. APPLICA I FILTRI TAG (Logica AND: deve averli TUTTI)
+      tagsFound.forEach(tag => {
+         query = query.ilike('note', `%${tag}%`);
+      });
 
-        // 4. Applica il filtro testuale su Titolo o Autore
-        if (cleanText) {
-            query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`);
-        }
+      // 4. APPLICA IL FILTRO TESTUALE (Se c'è testo)
+      if (cleanText) {
+         query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`);
+      }
     }
-    
-    // ... mantieni i tuoi if (statusFilter), (typeFilter), ecc. fino alla fine della funzione ...
+    if (statusFilter) { query = query.eq('status', statusFilter); }
+    if (typeFilter) { query = query.eq('type', typeFilter); }
+    if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
+    if (moodFilter) { query = query.eq('mood', moodFilter); }
+     
+    if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
+    else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
+     
+    // NUOVA LOGICA: Filtra per autore OPPURE per titolo in base allo switch
+    if (letterFilter) { 
+      const columnToSearch = letterMode === 'title' ? 'title' : 'author';
+      query = query.ilike(columnToSearch, `${letterFilter}%`); 
+    }
+
+    if (yearFilter) { query = query.eq('year', Number(yearFilter)); }
+
+    if (completionYearFilter && completionMonthFilter) {
+      const year = Number(completionYearFilter);
+      const month = Number(completionMonthFilter); 
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const nextMonth = month === 12 ? 1 : month + 1; 
+      const nextYear = month === 12 ? year + 1 : year;
+      const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+      query = query.gte('ended_on', startDate).lt('ended_on', endDate);
+    } else if (completionYearFilter) {
+      const year = Number(completionYearFilter);
+      const startDate = `${year}-01-01`;
+      const endDate = `${year + 1}-01-01`;
+      query = query.gte('ended_on', startDate).lt('ended_on', endDate);
+    }
 
     const { data, error } = await query;
-    if (error) { console.error("Errore:", error); } 
+    if (error) { console.error("Supabase select error:", error); } 
     else {
-        const adapted = (data || []).map(row => ({
-            ...row,
-            kind: normType(row.kind), 
-            creator: row.creator,
-            sourcesArr: parseSources(row.sources)
-        }));
-        setItems(adapted);
+      const adapted = (data || []).map(row => ({
+        ...row,
+        kind: normType(row.kind), 
+        creator: row.creator,
+        sourcesArr: parseSources(row.sources)
+      }));
+      setItems(adapted);
     }
     setLoading(false);
-}, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, letterMode, yearFilter, completionMonthFilter, completionYearFilter]);
+  }, [q, statusFilter, typeFilter, genreFilter, moodFilter, sourceFilter, letterFilter, letterMode, yearFilter, completionMonthFilter, completionYearFilter]);
+
   const fetchStats = useCallback(async () => {
     try {
       const { count: totalCount } = await supabase.from("items").select('*', { count: 'exact', head: true });
@@ -1203,52 +1231,85 @@ const handleUpdateItem = useCallback(async (e) => {
   }, []);
 
   /* --- AUTOCOMPLETE GHOST (Intelligente con Tag #) --- */
- useEffect(() => {
+  useEffect(() => {
     const val = qInput ? qInput.trim() : "";
-    
-    // Regola: se c'è un # basta un carattere, altrimenti ne servono 2
+     
+    // 1. REGOLA D'INGAGGIO:
+    // Se inizia con # basta 1 carattere. Se è testo normale, ne servono almeno 2.
     const isTagMode = val.includes('#');
     if ((!isTagMode && val.length < 2) || (isTagMode && val.length < 1)) {
-        setSuggestions([]); 
-        return;
+      setSuggestions([]); 
+      return;
     }
 
     const fetchSuggestions = async () => {
-        const words = val.split(/\s+/);
-        const lastWord = words[words.length - 1];
-        const isTypingTag = lastWord && lastWord.startsWith('#');
+      // Capiamo cosa sta scrivendo l'utente (ultima parola)
+      const words = val.split(/\s+/);
+      const lastWord = words[words.length - 1];
+      const isTypingTag = lastWord && lastWord.startsWith('#');
 
-        let query = supabase.from('items').select('title, author, note').limit(50);
+      // Prepariamo la query
+      let query = supabase
+        .from('items')
+        .select('title, author, note') // Ci servono le note per i tag!
+        .limit(50); 
 
-        if (isTypingTag) {
-            query = query.not('note', 'is', null).ilike('note', `%${lastWord}%`);
-        } else {
-            query = query.or(`title.ilike.%${val}%,author.ilike.%${val}%`);
-        }
+      // SE STO SCRIVENDO UN TAG (#...):
+      if (isTypingTag) {
+          query = query
+            .not('note', 'is', null) // Deve avere una nota
+            .ilike('note', `%${lastWord}%`); // La nota deve contenere il tag parziale
+      } 
+      // SE STO SCRIVENDO TESTO NORMALE:
+      else {
+          // Rimuoviamo eventuali tag precedenti dalla stringa di ricerca per pulizia
+          const textParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/).filter(s => s.length > 0);
+          if (textParts.length > 0) {
+             const firstToken = textParts[0];
+             query = query.or(`title.ilike.%${firstToken}%,author.ilike.%${firstToken}%`);
+          } else {
+             setSuggestions([]);
+             return;
+          }
+      }
 
-        const { data } = await query;
-        if (data) {
-            const uniqueSet = new Set();
-            data.forEach(row => {
-                if (isTypingTag && row.note) {
-                    const matches = row.note.match(/#[a-z0-9_àèìòù]+/gi) || [];
-                    matches.forEach(t => {
-                        if (t.toLowerCase().startsWith(lastWord.toLowerCase())) {
-                            uniqueSet.add(t.toLowerCase()); // Normalizza in minuscolo
-                        }
-                    });
-                } else if (!isTypingTag) {
-                    if (row.title.toLowerCase().includes(val.toLowerCase())) uniqueSet.add(row.title);
-                    if (row.author.toLowerCase().includes(val.toLowerCase())) uniqueSet.add(row.author);
-                }
-            });
-            setSuggestions(Array.from(uniqueSet).slice(0, 5));
-        }
+      const { data, error } = await query;
+
+      if (!error && data) {
+        const uniqueSet = new Set();
+        const lastWordLower = lastWord.toLowerCase();
+
+        data.forEach(row => {
+          // --- LOGICA A: SUGGERIMENTI TAG ---
+          if (isTypingTag && row.note) {
+              const matches = row.note.match(/#[a-z0-9_àèìòù]+/gi) || [];
+              matches.forEach(t => {
+                  if (t.toLowerCase().startsWith(lastWordLower)) {
+                      // Costruiamo la stringa finale preservando il prefisso
+                      const prefix = val.substring(0, val.lastIndexOf(lastWord));
+                      uniqueSet.add(prefix + t); 
+                  }
+              });
+          }
+          // --- LOGICA B: SUGGERIMENTI TITOLI/AUTORI ---
+          else if (!isTypingTag) { 
+             const cleanTextParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/);
+             const rowTitle = (row.title || "").toLowerCase();
+             const rowAuthor = (row.author || "").toLowerCase();
+             
+             if (cleanTextParts.every(p => rowTitle.includes(p))) uniqueSet.add(row.title);
+             if (cleanTextParts.every(p => rowAuthor.includes(p))) uniqueSet.add(row.author);
+          }
+        });
+
+        const sorted = Array.from(uniqueSet).sort((a, b) => a.length - b.length).slice(0, 5);
+        setSuggestions(sorted);
+      }
     };
 
-    const timer = setTimeout(fetchSuggestions, 250);
+    const timer = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timer);
-}, [qInput]);
+  }, [qInput]);
 
   /* --- CALCOLO SPAZIO DISCO (Proiezione Realistica) --- */
   useEffect(() => {
