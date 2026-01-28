@@ -201,107 +201,6 @@ const ZenBar = ({ active }) => {
   );
 };
 
-// --- COMPONENTE INTELLIGENTE PER I TAG (RIUTILIZZABILE) ---
-// Questo sostituisce la textarea standard ovunque servano i tag
-const SmartNoteInput = memo(({ value, onChange, globalTags, placeholder, rows = 3, style }) => {
-  const [suggestions, setSuggestions] = useState([]);
-
-  // Calcola i suggerimenti ogni volta che il testo cambia
-  useEffect(() => {
-    if (!value) { setSuggestions([]); return; }
-    // Usa regex per dividere spazi e a capo
-    const words = value.split(/[\s\n]+/);
-    const lastWord = words[words.length - 1];
-
-    if (lastWord && lastWord.startsWith('#') && lastWord.length > 1) {
-      const query = lastWord.toLowerCase();
-      // Filtra i tag globali che iniziano con la query
-      const matches = globalTags.filter(t => t.startsWith(query) && t !== query).slice(0, 5);
-      setSuggestions(matches);
-    } else {
-      setSuggestions([]);
-    }
-  }, [value, globalTags]);
-
-  const handleTagClick = (tag) => {
-    // Sostituisce l'ultima parola (quella parziale) con il tag completo
-    const parts = value.split(/([\s\n]+)/); // Usa regex per mantenere i separatori originali
-    
-    // Trova l'ultimo pezzo che non sia uno spazio vuoto
-    let lastIndex = parts.length - 1;
-    while (lastIndex >= 0 && parts[lastIndex].trim() === '') {
-        lastIndex--;
-    }
-    
-    if (lastIndex >= 0) {
-        parts[lastIndex] = tag + " "; // Sostituisci e aggiungi spazio
-        onChange(parts.join(""));
-        setSuggestions([]); // Chiudi suggerimenti
-    }
-  };
-
-  return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      {/* TOOLTIP SUGGERIMENTI */}
-      {suggestions.length > 0 && (
-        <div style={{
-          position: 'absolute',
-          bottom: '100%', 
-          left: 0,
-          backgroundColor: '#2d3748', 
-          borderRadius: '8px 8px 8px 0',
-          padding: '4px 8px',
-          display: 'flex',
-          gap: 8,
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.15)',
-          zIndex: 100, // Alto z-index per stare sopra a tutto
-          marginBottom: 5,
-          animation: 'fadeIn 0.2s ease-out'
-        }}>
-          {suggestions.map(tag => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => handleTagClick(tag)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#d6bc9b', 
-                fontSize: '0.85rem',
-                padding: '6px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <textarea 
-        placeholder={placeholder}
-        value={value} 
-        onChange={e => onChange(e.target.value)} 
-        rows={rows} 
-        style={{
-          width: '100%', 
-          boxSizing: 'border-box',
-          padding: '10px', 
-          borderRadius: 12, 
-          border: `1px solid ${suggestions.length > 0 ? '#b7791f' : BORDER_COLOR}`, 
-          fontSize: '0.9em', 
-          backgroundColor: 'transparent', 
-          fontFamily: 'inherit', 
-          resize: 'vertical',
-          transition: 'border-color 0.2s',
-          ...style
-        }} 
-      />
-    </div>
-  );
-});
-
 // LIBRARY ITEM (Card ottimizzata con Note a Comparsa)
 const LibraryItem = memo(({ 
   it, 
@@ -662,8 +561,8 @@ export default function App(){
     }, 3000);
   }, []);
 
-  /* --- 3. CERVELLO DEI TAG (GlobalTags) --- */
-  // Estrae tutti i tag unici presenti in tutto il DB locale per suggerirli
+  /* --- NUOVA LOGICA: CERVELLO DEI TAG --- */
+  // 1. Estrae tutti i tag unici (il "DNA" della biblioteca)
   const globalTags = useMemo(() => {
     const found = new Set();
     items.forEach(it => {
@@ -675,7 +574,27 @@ export default function App(){
     return Array.from(found).sort();
   }, [items]);
 
-  /* --- 4. FUNZIONI ASINCRONE --- */
+  // 2. Calcola i suggerimenti "Ghost" mentre digiti (Motore Contestuale)
+  const tagSuggestions = useMemo(() => {
+    // Determina quale nota stiamo scrivendo (Aggiunta o Modifica)
+    const currentText = addModalOpen ? note : (editState ? editState.note : "");
+    if (!currentText) return [];
+
+    // Prende l'ultima parola
+    const words = currentText.split(/[\s\n]+/);
+    const lastWord = words[words.length - 1];
+
+    // Se inizia con # e ha testo, cerca nei tag globali
+    if (lastWord && lastWord.startsWith('#') && lastWord.length > 1) {
+      const query = lastWord.toLowerCase();
+      return globalTags
+        .filter(t => t.startsWith(query) && t !== query)
+        .slice(0, 5); // Max 5 suggerimenti
+    }
+    return [];
+  }, [note, editState, addModalOpen, globalTags]);
+
+  /* --- 3. FUNZIONI ASINCRONE --- */
 
   const fetchPinnedItems = useCallback(async () => {
     const { data, error } = await supabase
@@ -704,22 +623,19 @@ export default function App(){
       .limit(500);
 
     if (q) {
-      // 1. Estrai tutti i tag (es: #storia #eco)
       const tagsFound = q.match(/#[a-z0-9_àèìòù]+/gi) || [];
-      // 2. Pulisci la ricerca dal testo rimanente
       const cleanText = q.replace(/#[a-z0-9_àèìòù]+/gi, '').trim();
 
-      // 3. Applica i filtri TAG (Logica AND: deve averli tutti)
       tagsFound.forEach(tag => {
         query = query.ilike('note', `%${tag}%`);
       });
 
-      // 4. Applica il filtro testuale su Titolo o Autore
       if (cleanText) {
         query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`);
       }
     }
     
+    // ... mantieni i tuoi if (statusFilter), (typeFilter), ecc. fino alla fine della funzione ...
     if (statusFilter) { query = query.eq('status', statusFilter); }
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
@@ -728,7 +644,6 @@ export default function App(){
     if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
     else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
       
-    // NUOVA LOGICA: Filtra per autore OPPURE per titolo in base allo switch
     if (letterFilter) { 
       const columnToSearch = letterMode === 'title' ? 'title' : 'author';
       query = query.ilike(columnToSearch, `${letterFilter}%`); 
@@ -1858,13 +1773,68 @@ const handleUpdateItem = useCallback(async (e) => {
               </div>
               <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
               
-              {/* SMART INPUT AGGIUNTA */}
-              <SmartNoteInput 
-                value={note} 
-                onChange={setNote} 
-                globalTags={globalTags} 
-                placeholder="Note personali (usa # per i tag)..." 
-              />
+              {/* --- ZONA NOTE AGGIUNTA --- */}
+              <div style={{ position: 'relative', width: '100%' }}>
+                {/* TOOLTIP SUGGERIMENTI TAG */}
+                {tagSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '100%', 
+                    left: 0,
+                    backgroundColor: '#2d3748', 
+                    borderRadius: '8px 8px 8px 0',
+                    padding: '4px 8px',
+                    display: 'flex',
+                    gap: 8,
+                    boxShadow: '0 -4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 99,
+                    marginBottom: 5,
+                    animation: 'fadeIn 0.2s ease-out'
+                  }}>
+                    {tagSuggestions.map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const words = note.split(/([\s\n]+)/); 
+                          words[words.length - 1] = tag; 
+                          setNote(words.join("") + " "); 
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#d6bc9b', 
+                          fontSize: '0.85rem',
+                          padding: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <textarea 
+                  placeholder="Note personali... usa # per i tag" 
+                  value={note} 
+                  onChange={e => setNote(e.target.value)} 
+                  rows={3} 
+                  style={{
+                    padding:'10px', 
+                    borderRadius:12, 
+                    border: `1px solid ${tagSuggestions.length > 0 ? '#b7791f' : BORDER_COLOR}`, 
+                    width:'100%', 
+                    boxSizing:'border-box', 
+                    fontSize:'0.9em', 
+                    backgroundColor:'transparent', 
+                    fontFamily:'inherit', 
+                    resize:'vertical',
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+              </div>
               
               <div style={{marginTop:8}}>
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
@@ -2276,13 +2246,67 @@ const handleUpdateItem = useCallback(async (e) => {
                   style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em'}}
               />
               
-              {/* --- SMART INPUT NOTE EDIT --- */}
-              <SmartNoteInput 
-                value={editState.note || ""} 
-                onChange={(val) => setEditState(curr => ({ ...curr, note: val }))} 
-                globalTags={globalTags} 
-                placeholder="Note personali..." 
-              />
+              {/* --- ZONA NOTE EDIT --- */}
+              <div style={{ position: 'relative', width: '100%' }}>
+                {/* TOOLTIP SUGGERIMENTI TAG (VERSIONE EDIT) */}
+                {tagSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '100%', 
+                    left: 0,
+                    backgroundColor: '#2d3748',
+                    borderRadius: '8px 8px 8px 0',
+                    padding: '4px 8px',
+                    display: 'flex',
+                    gap: 8,
+                    boxShadow: '0 -4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 99,
+                    marginBottom: 5
+                  }}>
+                    {tagSuggestions.map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const words = editState.note.split(/([\s\n]+)/);
+                          words[words.length - 1] = tag;
+                          setEditState(curr => ({ ...curr, note: words.join("") + " " }));
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#d6bc9b',
+                          fontSize: '0.85rem',
+                          padding: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <textarea 
+                  placeholder="Note personali..." 
+                  value={editState.note || ""} 
+                  onChange={e => setEditState(curr => ({ ...curr, note: e.target.value }))} 
+                  rows={3} 
+                  style={{
+                    width: '100%', 
+                    boxSizing: 'border-box', 
+                    padding:'10px', 
+                    borderRadius:12, 
+                    border: `1px solid ${tagSuggestions.length > 0 ? '#b7791f' : BORDER_COLOR}`, 
+                    fontSize:'0.95em', 
+                    backgroundColor:'transparent', 
+                    fontFamily:'inherit', 
+                    resize:'vertical',
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+              </div>
 
               {/* SEZIONE STATO */}
               <div style={{marginTop:8}}>
@@ -2499,16 +2523,7 @@ const handleUpdateItem = useCallback(async (e) => {
 
                                 {/* RIGA 4: Link e Note */}
                                 <input value={item.video_url} onChange={e => updatePreviewItem(item._tempId, 'video_url', e.target.value)} placeholder="Link..." style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', width:'100%', boxSizing:'border-box'}} />
-                                
-                                {/* SMART INPUT NELL'IMPORT */}
-                                <SmartNoteInput 
-                                    value={item.note || ""} 
-                                    onChange={(val) => updatePreviewItem(item._tempId, 'note', val)} 
-                                    globalTags={globalTags} 
-                                    placeholder="Note..." 
-                                    rows={1}
-                                    style={{border:'1px solid #e2e8f0'}} 
-                                />
+                                <textarea value={item.note} onChange={e => updatePreviewItem(item._tempId, 'note', e.target.value)} placeholder="Note..." rows={1} style={{border:'1px solid #e2e8f0', borderRadius:8, padding:8, fontSize:'0.9em', fontFamily:'inherit', resize:'vertical', width:'100%', boxSizing:'border-box'}} />
 
                                 {/* RIGA 5: STATO (Toggle) */}
                                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
