@@ -171,7 +171,7 @@ const ToastContainer = ({ toasts }) => {
 // La barra sottile e minimalista
 const ZenBar = ({ active }) => {
   if (!active) return null;
-   
+    
   return (
     <div style={{
       position: 'fixed',
@@ -255,7 +255,7 @@ const LibraryItem = memo(({
           >
             {TYPE_ICONS[it.kind]} {it.creator}
           </div>
-           
+            
           <div style={{display:'flex', flexWrap:'wrap', gap:6, alignItems:'center', marginTop:4}}>
             {it.mood && <span className="badge mood-badge" style={{ backgroundColor: '#ebf8ff', color: '#2c5282' }}>{it.mood}</span>}
             {it.genre && showGenreInput(it.kind) && <span style={{fontSize:'0.85em', opacity:0.8}}>• {canonGenere(it.genre)}</span>}
@@ -269,7 +269,7 @@ const LibraryItem = memo(({
           {it.finished_at && <div style={{marginTop:6, fontSize:'0.85em', color:'#718096', fontStyle:'italic'}}>🏁 Finito il: {new Date(it.finished_at).toLocaleDateString()}</div>}
         </div>
       </div>
-       
+        
       {/* ZONA 2: AZIONI */}
       <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, marginTop: 4, paddingTop: 12, borderTop: '1px solid #f0f4f8', flexWrap: 'wrap' }}>
         
@@ -329,7 +329,7 @@ const LibraryItem = memo(({
             borderRadius: '0 8px 8px 0',
             color: '#4a5568', 
             fontSize: '0.95rem', 
-            lineHeight: 1.6,
+            lineHeight: 1.6, 
             fontStyle: 'italic',
             animation: 'fadeIn 0.3s'
         }}>
@@ -342,8 +342,8 @@ const LibraryItem = memo(({
                   key={index}
                   onClick={(e) => {
                     e.stopPropagation(); 
-                    onFilterAuthor(part); // Usa la funzione di filtro per cercare il tag
-                  }}
+                    onFilterAuthor(part.toLowerCase()); // NORMALIZZAZIONE: Cerca il tag in minuscolo
+                  }}  
                   style={{
                     color: '#b7791f', 
                     fontWeight: 'bold',
@@ -376,7 +376,7 @@ const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => 
 
   return (
     <div style={{ marginBottom: 32, marginTop: 8 }}>
-       
+        
       {/* HEADER AUTORE (Minimalista: Solo testo e linea) */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
@@ -404,14 +404,14 @@ const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => 
       <div style={{display:'flex', flexDirection:'column', gap: 8}}>
         {works.map((it) => {
           const isArchived = it.status === 'archived';
-           
+            
           return (
             <div key={it.id} style={{
               display: 'flex', alignItems: 'center', gap: 12,
               opacity: isArchived ? 0.5 : 1, // Se fatto, diventa molto leggero
               transition: 'opacity 0.2s'
             }}>
-               
+                
               {/* CHECKBOX ZEN (Cerchio o Quadrato minimal) */}
               <div 
                 onClick={(e) => { e.stopPropagation(); isArchived ? onUnarchive(it) : onArchive(it); }}
@@ -439,12 +439,12 @@ const AuthorGroup = memo(({ author, works, onArchive, onUnarchive, onEdit }) => 
                   <span style={{marginRight: 6, fontSize:'0.9em'}}>{TYPE_ICONS[it.kind]}</span>
                   {it.title}
                 </div>
-                 
+                  
                 {/* Micro-dettagli (Anno, Wishlist) - NO NOTE (Punto 2) */}
                 <div style={{fontSize: '0.75rem', color: '#a0aec0', marginTop:2}}>
-                   {it.year && <span>{it.year}</span>}
-                   {it.is_next && <span style={{color:'#d69e2e', marginLeft: it.year ? 6 : 0}}>📌 Focus</span>} 
-                   {(it.sourcesArr||[]).includes('Wishlist') && <span style={{color:'#3182ce', marginLeft: 6}}>🛒 Wishlist</span>} 
+                    {it.year && <span>{it.year}</span>}
+                    {it.is_next && <span style={{color:'#d69e2e', marginLeft: it.year ? 6 : 0}}>📌 Focus</span>} 
+                    {(it.sourcesArr||[]).includes('Wishlist') && <span style={{color:'#3182ce', marginLeft: 6}}>🛒 Wishlist</span>} 
                 </div>
               </div>
 
@@ -494,7 +494,7 @@ export default function App(){
   const [genreFilter,setGenreFilter] = useState("");
   const [moodFilter, setMoodFilter] = useState("");
   const [sourceFilter,setSourceFilter] = useState(""); 
-   
+    
   // NOVITÀ: Filtro Lettera Avanzato
   const [letterFilter, setLetterFilter] = useState("");
   const [letterMode, setLetterMode] = useState("author"); // "author" oppure "title"
@@ -512,21 +512,21 @@ export default function App(){
   const [statsModalOpen, setStatsModalOpen] = useState(false); 
   const [statsView, setStatsView] = useState('periodo'); 
   const [editState, setEditState] = useState(null);
-   
+    
   // Clean Up
   const [cleanupItem, setCleanupItem] = useState(null);
 
   // Form Aggiunta
-  const [title,setTitle] = useState("");
-  const [creator,setCreator] = useState("");
-  const [kind,setKind] = useState("libro");
-  const [genre,setGenre] = useState("");
+  const [title, setTitle] = useState("");
+  const [creator, setCreator] = useState("");
+  const [kind, setKind] = useState("libro");
+  const [genre, setGenre] = useState("");
   const [mood, setMood] = useState(""); 
   const [videoUrl, setVideoUrl] = useState("");
-  const [year,setYear] = useState("");
+  const [year, setYear] = useState("");
   const [note, setNote] = useState(""); 
   const [isNext, setIsNext] = useState(false);
-   
+    
   // Aggiunta Avanzata
   const [isInstantArchive, setIsInstantArchive] = useState(false);
   const [instantDate, setInstantDate] = useState("");
@@ -561,6 +561,39 @@ export default function App(){
     }, 3000);
   }, []);
 
+  /* --- NUOVA LOGICA: CERVELLO DEI TAG --- */
+  // 1. Estrae tutti i tag unici (il "DNA" della biblioteca)
+  const globalTags = useMemo(() => {
+    const found = new Set();
+    items.forEach(it => {
+      if (it.note) {
+        const matches = it.note.match(/#[a-z0-9_àèìòù]+/gi);
+        if (matches) matches.forEach(t => found.add(t.toLowerCase()));
+      }
+    });
+    return Array.from(found).sort();
+  }, [items]);
+
+  // 2. Calcola i suggerimenti "Ghost" mentre digiti (Motore Contestuale)
+  const tagSuggestions = useMemo(() => {
+    // Determina quale nota stiamo scrivendo (Aggiunta o Modifica)
+    const currentText = addModalOpen ? note : (editState ? editState.note : "");
+    if (!currentText) return [];
+
+    // Prende l'ultima parola
+    const words = currentText.split(/[\s\n]+/);
+    const lastWord = words[words.length - 1];
+
+    // Se inizia con # e ha testo, cerca nei tag globali
+    if (lastWord && lastWord.startsWith('#') && lastWord.length > 1) {
+      const query = lastWord.toLowerCase();
+      return globalTags
+        .filter(t => t.startsWith(query) && t !== query)
+        .slice(0, 5); // Max 5 suggerimenti
+    }
+    return [];
+  }, [note, editState, addModalOpen, globalTags]);
+
   /* --- 3. FUNZIONI ASINCRONE --- */
 
   const fetchPinnedItems = useCallback(async () => {
@@ -569,7 +602,7 @@ export default function App(){
       .select('*, note') 
       .eq('is_next', true)
       .neq('status', 'archived'); 
-     
+      
     if (!error && data) {
       const adapted = data.map(row => ({
         ...row,
@@ -582,39 +615,35 @@ export default function App(){
   }, []);
 
   const fetchItems = useCallback(async () => {
+    setLoading(true);
     let query = supabase
       .from("items")
       .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on")
-      .order("created_at", { ascending:false })
-      .limit(500); 
+      .order("created_at", { ascending: false })
+      .limit(500);
 
-    // LOGICA RICERCA POTENZIATA (Multi-Tag + Testo Misto)
     if (q) {
-      // 1. Estrai tutti i tag (parole che iniziano con #)
       const tagsFound = q.match(/#[a-z0-9_àèìòù]+/gi) || [];
-      
-      // 2. Pulisci la ricerca togliendo i tag per lasciare solo il testo
       const cleanText = q.replace(/#[a-z0-9_àèìòù]+/gi, '').trim();
 
-      // 3. APPLICA I FILTRI TAG (Logica AND: deve averli TUTTI)
       tagsFound.forEach(tag => {
-         query = query.ilike('note', `%${tag}%`);
+        query = query.ilike('note', `%${tag}%`);
       });
 
-      // 4. APPLICA IL FILTRO TESTUALE (Se c'è testo)
       if (cleanText) {
-         query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`);
+        query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`);
       }
     }
+    
+    // ... mantieni i tuoi if (statusFilter), (typeFilter), ecc. fino alla fine della funzione ...
     if (statusFilter) { query = query.eq('status', statusFilter); }
     if (typeFilter) { query = query.eq('type', typeFilter); }
     if (genreFilter) { query = query.eq('genre', canonGenere(genreFilter)); }
     if (moodFilter) { query = query.eq('mood', moodFilter); }
-     
+      
     if (sourceFilter === 'Wishlist') { query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%'); }
     else if (sourceFilter) { query = query.ilike('source', `%${sourceFilter}%`); }
-     
-    // NUOVA LOGICA: Filtra per autore OPPURE per titolo in base allo switch
+      
     if (letterFilter) { 
       const columnToSearch = letterMode === 'title' ? 'title' : 'author';
       query = query.ilike(columnToSearch, `${letterFilter}%`); 
@@ -676,7 +705,7 @@ export default function App(){
   const fetchPeriodStats = useCallback(async () => {
     if (!statYear) return;
     setPeriodLoading(true);
-     
+      
     const y = Number(statYear); 
     let startDate, endDate;
 
@@ -692,7 +721,7 @@ export default function App(){
     }
 
     const { data, error } = await supabase.from('items').select('type').gte('ended_on', startDate).lt('ended_on', endDate);
-     
+      
     if (error) { 
       setPeriodStats({ total: 0, libro: 0, audiolibro: 0, film: 0, album: 0, video: 0, gioco: 0 }); 
     } 
@@ -705,7 +734,7 @@ export default function App(){
   }, [statYear, statMonth]); 
 
   /* --- 4. HANDLERS --- */
-   
+    
   // RESET INFINITE SCROLL ON FILTER CHANGE
   useEffect(() => {
     setVisibleCount(50);
@@ -738,7 +767,7 @@ const addItem = useCallback(async (e) => {
     const finalEndedOn = isInstantArchive ? (instantDate || new Date().toISOString().slice(0,10)) : null;
     const finalIsNext = isInstantArchive ? false : isNext;
     const finalSource = isToBuy ? "Wishlist" : "";
-     
+      
     const payload = {
       title, author: creator, type: kind, status: finalStatus,
       genre: showGenreInput(kind) ? canonGenere(genre) : null, 
@@ -964,7 +993,7 @@ const addItem = useCallback(async (e) => {
   const saveArchiveFromModal = useCallback(async (m) => {
   // 1. CHIUDI SUBITO
   setArchModal(null);
-   
+    
   // 2. ZEN BAR ON
   setIsSaving(true);
 
@@ -1048,7 +1077,7 @@ const handleUpdateItem = useCallback(async (e) => {
       video_url: editState.video_url || null, note: editState.note || null,
       is_next: editState.is_next, source: editState.source 
     };
-     
+      
     const idToUpdate = editState.id;
 
     // 1. Aggiornamento Ottimistico LOCALE
@@ -1122,10 +1151,10 @@ const handleUpdateItem = useCallback(async (e) => {
 
   // 1. VIA LA MODALE
   setCleanupItem(null);
-   
+    
   // 2. BARRA
   setIsSaving(true);
-   
+    
   const now = new Date().toISOString();
   const { error } = await supabase.from('items').update({ created_at: now }).eq('id', id);
 
@@ -1202,7 +1231,7 @@ const handleUpdateItem = useCallback(async (e) => {
 
         for (let item of shuffled) {
           const rawNote = item.note || "";
-           
+            
           // 2. CERCA TESTO TRA PARENTESI GRAFFE { ... }
           // La regex trova tutte le occorrenze
           const matches = rawNote.match(/\{([^}]+)\}/g);
@@ -1226,90 +1255,71 @@ const handleUpdateItem = useCallback(async (e) => {
         }
       }
     };
-     
+      
     fetchQuote();
   }, []);
 
   /* --- AUTOCOMPLETE GHOST (Intelligente con Tag #) --- */
-  useEffect(() => {
+ useEffect(() => {
     const val = qInput ? qInput.trim() : "";
      
     // 1. REGOLA D'INGAGGIO:
     // Se inizia con # basta 1 carattere. Se è testo normale, ne servono almeno 2.
     const isTagMode = val.includes('#');
     if ((!isTagMode && val.length < 2) || (isTagMode && val.length < 1)) {
-      setSuggestions([]); 
-      return;
+        setSuggestions([]); 
+        return;
     }
 
     const fetchSuggestions = async () => {
-      // Capiamo cosa sta scrivendo l'utente (ultima parola)
-      const words = val.split(/\s+/);
-      const lastWord = words[words.length - 1];
-      const isTypingTag = lastWord && lastWord.startsWith('#');
+        const words = val.split(/\s+/);
+        const lastWord = words[words.length - 1];
+        const isTypingTag = lastWord && lastWord.startsWith('#');
 
-      // Prepariamo la query
-      let query = supabase
-        .from('items')
-        .select('title, author, note') // Ci servono le note per i tag!
-        .limit(50); 
+        let query = supabase.from('items').select('title, author, note').limit(50);
 
-      // SE STO SCRIVENDO UN TAG (#...):
-      if (isTypingTag) {
-          query = query
-            .not('note', 'is', null) // Deve avere una nota
-            .ilike('note', `%${lastWord}%`); // La nota deve contenere il tag parziale
-      } 
-      // SE STO SCRIVENDO TESTO NORMALE:
-      else {
-          // Rimuoviamo eventuali tag precedenti dalla stringa di ricerca per pulizia
-          const textParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/).filter(s => s.length > 0);
-          if (textParts.length > 0) {
-             const firstToken = textParts[0];
-             query = query.or(`title.ilike.%${firstToken}%,author.ilike.%${firstToken}%`);
-          } else {
-             setSuggestions([]);
-             return;
-          }
-      }
+        if (isTypingTag) {
+            query = query.not('note', 'is', null).ilike('note', `%${lastWord}%`);
+        } else {
+            query = query.or(`title.ilike.%${val}%,author.ilike.%${val}%`);
+        }
 
-      const { data, error } = await query;
+        const { data } = await query;
+        if (data) {
+            const uniqueSet = new Set();
+            const lastWordLower = lastWord.toLowerCase();
 
-      if (!error && data) {
-        const uniqueSet = new Set();
-        const lastWordLower = lastWord.toLowerCase();
+            data.forEach(row => {
+                // --- LOGICA A: SUGGERIMENTI TAG ---
+                if (isTypingTag && row.note) {
+                    const matches = row.note.match(/#[a-z0-9_àèìòù]+/gi) || [];
+                    matches.forEach(t => {
+                        if (t.toLowerCase().startsWith(lastWordLower)) {
+                            // Costruiamo la stringa finale preservando il prefisso
+                            const prefix = val.substring(0, val.lastIndexOf(lastWord));
+                            uniqueSet.add(prefix + t.toLowerCase()); // Normalizza in minuscolo
+                        }
+                    });
+                } 
+                // --- LOGICA B: SUGGERIMENTI TITOLI/AUTORI ---
+                else if (!isTypingTag) { 
+                    const cleanTextParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/);
+                    const rowTitle = (row.title || "").toLowerCase();
+                    const rowAuthor = (row.author || "").toLowerCase();
+                    
+                    if (cleanTextParts.every(p => rowTitle.includes(p))) uniqueSet.add(row.title);
+                    if (cleanTextParts.every(p => rowAuthor.includes(p))) uniqueSet.add(row.author);
+                }
+            });
 
-        data.forEach(row => {
-          // --- LOGICA A: SUGGERIMENTI TAG ---
-          if (isTypingTag && row.note) {
-              const matches = row.note.match(/#[a-z0-9_àèìòù]+/gi) || [];
-              matches.forEach(t => {
-                  if (t.toLowerCase().startsWith(lastWordLower)) {
-                      // Costruiamo la stringa finale preservando il prefisso
-                      const prefix = val.substring(0, val.lastIndexOf(lastWord));
-                      uniqueSet.add(prefix + t); 
-                  }
-              });
-          }
-          // --- LOGICA B: SUGGERIMENTI TITOLI/AUTORI ---
-          else if (!isTypingTag) { 
-             const cleanTextParts = val.replace(/#[a-z0-9_àèìòù]+/gi, '').trim().toLowerCase().split(/\s+/);
-             const rowTitle = (row.title || "").toLowerCase();
-             const rowAuthor = (row.author || "").toLowerCase();
-             
-             if (cleanTextParts.every(p => rowTitle.includes(p))) uniqueSet.add(row.title);
-             if (cleanTextParts.every(p => rowAuthor.includes(p))) uniqueSet.add(row.author);
-          }
-        });
-
-        const sorted = Array.from(uniqueSet).sort((a, b) => a.length - b.length).slice(0, 5);
-        setSuggestions(sorted);
-      }
+            const sorted = Array.from(uniqueSet).sort((a, b) => a.length - b.length).slice(0, 5);
+            setSuggestions(sorted);
+        }
     };
 
     const timer = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timer);
-  }, [qInput]);
+ }, [qInput]);
 
   /* --- CALCOLO SPAZIO DISCO (Proiezione Realistica) --- */
   useEffect(() => {
@@ -1317,15 +1327,15 @@ const handleUpdateItem = useCallback(async (e) => {
       // 1. Calcola il peso medio in byte degli elementi caricati (incluso JSON overhead)
       const sampleSize = items.reduce((acc, item) => acc + JSON.stringify(item).length, 0);
       const avgBytesPerItem = sampleSize / items.length;
-       
+        
       // 2. Proietta sul totale degli elementi nel database
       // Moltiplichiamo x2 per stare sicuri (indici database, metadati, id nascosti)
       const totalEstimatedBytes = avgBytesPerItem * stats.total * 2;
-       
+        
       // 3. Converti in MB (1 MB = 1.048.576 byte) e calcola percentuale su 500MB (limite Free)
       const mb = totalEstimatedBytes / 1048576;
       const pct = (mb / 500) * 100;
-       
+        
       setStorageMetrics({ 
         usedMB: mb < 0.01 ? 0.01 : parseFloat(mb.toFixed(2)), // Minimo 0.01 MB per bellezza
         percent: parseFloat(pct.toFixed(4)) 
@@ -1338,9 +1348,9 @@ const handleUpdateItem = useCallback(async (e) => {
     <div className="app">
       <ZenBar active={isSaving} /> 
       <ToastContainer toasts={toasts} />
-       
+        
       <h1 style={{textAlign:'center'}}>Biblioteca personale</h1>
-       
+        
       {/* ===== BARRA DI RICERCA ZEN (GHOST MODE) ===== */}
       <section className="card" style={{
           marginBottom: 0, 
@@ -1372,7 +1382,7 @@ const handleUpdateItem = useCallback(async (e) => {
                 }
             }}
           />
-           
+            
           {qInput && (
             <button 
               onClick={() => { setQInput(""); setQ(""); setStatusFilter("active"); setSuggestions([]); }} 
@@ -1424,15 +1434,15 @@ const handleUpdateItem = useCallback(async (e) => {
             animation: 'fadeIn 0.4s'
           }}>
             <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-             
+              
             {suggestions.map((text, idx) => (
               <button
                 key={idx}
                 onClick={() => {
-                   setQInput(text);       
-                   setQ(text);            
-                   setSuggestions([]);    
-                   setStatusFilter("");   
+                   setQInput(text);        
+                   setQ(text);             
+                   setSuggestions([]);     
+                   setStatusFilter("");    
                 }}
                 style={{
                   flexShrink: 0,
@@ -1461,7 +1471,7 @@ const handleUpdateItem = useCallback(async (e) => {
       {/* ===== ETICHETTE FILTRI ATTIVI (Split Layout) ===== */}
       {(statusFilter !== 'active' || sourceFilter || genreFilter || moodFilter || yearFilter || letterFilter || typeFilter || completionYearFilter) && (
         <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'12px', gap:12}}>
-           
+            
           {/* COLONNA SINISTRA (Tag Flessibili) */}
           <div style={{display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', flex:1}}>
             <span style={{fontSize:'0.8em', opacity:0.6}}>Filtri:</span>
@@ -1471,7 +1481,7 @@ const handleUpdateItem = useCallback(async (e) => {
             {genreFilter && (<button className="ghost" onClick={()=>setGenreFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>{genreFilter} <span>✖</span></button>)}
             {moodFilter && (<button className="ghost" onClick={()=>setMoodFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#feebc8', color:'#c05621', display:'flex', alignItems:'center', gap:4}}>{moodFilter} <span>✖</span></button>)}
             {yearFilter && (<button className="ghost" onClick={()=>setYearFilter('')} style={{padding:'2px 8px', fontSize:'0.85em', borderRadius:12, backgroundColor:'#e2e8f0', color:'#4a5568', display:'flex', alignItems:'center', gap:4}}>Anno: {yearFilter} <span>✖</span></button>)}
-             
+              
 
             {/* TAG LETTERA MODIFICATO CON INDICAZIONE TIPO */}
             {letterFilter && (
@@ -1664,7 +1674,7 @@ const handleUpdateItem = useCallback(async (e) => {
           </section>
         </>
       )}
-       
+        
       {/* ===== Lista Risultati (Card Minimal) con Infinite Scroll ===== */}
       {isSearchActive && (
         <section className="card" style={{marginTop: 12}}>
@@ -1698,7 +1708,7 @@ const handleUpdateItem = useCallback(async (e) => {
                   const grouped = items.reduce((acc, item) => {
                     // Se manca l'autore, lo mettiamo sotto "Vari"
                     const key = item.creator ? item.creator.trim() : "Vari";
-                     
+                      
                     if (!acc[key]) {
                         acc[key] = [];
                     }
@@ -1746,7 +1756,7 @@ const handleUpdateItem = useCallback(async (e) => {
 
       {/* ===== FAB / MODALI ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
-       
+        
       {/* ===== MODALE AGGIUNTA (Beige + Trasparenza) ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
@@ -1762,7 +1772,69 @@ const handleUpdateItem = useCallback(async (e) => {
                 <select value={mood} onChange={e=>setMood(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent'}}><option value="">Umore</option>{MOODS.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
               <input placeholder="Link (opzionale)" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent'}} />
-              <textarea placeholder="Note personali (opzionale)..." value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, width:'100%', boxSizing:'border-box', fontSize:'0.9em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} />
+              
+              {/* --- ZONA NOTE AGGIUNTA --- */}
+              <div style={{ position: 'relative', width: '100%' }}>
+                {/* TOOLTIP SUGGERIMENTI TAG */}
+                {tagSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '100%', 
+                    left: 0,
+                    backgroundColor: '#2d3748', 
+                    borderRadius: '8px 8px 8px 0',
+                    padding: '4px 8px',
+                    display: 'flex',
+                    gap: 8,
+                    boxShadow: '0 -4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 99,
+                    marginBottom: 5,
+                    animation: 'fadeIn 0.2s ease-out'
+                  }}>
+                    {tagSuggestions.map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const words = note.split(/([\s\n]+)/); 
+                          words[words.length - 1] = tag; 
+                          setNote(words.join("") + " "); 
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#d6bc9b', 
+                          fontSize: '0.85rem',
+                          padding: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <textarea 
+                  placeholder="Note personali... usa # per i tag" 
+                  value={note} 
+                  onChange={e => setNote(e.target.value)} 
+                  rows={3} 
+                  style={{
+                    padding:'10px', 
+                    borderRadius:12, 
+                    border: `1px solid ${tagSuggestions.length > 0 ? '#b7791f' : BORDER_COLOR}`, 
+                    width:'100%', 
+                    boxSizing:'border-box', 
+                    fontSize:'0.9em', 
+                    backgroundColor:'transparent', 
+                    fontFamily:'inherit', 
+                    resize:'vertical',
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+              </div>
               
               <div style={{marginTop:8}}>
                 <label style={{fontSize:'0.85em', fontWeight:'bold', color:'#718096', marginBottom:8, display:'block'}}>IMPOSTA STATO:</label>
@@ -1855,7 +1927,7 @@ const handleUpdateItem = useCallback(async (e) => {
         <div className="modal-backdrop" onClick={() => setStatsModalOpen(false)}>
           <div className="card" style={{maxWidth:600, width:"94%", maxHeight:"90vh", overflowY:"auto", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
             <h2 style={{marginTop:0, textAlign:'center', marginBottom:20}}>Statistiche</h2>
-             
+              
             {/* TOGGLE PRINCIPALE (A Piastrelle) */}
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
               <div onClick={() => setStatsView('periodo')} style={{border: statsView === 'periodo' ? '2px solid #d53f8c' : `1px solid ${BORDER_COLOR}`, backgroundColor: statsView === 'periodo' ? '#fff5f7' : 'transparent', color: statsView === 'periodo' ? '#b83280' : '#718096', borderRadius: 12, padding: '10px', textAlign:'center', cursor:'pointer', fontWeight:'bold'}}>
@@ -1875,7 +1947,7 @@ const handleUpdateItem = useCallback(async (e) => {
                   <button className="ghost" onClick={() => { setStatMonth(new Date().getMonth() + 1); setStatYear(new Date().getFullYear()); }} style={{fontSize:'0.9em', textDecoration:'underline'}}>Oggi</button>
                   {periodLoading && <span style={{fontSize:'0.8em', color:'#718096'}}>...</span>}
                 </div>
-                 
+                  
                 {/* KPI Principale (CLICCABILE) */}
                 <div onClick={() => handleStatClick(null)} style={{textAlign:'center', marginBottom:20, cursor:'pointer', transition:'all 0.2s', padding: 8, borderRadius: 12, ':hover': {backgroundColor:'rgba(0,0,0,0.02)'}}}>
                   <div style={{fontSize:'3em', fontWeight:'bold', color:'#2d3748', lineHeight:1}}>{periodStats.total}</div>
@@ -1983,13 +2055,13 @@ const handleUpdateItem = useCallback(async (e) => {
             }} 
             onClick={e => e.stopPropagation()}
           >
-             
+              
             <div style={{fontSize:'3rem', marginBottom:10, filter: 'grayscale(0.5)'}}>💨</div>
-             
+              
             <h3 style={{marginTop:0, marginBottom: 12, color:'#2d3748', fontSize:'1.4rem'}}>
               C'è un po' di polvere...
             </h3>
-             
+              
             <p style={{color:'#718096', lineHeight:1.6, marginBottom: 20, fontSize: '0.95rem'}}>
               Hai aggiunto questo elemento molto tempo fa e non l'hai ancora finito. Ha ancora valore per te?
             </p>
@@ -2145,7 +2217,7 @@ const handleUpdateItem = useCallback(async (e) => {
                 <select value={editState.type} onChange={e => { const newType = e.target.value; setEditState(curr => ({...curr, type: newType})); }} style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#2d3748'}}>
                     {TYPES.map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                 </select>
-                 
+                  
                 <input 
                   type="number" 
                   placeholder="Anno" 
@@ -2173,13 +2245,68 @@ const handleUpdateItem = useCallback(async (e) => {
                   onChange={e => setEditState(curr => ({...curr, video_url: e.target.value}))} 
                   style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em'}}
               />
-              <textarea 
+              
+              {/* --- ZONA NOTE EDIT --- */}
+              <div style={{ position: 'relative', width: '100%' }}>
+                {/* TOOLTIP SUGGERIMENTI TAG (VERSIONE EDIT) */}
+                {tagSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '100%', 
+                    left: 0,
+                    backgroundColor: '#2d3748',
+                    borderRadius: '8px 8px 8px 0',
+                    padding: '4px 8px',
+                    display: 'flex',
+                    gap: 8,
+                    boxShadow: '0 -4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 99,
+                    marginBottom: 5
+                  }}>
+                    {tagSuggestions.map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const words = editState.note.split(/([\s\n]+)/);
+                          words[words.length - 1] = tag;
+                          setEditState(curr => ({ ...curr, note: words.join("") + " " }));
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#d6bc9b',
+                          fontSize: '0.85rem',
+                          padding: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <textarea 
                   placeholder="Note personali..." 
                   value={editState.note || ""} 
-                  onChange={e=>setEditState(curr => ({...curr, note: e.target.value}))} 
+                  onChange={e => setEditState(curr => ({ ...curr, note: e.target.value }))} 
                   rows={3} 
-                  style={{width: '100%', boxSizing: 'border-box', padding:'10px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, fontSize:'0.95em', backgroundColor:'transparent', fontFamily:'inherit', resize:'vertical'}} 
-              />
+                  style={{
+                    width: '100%', 
+                    boxSizing: 'border-box', 
+                    padding:'10px', 
+                    borderRadius:12, 
+                    border: `1px solid ${tagSuggestions.length > 0 ? '#b7791f' : BORDER_COLOR}`, 
+                    fontSize:'0.95em', 
+                    backgroundColor:'transparent', 
+                    fontFamily:'inherit', 
+                    resize:'vertical',
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+              </div>
 
               {/* SEZIONE STATO */}
               <div style={{marginTop:8}}>
