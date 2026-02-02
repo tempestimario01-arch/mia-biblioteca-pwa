@@ -1215,41 +1215,42 @@ const handleUpdateItem = useCallback(async (e) => {
     }; fetchMemory();
   }, []);
 
-  /* --- MEMORY JAR "HAIKU" (Minimalista) --- */
+  /* --- MEMORY JAR "HAIKU" (Ottimizzata: Solo Archiviati con { ) --- */
   useEffect(() => {
     const fetchQuote = async () => {
-      // 1. Preleva un campione di elementi che hanno una nota
+      // Chiediamo a Supabase SOLO gli elementi che:
+      // 1. Sono Archiviati (.eq 'status', 'archived')
+      // 2. Hanno una parentesi graffa nella nota (.ilike 'note', '%{%')
       const { data } = await supabase
         .from('items')
         .select('title, author, note')
-        .not('note', 'is', null) 
-        .limit(30);
+        .eq('status', 'archived') 
+        .ilike('note', '%{%') 
+        .limit(100); // Prende fino a 100 candidati validi (molto meglio di 30 a caso)
 
       if (data && data.length > 0) {
-        // Mischia i risultati
+        // Mischia i risultati trovati
         const shuffled = data.sort(() => 0.5 - Math.random());
 
         for (let item of shuffled) {
           const rawNote = item.note || "";
-            
-          // 2. CERCA TESTO TRA PARENTESI GRAFFE { ... }
-          // La regex trova tutte le occorrenze
+          // Estrae il testo tra { }
           const matches = rawNote.match(/\{([^}]+)\}/g);
 
           if (matches && matches.length > 0) {
-            // Prendi una citazione a caso tra quelle trovate nel libro
+            // Ne prende una a caso tra quelle presenti nel libro
             const randomQuote = matches[Math.floor(Math.random() * matches.length)]
-                                .replace(/^\{|\}$/g, ''); // Pulisce le parentesi { }
+                                .replace(/^\{|\}$/g, ''); 
 
-            // Controllo qualità: deve essere abbastanza lunga
+            // Controllo qualità lunghezza
             if (randomQuote.trim().length > 5) {
               setMemoryQuote({
                 text: randomQuote,
                 source: item.title,
                 author: item.author
               });
-              setShowSource(false); // Nascondi la fonte all'inizio
-              break; // Trovata! Esci dal ciclo.
+              setShowSource(false); 
+              break; // Trovata! Stop.
             }
           }
         }
