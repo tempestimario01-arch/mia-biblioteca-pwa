@@ -1344,6 +1344,74 @@ const handleUpdateItem = useCallback(async (e) => {
     }
   }, [items, stats.total]);
 
+  /* --- FUNZIONE EXPORT SMART (Senza Limiti) --- */
+  const handleSmartExport = async () => {
+    showToast("Preparazione CSV in corso...", "info");
+    setIsSaving(true); // Mostra la barra Zen mentre scarica
+
+    // 1. Costruiamo la query IDENTICA a quella di visualizzazione
+    let query = supabase
+      .from("items")
+      .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on")
+      .order("created_at", { ascending: false });
+
+    // 2. Replichiamo TUTTI i filtri attuali
+    if (q) {
+      const tagsFound = q.match(/#[a-z0-9_àèìòù]+/gi) || [];
+      const cleanText = q.replace(/#[a-z0-9_àèìòù]+/gi, '').trim();
+      tagsFound.forEach(tag => { query = query.ilike('note', `%${tag}%`); });
+      if (cleanText) { query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`); }
+    }
+    
+    if (statusFilter !== 'active') { // Nota: se è 'active', fetchItems lo metteva di default, qui se vuoi TUTTO devi gestire il caso
+         if(statusFilter) query = query.eq('status', statusFilter);
+    } else {
+         // Se il filtro è "Active" (default), esportiamo solo quelli attivi?
+         // O se l'utente vuole TUTTO il DB (Backup) deve togliere ogni filtro?
+         // Nel dubbio, rispettiamo fedelmente quello che vede a schermo:
+         query = query.eq('status', 'active');
+    }
+    
+    // Per fare un backup TOTALE (Archivio + Attivi), l'utente dovrebbe selezionare "Mostra Tutti" nei filtri se presente,
+    // oppure possiamo decidere che se non ci sono filtri specifici, scarica tutto.
+    // MODIFICA PER BACKUP TOTALE: Se statusFilter è vuoto (o gestito diversamente), scarica tutto.
+    // Nel tuo codice attuale statusFilter è sempre 'active' o 'archived' o ''.
+    
+    if (typeFilter) query = query.eq('type', typeFilter);
+    if (genreFilter) query = query.eq('genre', canonGenere(genreFilter));
+    if (moodFilter) query = query.eq('mood', moodFilter);
+    
+    if (sourceFilter === 'Wishlist') query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%');
+    else if (sourceFilter) query = query.ilike('source', `%${sourceFilter}%`);
+    
+    if (letterFilter) { 
+      const col = letterMode === 'title' ? 'title' : 'author';
+      query = query.ilike(col, `${letterFilter}%`); 
+    }
+    if (yearFilter) query = query.eq('year', Number(yearFilter));
+
+    // 3. IL TRUCCO: Range altissimo invece di limit(500)
+    // Scarica fino a 10.000 elementi in un colpo solo
+    const { data, error } = await query.range(0, 9999);
+
+    setIsSaving(false);
+
+    if (error) {
+      showToast("Errore Export: " + error.message, "error");
+    } else if (data) {
+      // 4. Adattiamo i dati per il CSV (stessa logica di fetchItems)
+      const adapted = data.map(row => ({
+        ...row,
+        kind: normType(row.kind),
+        creator: row.creator,
+        sourcesArr: parseSources(row.sources)
+      }));
+      
+      exportItemsToCsv(adapted);
+      showToast(`Esportazione completata: ${adapted.length} elementi.`, "success");
+    }
+  };
+
   /* --- 6. RENDER (JSX) --- */
   return (
     <div className="app">
@@ -1901,7 +1969,7 @@ const handleUpdateItem = useCallback(async (e) => {
             <div style={{height:1, backgroundColor:'#e2e8f0', margin:'20px 0'}}></div>
             <div style={{display:'flex', flexDirection:'column', gap:16}}>
               <div style={{display:'flex', gap:12}}>
-                  <button className="ghost" onClick={()=>exportItemsToCsv(items)} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
+                  <button className="ghost" onClick={handleSmartExport} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>📤 Esporta CSV</button>
                   <button className="ghost" onClick={handleCleanupSuggest} style={{flex:1, padding:'12px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', color:'#4a5568', display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:'0.95em'}}>🧹 Pulizia Zen</button>
               </div>
                 
