@@ -1344,71 +1344,100 @@ const handleUpdateItem = useCallback(async (e) => {
     }
   }, [items, stats.total]);
 
-  /* --- FUNZIONE EXPORT SMART (Senza Limiti) --- */
+  /* --- FUNZIONE EXPORT "BULK" (SCARICA TUTTO A PEZZI) --- */
   const handleSmartExport = async () => {
-    showToast("Preparazione CSV in corso...", "info");
-    setIsSaving(true); // Mostra la barra Zen mentre scarica
+    showToast("Download database completo in corso...", "info");
+    setIsSaving(true); // Attiva la barra di caricamento
 
-    // 1. Costruiamo la query IDENTICA a quella di visualizzazione
-    let query = supabase
-      .from("items")
-      .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on")
-      .order("created_at", { ascending: false });
+    let allRows = [];
+    let page = 0;
+    const pageSize = 1000; // Scarichiamo 1000 elementi alla volta
+    let hasMore = true;
 
-    // 2. Replichiamo TUTTI i filtri attuali
-    if (q) {
-      const tagsFound = q.match(/#[a-z0-9_àèìòù]+/gi) || [];
-      const cleanText = q.replace(/#[a-z0-9_àèìòù]+/gi, '').trim();
-      tagsFound.forEach(tag => { query = query.ilike('note', `%${tag}%`); });
-      if (cleanText) { query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`); }
-    }
-    
-    if (statusFilter !== 'active') { // Nota: se è 'active', fetchItems lo metteva di default, qui se vuoi TUTTO devi gestire il caso
-         if(statusFilter) query = query.eq('status', statusFilter);
-    } else {
-         // Se il filtro è "Active" (default), esportiamo solo quelli attivi?
-         // O se l'utente vuole TUTTO il DB (Backup) deve togliere ogni filtro?
-         // Nel dubbio, rispettiamo fedelmente quello che vede a schermo:
-         query = query.eq('status', 'active');
-    }
-    
-    // Per fare un backup TOTALE (Archivio + Attivi), l'utente dovrebbe selezionare "Mostra Tutti" nei filtri se presente,
-    // oppure possiamo decidere che se non ci sono filtri specifici, scarica tutto.
-    // MODIFICA PER BACKUP TOTALE: Se statusFilter è vuoto (o gestito diversamente), scarica tutto.
-    // Nel tuo codice attuale statusFilter è sempre 'active' o 'archived' o ''.
-    
-    if (typeFilter) query = query.eq('type', typeFilter);
-    if (genreFilter) query = query.eq('genre', canonGenere(genreFilter));
-    if (moodFilter) query = query.eq('mood', moodFilter);
-    
-    if (sourceFilter === 'Wishlist') query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%');
-    else if (sourceFilter) query = query.ilike('source', `%${sourceFilter}%`);
-    
-    if (letterFilter) { 
-      const col = letterMode === 'title' ? 'title' : 'author';
-      query = query.ilike(col, `${letterFilter}%`); 
-    }
-    if (yearFilter) query = query.eq('year', Number(yearFilter));
+    try {
+      while (hasMore) {
+        // 1. Ricostruiamo la query da zero ad ogni giro (per evitare conflitti)
+        let query = supabase
+          .from("items")
+          .select("id,title,creator:author,kind:type,status,created_at,genre,mood,year,sources:source,video_url,note,is_next,finished_at:ended_on")
+          .order("created_at", { ascending: false });
 
-    // 3. IL TRUCCO: Range altissimo invece di limit(500)
-    // Scarica fino a 10.000 elementi in un colpo solo
-    const { data, error } = await query.range(0, 9999);
+        // 2. Riapplichiamo TUTTI i filtri (per permettere export parziali o totali)
+        if (q) {
+          const tagsFound = q.match(/#[a-z0-9_àèìòù]+/gi) || [];
+          const cleanText = q.replace(/#[a-z0-9_àèìòù]+/gi, '').trim();
+          tagsFound.forEach(tag => { query = query.ilike('note', `%${tag}%`); });
+          if (cleanText) { query = query.or(`title.ilike.%${cleanText}%,author.ilike.%${cleanText}%`); }
+        }
+        
+        // GESTIONE FILTRO STATO (IMPORTANTE PER IL BACKUP TOTALE)
+        if (statusFilter !== 'active') { 
+             if(statusFilter) query = query.eq('status', statusFilter);
+        } else {
+             // Se il filtro visuale è 'active' (default), ma vuoi fare un backup,
+             // questa logica scarica SOLO quelli attivi.
+             // Se vuoi scaricare SEMPRE TUTTO quando premi export, togli queste righe.
+             // Per ora lo lascio coerente con quello che vedi a schermo:
+             query = query.eq('status', 'active');
+        }
 
-    setIsSaving(false);
+        if (typeFilter) query = query.eq('type', typeFilter);
+        if (genreFilter) query = query.eq('genre', canonGenere(genreFilter));
+        if (moodFilter) query = query.eq('mood', moodFilter);
+        
+        if (sourceFilter === 'Wishlist') query = query.or('source.ilike.%Wishlist%,source.ilike.%da comprare%');
+        else if (sourceFilter) query = query.ilike('source', `%${sourceFilter}%`);
+        
+        if (letterFilter) { 
+          const col = letterMode === 'title' ? 'title' : 'author';
+          query = query.ilike(col, `${letterFilter}%`); 
+        }
+        if (yearFilter) query = query.eq('year', Number(yearFilter));
 
-    if (error) {
-      showToast("Errore Export: " + error.message, "error");
-    } else if (data) {
-      // 4. Adattiamo i dati per il CSV (stessa logica di fetchItems)
-      const adapted = data.map(row => ({
-        ...row,
-        kind: normType(row.kind),
-        creator: row.creator,
-        sourcesArr: parseSources(row.sources)
-      }));
-      
-      exportItemsToCsv(adapted);
-      showToast(`Esportazione completata: ${adapted.length} elementi.`, "success");
+        // 3. PAGINAZIONE (Il trucco per superare i 1000)
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        
+        const { data, error } = await query.range(from, to);
+
+        if (error) throw error;
+
+        if (data.length > 0) {
+          // Aggiungiamo i dati trovati al mucchio totale
+          allRows = [...allRows, ...data];
+          
+          // Se abbiamo scaricato MENO di 1000 elementi, significa che sono finiti
+          if (data.length < pageSize) {
+            hasMore = false;
+          } else {
+            // Altrimenti, prepariamoci a scaricare la pagina successiva
+            page++;
+          }
+        } else {
+          hasMore = false; // Nessun dato, fine.
+        }
+      }
+
+      // 4. FINE DOWNLOAD -> Generiamo il CSV
+      if (allRows.length > 0) {
+        const adapted = allRows.map(row => ({
+          ...row,
+          kind: normType(row.kind),
+          creator: row.creator,
+          sourcesArr: parseSources(row.sources)
+        }));
+        
+        exportItemsToCsv(adapted);
+        showToast(`Export completato: ${adapted.length} elementi totali!`, "success");
+      } else {
+        showToast("Nessun elemento da esportare.", "info");
+      }
+
+    } catch (error) {
+      console.error(error);
+      showToast("Errore durante l'export massivo: " + error.message, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
