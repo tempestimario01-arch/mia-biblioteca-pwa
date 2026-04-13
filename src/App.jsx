@@ -266,7 +266,7 @@ const LibraryItem = memo(({
             borderLeft: '3px solid #d6bc9b', 
             borderRadius: '0 8px 8px 0',
             color: '#4a5568', 
-            fontSize: '1.05rem', // Tipografia più importante
+            fontSize: '1.05rem',
             lineHeight: 1.6, 
             fontStyle: 'italic',
             animation: 'fadeIn 0.3s'
@@ -425,6 +425,7 @@ export default function App(){
   const [advOpen, setAdvOpen] = useState(false); 
   const [archModal, setArchModal] = useState(null); 
   const [statsModalOpen, setStatsModalOpen] = useState(false); 
+  const [suggestModalOpen, setSuggestModalOpen] = useState(false); // NUOVO STATO PER IL MODALE DADO
   const [statsView, setStatsView] = useState('periodo'); 
   const [editState, setEditState] = useState(null);
     
@@ -1282,6 +1283,8 @@ const handleUpdateItem = useCallback(async (e) => {
             </button>
           )}
 
+          {/* DADO SPOSTATO NELLA BARRA STRUMENTI */}
+          <button className="ghost" onClick={() => setSuggestModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Consigliami qualcosa">🎲</button>
           <button className="ghost" onClick={()=>setStatsModalOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Statistiche">📊</button>
           <button className="ghost" onClick={()=>setAdvOpen(true)} style={{padding:'8px', fontSize:'1.1em', opacity:0.7}} title="Menu Avanzato">⚙️</button>
         </div>
@@ -1373,16 +1376,15 @@ const handleUpdateItem = useCallback(async (e) => {
       {/* ===== HOME ZEN (Minimalista) ===== */}
       {!isSearchActive && !loading && (
         <>
-          {/* ===== SLOT DELLA MEMORIA (Ribilanciamento Tipografico) ===== */}
+          {/* ===== SLOT DELLA MEMORIA ===== */}
           {(dailyWidget === 'jar' && memoryQuote) || (dailyWidget === 'lane' && !memoryItem && memoryQuote) ? (
             
-            /* --- WIDGET: MEMORY JAR (Libera dal box, Spazio Bianco) --- */
             <div 
               onClick={() => setShowSource(!showSource)}
               style={{
-                marginTop: 40, marginBottom: 60, // Spazio bianco come Lusso
+                marginTop: 40, marginBottom: 60, 
                 backgroundColor: 'transparent',
-                border: 'none', // Niente più recinto
+                border: 'none', 
                 padding: '0 20px',
                 textAlign: 'center',
                 cursor: 'pointer',
@@ -1394,11 +1396,10 @@ const handleUpdateItem = useCallback(async (e) => {
                 gap: 12
               }}
             >
-              {/* La Citazione (Immersiva, Font Serif) */}
               <div style={{
                 fontFamily: '"Georgia", "Times New Roman", Times, serif',
                 fontStyle: 'italic',
-                fontSize: '1.6rem', // Ingigantito
+                fontSize: '1.6rem', 
                 color: '#2d3748', 
                 lineHeight: 1.6,
                 maxWidth: '100%',
@@ -1409,7 +1410,6 @@ const handleUpdateItem = useCallback(async (e) => {
                 <span style={{fontSize: '2rem', color: '#d6bc9b', position: 'absolute', bottom: -20, right: -15}}>”</span>
               </div>
 
-              {/* La Fonte */}
               <div style={{
                 opacity: showSource ? 1 : 0, 
                 height: showSource ? 'auto' : 0, 
@@ -1429,7 +1429,6 @@ const handleUpdateItem = useCallback(async (e) => {
 
           ) : memoryItem ? (
 
-            /* --- WIDGET: MEMORY LANE --- */
             <div style={{
                 marginTop: 40, marginBottom: 60, 
                 backgroundColor: 'transparent', 
@@ -1444,58 +1443,6 @@ const handleUpdateItem = useCallback(async (e) => {
             </div>
 
           ) : null}
-
-          {/* SUGGERIMENTO ZEN */}
-          {suggestion && (
-            <section className="card" style={{marginBottom:12, borderLeft: '4px solid #ed8936', backgroundColor: '#fffaf0', padding:'12px 16px'}}>
-              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
-                <div style={{flex:1}}> 
-                  <h3 style={{marginTop:0, marginBottom:4, fontSize:'1em', color:'#c05621'}}>🎲 Perché non provi...</h3>
-                  <div style={{fontSize:'1.1em', fontWeight:'bold', marginBottom:2}}>{suggestion.title}</div>
-                  <div style={{fontSize:'0.9em', opacity:0.8, marginBottom:8}}>{TYPE_ICONS[suggestion.kind]} {suggestion.author || "Autore sconosciuto"}</div>
-                  <div style={{display: 'flex', gap: 6, flexWrap: 'wrap'}}>
-                      {suggestion.genre && <span className="badge" style={{backgroundColor:'#edf2f7', color:'#4a5568'}}>{suggestion.genre}</span>}
-                  </div>
-                </div>
-                <div style={{display:'flex', flexDirection:'column', gap:8, alignItems:'center'}}>
-                   {suggestion.video_url && (
-                      <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" title="Apri subito" style={{display:'flex', alignItems:'center', justifyContent:'center', width: 40, height: 40, borderRadius: '50%', backgroundColor: '#feebc8', textDecoration:'none', fontSize:'1.4em'}}>{getLinkEmoji(suggestion.video_url)}</a>
-                   )}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* CONTROLLI DADO */}
-          <section className="card" style={{marginBottom:16, marginTop:16, padding:'12px', backgroundColor:'#FDF8F2', borderRadius:16, border:'1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)'}}>
-            <div style={{display:'flex', alignItems:'center', gap:8}}>
-              <div style={{display:'flex', gap:8, flex:1, minWidth:0}}>
-                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
-                   {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t}</option>)}
-                </select>
-
-                {showGenreInput(randKind) && (
-                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{flex:1, minWidth:0, padding:'10px 4px', borderRadius:10, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'0.9em', color:'#2d3748', textOverflow:'ellipsis'}}>
-                      <option value="">Genere</option>
-                      {GENRES.map(g=> <option key={g} value={g}>{g}</option>)}
-                  </select>
-                )}
-              </div>
-
-              <button 
-                onClick={handleSuggest} 
-                title="Dammi un consiglio!"
-                style={{
-                  width: 48, height: 48, borderRadius: 12, border: '1px solid #ed8936', 
-                  backgroundColor: '#FDF8F2', color: '#ed8936', fontSize: '1.6rem', 
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 5px rgba(237, 137, 54, 0.3)', flexShrink: 0
-                }}
-              >
-                🎲
-              </button>
-            </div>
-          </section>
         </>
       )}
         
@@ -1570,7 +1517,7 @@ const handleUpdateItem = useCallback(async (e) => {
       {/* ===== FAB / MODALI ===== */}
       <button onClick={() => setAddModalOpen(true)} className="fab">+</button>
         
-      {/* ===== MODALE AGGIUNTA (Semplificato) ===== */}
+      {/* ===== MODALE AGGIUNTA ===== */}
       {addModalOpen && (
         <div className="modal-backdrop" onClick={() => setAddModalOpen(false)}>
           <div className="card" style={{maxWidth:500, width:"94%", padding:"20px 24px", borderRadius: 20, backgroundColor:'#FDF8F2'}} onClick={e => e.stopPropagation()}>
@@ -1639,6 +1586,58 @@ const handleUpdateItem = useCallback(async (e) => {
               <button type="button" className="ghost" onClick={()=>setAddModalOpen(false)} style={{flex:1, padding:'14px', borderRadius:12, color:'#718096', fontWeight:'600'}}>Annulla</button>
               <button type="submit" form="add-form" style={{flex:2, padding:'14px', borderRadius:12, backgroundColor:'#3e3e3e', color:'white', fontWeight:'600', border:'none', boxShadow:'0 4px 6px rgba(0,0,0,0.1)'}}>Salva Elemento</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODALE DADO ZEN ===== */}
+      {suggestModalOpen && (
+        <div className="modal-backdrop" onClick={() => { setSuggestModalOpen(false); setSuggestion(null); }}>
+          <div className="card" style={{maxWidth: 400, width: "90%", padding: "32px 24px", borderRadius: 24, backgroundColor: '#FDF8F2', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.15)'}} onClick={e => e.stopPropagation()}>
+            <div style={{fontSize:'3rem', marginBottom:8}}>🎲</div>
+            <h2 style={{marginTop: 0, color: '#2d3748', fontSize: '1.5rem'}}>Lascia fare al caso</h2>
+            <p style={{color: '#718096', fontSize: '0.9rem', marginBottom: 24}}>Scegli cosa ti va, o lascia tutto vuoto per una sorpresa totale.</p>
+
+            {!suggestion ? (
+              <div style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+                <select value={randKind} onChange={e=>setRandKind(e.target.value)} style={{padding:'14px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'1rem', color: '#2d3748', fontWeight: '500'}}>
+                   {TYPES.filter(t => t !== 'audiolibro').map(t=> <option key={t} value={t}>{TYPE_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                </select>
+
+                {showGenreInput(randKind) && (
+                  <select value={randGenre} onChange={e=>setRandGenre(e.target.value)} style={{padding:'14px', borderRadius:12, border: `1px solid ${BORDER_COLOR}`, backgroundColor:'transparent', fontSize:'1rem', color: '#4a5568'}}>
+                      <option value="">Qualsiasi Genere</option>
+                      {GENRES.map(g=> <option key={g} value={g}>{g.charAt(0).toUpperCase() + g.slice(1)}</option>)}
+                  </select>
+                )}
+
+                <button
+                  onClick={handleSuggest}
+                  style={{
+                    padding: '16px', borderRadius: 16, backgroundColor: '#ed8936', color: 'white', fontSize: '1.1rem',
+                    fontWeight: 'bold', border: 'none', cursor: 'pointer', marginTop: 12, boxShadow: '0 4px 12px rgba(237, 137, 54, 0.3)',
+                    transition: 'transform 0.1s'
+                  }}
+                >
+                  Genera Risonanza
+                </button>
+              </div>
+            ) : (
+              <div style={{marginTop: 8, textAlign: 'left', padding: '20px', backgroundColor: 'white', borderRadius: 16, border: `1px solid ${BORDER_COLOR}`}}>
+                <div style={{fontSize:'0.85em', color:'#ed8936', fontWeight:'bold', letterSpacing: '0.05em', marginBottom:8}}>IL DADO HA SCELTO:</div>
+                <div style={{fontSize:'1.4rem', fontWeight:'bold', color: '#2d3748', marginBottom:4, lineHeight: 1.2}}>{suggestion.title}</div>
+                <div style={{fontSize:'1rem', color: '#718096', marginBottom:16}}>{TYPE_ICONS[suggestion.kind]} {suggestion.author || "Autore sconosciuto"}</div>
+                
+                {suggestion.genre && <span style={{backgroundColor:'#edf2f7', color:'#4a5568', padding: '4px 10px', borderRadius: 8, fontSize: '0.85em', fontWeight: '500'}}>{suggestion.genre}</span>}
+
+                <div style={{display:'flex', gap: 12, marginTop: 24}}>
+                   <button className="ghost" onClick={() => setSuggestion(null)} style={{flex: 1, padding: '12px', borderRadius: 12, border: `1px solid ${BORDER_COLOR}`, color: '#718096', fontWeight: 'bold', cursor: 'pointer'}}>Riprova</button>
+                   {suggestion.video_url && (
+                      <a href={suggestion.video_url} target="_blank" rel="noopener noreferrer" style={{flex: 1, display:'flex', alignItems:'center', justifyContent:'center', padding: '12px', borderRadius: 12, backgroundColor: '#2d3748', color: 'white', textDecoration: 'none', fontWeight: 'bold'}}>Apri Link</a>
+                   )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
